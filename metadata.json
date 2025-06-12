@@ -1,0 +1,6 @@
+{
+  "name": "Football Bet Hub",
+  "description": "A web application for groups to create and participate in friendly football match betting, featuring admin and member roles, match data integration, and a leaderboard.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

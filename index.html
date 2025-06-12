@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vnext FootballHub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: 'var(--color-primary, #f97316)', // Default primary color (Orange)
+              secondary: 'var(--color-secondary, #475569)', // Default secondary color (Slate)
+              background: 'var(--color-background, #f8f9fa)', // Default background
+              surface: 'var(--color-surface, #ffffff)', // Default surface for cards, modals
+              textPrimary: 'var(--color-text-primary, #212529)', // Default primary text
+              textSecondary: 'var(--color-text-secondary, #495057)', // Default secondary text
+              success: '#28a745',
+              danger: '#dc3545',
+              warning: '#ffc107', // This is a Tailwind yellow-500, often used for warnings. Could be adjusted if needed.
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif; /* A nice, modern sans-serif font */
+        @apply bg-background text-textPrimary;
+      }
+      /* Custom scrollbar for better aesthetics */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        @apply bg-gray-100; /* Consider var(--color-surface) or var(--color-background) */
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        @apply bg-primary; /* Will now be orange */
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        @apply bg-opacity-80; /* Orange with 80% opacity */
+      }
+      :root {
+        --color-primary: #f97316; /* Orange-500 */
+        --color-secondary: #475569; /* Slate-600 */
+        --color-background: #f1f5f9; /* Slate-100 */
+        --color-surface: #ffffff;
+        --color-text-primary: #1e293b; /* Slate-800 */
+        --color-text-secondary: #475569; /* Slate-600 */
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.6.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
