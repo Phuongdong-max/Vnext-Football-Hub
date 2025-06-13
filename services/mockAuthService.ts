@@ -1,8 +1,7 @@
-
 import { User, UserRole } from '../types';
 import { MOCK_USERS_DATA, INITIAL_USER_POINTS } from '../constants';
 
-const SESSION_STORAGE_KEY = 'currentUserFootballBetHub';
+export const SESSION_STORAGE_KEY = 'currentUserFootballBetHub';
 
 // Simulate a database of users
 let users: User[] = MOCK_USERS_DATA.map(u => ({...u})); // Create a mutable copy
@@ -69,9 +68,3 @@ export const resetMockUsers = (): void => {
         }
     }
 };
-
-// Initialize with reset for consistent demo state on page load (optional)
-// resetMockUsers(); // This might be too aggressive if persistence across refreshes is desired for the demo.
-// The user points are primarily managed in `mockBettingService` when results are updated.
-// This service `updateUserPointsInMock` is called by `AppContext` which is called by betting service.
-    
