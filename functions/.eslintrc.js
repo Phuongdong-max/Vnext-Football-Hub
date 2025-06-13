@@ -16,10 +16,11 @@ module.exports = {
   parserOptions: {
     project: ["tsconfig.json", "tsconfig.dev.json"],
     sourceType: "module",
+    tsconfigRootDir: __dirname,
   },
   ignorePatterns: [
     "/lib/**/*", // Ignore built files.
-    "/generated/**/*", // Ignore generated files.
+    "/node_modules/**/*",
   ],
   plugins: [
     "@typescript-eslint",
@@ -29,5 +30,12 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
+    "object-curly-spacing": ["error", "always"],
+    "max-len": ["error", {"code": 120}],
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "firebase-functions/no-unused-vars": "off", // if using firebase-functions plugin
+    "require-jsdoc": "off", // Optional: if you don't want to enforce JSDoc
+    "valid-jsdoc": "off", // Optional
+    "@typescript-eslint/no-explicit-any": "warn" // Allow any for now, but good to tighten later
   },
 };

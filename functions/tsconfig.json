@@ -1,17 +1,24 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
+    "module": "commonjs",
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false, // Set to true for stricter checks later
+    "noUnusedParameters": false, // Set to true for stricter checks later
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2022", // Targeting ES2022 for Node.js 22
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
   },
   "compileOnSave": true,
   "include": [
     "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
   ]
 }

@@ -1,5 +1,10 @@
 {
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true // Important for a "dev" config used by ESLint
+  },
   "include": [
-    ".eslintrc.js"
+    "src",
+    ".eslintrc.js" // Include ESLint config itself if it's JS
   ]
 }

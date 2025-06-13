@@ -4,8 +4,8 @@ export const APP_TITLE = "Vnext FootballHub";
 
 // REPLACE WITH YOUR ACTUAL DEPLOYED FUNCTION URL
 // Example after deployment: https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/footballApiProxy
-// If 'vnext-football-hub' IS your project ID, then the URL below is likely correct.
-// Otherwise, ensure 'vnext-football-hub' is replaced with your Firebase project ID.
+// Since your project ID appears to be 'vnext-football-hub', the URL below is likely correct.
+// If not, ensure 'vnext-football-hub' is replaced with your Firebase project ID.
 export const FOOTBALL_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/footballApiProxy'; 
 
 export const MOCK_ADMIN_ID = 'admin001';

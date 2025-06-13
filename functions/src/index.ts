@@ -1,10 +1,11 @@
-
 // functions/src/index.ts
 
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions"; // For logger
+// Use Request and Response types directly from firebase-functions/v1/https
+import { onRequest, Request, Response } from "firebase-functions/v1/https";
 import axios, {isAxiosError} from "axios";
 import cors from "cors";
-// Removed: import {Request as ExpressRequest, Response as ExpressResponse} from "express";
+
 
 const allowedOrigins = [
   "http://127.0.0.1:8000",
@@ -15,9 +16,10 @@ const allowedOrigins = [
 ];
 
 const corsHandler = cors({
-  origin: (requestOrigin, callback) => { // Renamed 'origin' to 'requestOrigin' to avoid conflict with 'Origin' header
+  origin: (requestOrigin, callback) => {
     functions.logger.info("Request origin:", requestOrigin);
-    if (!requestOrigin) { // Allow requests with no origin (like server-to-server or mobile apps)
+    if (!requestOrigin) {
+      // Allow requests with no origin (like curl requests, server-to-server)
       return callback(null, true);
     }
     if (allowedOrigins.indexOf(requestOrigin) === -1) {
@@ -33,37 +35,38 @@ const corsHandler = cors({
 
 const FOOTBALL_DATA_ORG_BASE_URL = "https://api.football-data.org/v4";
 
-export const footballApiProxy = functions.https.onRequest(
-  (request: functions.https.Request, response: functions.Response) => { // Use Firebase's Request and Response types
-    corsHandler(request, response, (err?: Error | any) => { // err can be Error or any other type from middleware
+export const footballApiProxy = onRequest(
+  // Use the Request and Response types directly from firebase-functions/v1/https
+  (request: Request, response: Response) => {
+    corsHandler(request, response, (err?: unknown) => { // Now `request` is firebase-functions/v1/https.Request and `response` is firebase-functions/v1/https.Response
       if (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown CORS error";
         functions.logger.error("CORS error:", errorMessage, err);
-        response.status(500).send("CORS error: " + errorMessage);
+        response.status(500).send("CORS error: " + errorMessage); // .status() should be available
         return;
       }
 
-      // If CORS passed, proceed with the proxy logic
-      const rawTargetPath = request.query.targetPath;
+      const rawTargetPath = request.query.targetPath; // .query should be available
       const targetPath = Array.isArray(rawTargetPath)
-        ? rawTargetPath[0]
-        : rawTargetPath;
+        ? rawTargetPath[0] as string
+        : rawTargetPath as string;
 
       if (typeof targetPath !== "string" || !targetPath) {
-        response.status(400).send(
+        response.status(400).send( // .status() should be available
           "Missing or invalid targetPath parameter."
         );
         return;
       }
 
-      const apiKey = functions.config().football?.apikey;
+      // Use process.env for environment variables in Cloud Functions v2 (and v1)
+      const apiKey = process.env.FOOTBALL_DATA_API_KEY;
 
       if (!apiKey) {
         functions.logger.error(
-          "Football API key not configured in Firebase Functions environment."
+          "Environment variable FOOTBALL_DATA_API_KEY not configured for the Cloud Function."
         );
-        response.status(500).send(
-          "Proxy API key is not configured."
+        response.status(500).send( // .status() should be available
+          "Proxy API key (environment variable) is not configured."
         );
         return;
       }
@@ -73,11 +76,12 @@ export const footballApiProxy = functions.https.onRequest(
       }`;
 
       const queryParams = new URLSearchParams();
-      for (const key in request.query) {
+      for (const key in request.query) { // .query should be available
         if (Object.prototype.hasOwnProperty.call(request.query, key) && key !== "targetPath") {
           const valueRaw = request.query[key];
           if (valueRaw !== undefined) {
             const value = Array.isArray(valueRaw) ? valueRaw[0] : valueRaw;
+            // Ensure value is stringifiable for URLSearchParams
             if (value !== undefined && typeof value === 'string') {
                  queryParams.append(key, value);
             } else if (value !== undefined) {
@@ -103,7 +107,7 @@ export const footballApiProxy = functions.https.onRequest(
           timeout: 10000, // 10 seconds timeout
         })
         .then(apiResponse => {
-          response.status(apiResponse.status).send(apiResponse.data);
+          response.status(apiResponse.status).send(apiResponse.data); // .status() should be available
         })
         .catch((error: unknown) => {
           let errorMessage =
@@ -120,22 +124,23 @@ export const footballApiProxy = functions.https.onRequest(
             {
               message: errorMessage,
               url: externalApiUrl,
-              originalError: error,
+              originalError: error, // Log the original error object
             }
           );
 
           if (isAxiosError(error) && error.response) {
             responseStatus = error.response.status;
             responseData = error.response.data;
-            functions.logger.error("Axios error details:", {
+            functions.logger.error("Axios error details from upstream API:", { // More specific log
               status: responseStatus,
               data: responseData,
             });
-            response.status(responseStatus).send(
-              responseData || errorMessage
+            // Send the actual response body from the external API if available
+            response.status(responseStatus).send( // .status() should be available
+              responseData || errorMessage // Fallback to generic message if data is null/undefined
             );
           } else {
-            response.status(responseStatus).send(errorMessage);
+            response.status(responseStatus).send(errorMessage); // .status() should be available
           }
         });
     });
