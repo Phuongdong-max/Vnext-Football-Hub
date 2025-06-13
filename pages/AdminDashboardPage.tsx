@@ -1,58 +1,109 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam } from '../types';
+import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, League } from '../types';
 import { useAppContext } from '../App';
 import { createBettingRound, getBettingRoundsByAdmin, updateMatchResult as updateBettingRoundResult } from '../services/mockBettingService';
-import { getUpcomingMatches } from '../services/mockFootballApiService';
+// Import new API service and mock data as fallback
+import { fetchAvailableLeagues, fetchMatchesByDateAndLeague, checkIsFootballApiAvailable } from '../services/footballApiService';
+import { getUpcomingMatches as getMockUpcomingMatches } from '../services/mockFootballApiService'; // Mock fallback
 import { CreateBettingRoundModal } from '../components/Admin/CreateBettingRoundModal';
 import { UpdateResultModal } from '../components/Admin/UpdateResultModal';
 import { AdminMatchCard } from '../components/Admin/AdminMatchCard';
 import { Button } from '../components/shared/Button';
-import { PlusCircleIcon, RefreshIcon } from '../components/icons';
+import { PlusCircleIcon, RefreshIcon, ShieldExclamationIcon } from '../components/icons';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, addToast, refreshLeaderboard, updateUserPoints } = useAppContext();
   const [bettingRounds, setBettingRounds] = useState<BettingRound[]>([]);
-  const [upcomingMatches, setUpcomingMatches] = useState<FootballMatch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [apiAvailable, setApiAvailable] = useState(false); // Local state for API availability
+  const [leagues, setLeagues] = useState<League[]>([]);
+  // apiMatches is not stored here anymore, modal handles its display directly from fetchMatchesFunction.
+  const [mockMatches, setMockMatches] = useState<FootballMatch[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(true); // Overall page loading
+  const [isDataLoading, setIsDataLoading] = useState(false); // For specific data refresh actions like "Refresh Data" button
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedRoundForUpdate, setSelectedRoundForUpdate] = useState<BettingRound | null>(null);
 
-  const fetchAdminData = useCallback(async () => {
-    if (!currentUser || currentUser.role !== 'admin') return;
-    setIsLoading(true);
+  const fetchAdminPageData = useCallback(async (isManualRefresh = false) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+        setIsLoading(false); // Stop loading if not admin
+        return;
+    }
+    if(isManualRefresh) setIsDataLoading(true); else setIsLoading(true);
+
+    const initialApiCheck = checkIsFootballApiAvailable();
+    setApiAvailable(initialApiCheck); // Set local UI state based on initial config check
+
     try {
-      const [rounds, matches] = await Promise.all([
-        getBettingRoundsByAdmin(currentUser.id),
-        getUpcomingMatches()
-      ]);
+      const rounds = await getBettingRoundsByAdmin(currentUser.id);
       setBettingRounds(rounds.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ));
-      setUpcomingMatches(matches);
-    } catch (error) {
+      
+      if (initialApiCheck) {
+        try {
+          const fetchedLeagues = await fetchAvailableLeagues();
+          setLeagues(fetchedLeagues);
+          if (fetchedLeagues.length === 0) {
+            addToast("No leagues available from API. Either none match criteria or API service is limited.", "info");
+          }
+        } catch (apiError) {
+          console.error("API error fetching leagues:", apiError);
+          addToast(`Failed to fetch leagues: ${(apiError as Error).message}`, "error");
+          setApiAvailable(false); // Update local UI state if API call fails
+          const fallbackMatches = await getMockUpcomingMatches();
+          setMockMatches(fallbackMatches);
+        }
+      } else {
+        addToast("Football API key not configured. Using mock match data.", "info");
+        const fallbackMatches = await getMockUpcomingMatches();
+        setMockMatches(fallbackMatches);
+      }
+    } catch (error) { // Catch errors from getBettingRoundsByAdmin or getMockUpcomingMatches
       console.error("Error fetching admin data:", error);
       addToast("Failed to load admin data.", "error");
+      if (initialApiCheck) { // If API was thought to be available, but other parts failed
+         setApiAvailable(false); // Mark as unavailable for UI
+      }
+      const fallbackMatches = await getMockUpcomingMatches(); 
+      setMockMatches(fallbackMatches);
     } finally {
-      setIsLoading(false);
+      if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
   }, [currentUser, addToast]);
 
   useEffect(() => {
-    fetchAdminData();
-  }, [fetchAdminData]);
-
-  const handleCreateRound = async (matchId: string) => {
-    if (!currentUser) return;
-    const selectedMatch = upcomingMatches.find(m => m.id === matchId);
-    if (!selectedMatch) {
-      addToast("Selected match not found.", "error");
-      return;
+    fetchAdminPageData();
+  }, [fetchAdminPageData]); // fetchAdminPageData is memoized
+  
+  const handleLoadMatchesFromApi = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
+    if (!apiAvailable) { // Check our local component state for API availability
+      addToast("API is not available to fetch matches.", "info");
+      return [];
     }
+    // The modal will show its own loading state.
     try {
-      await createBettingRound(selectedMatch, currentUser.id);
+      const matches = await fetchMatchesByDateAndLeague(date, leagueCode);
+      if (matches.length === 0) {
+        addToast(`No matches found for ${leagueCode} on ${new Date(date).toLocaleDateString()}.`, "info");
+      }
+      return matches;
+    } catch (error) {
+      addToast(`Failed to fetch matches: ${(error as Error).message}`, "error");
+      setApiAvailable(false); // Set local state to false if API call fails
+      return [];
+    }
+  }, [apiAvailable, addToast]);
+
+
+  const handleCreateRound = async (matchToCreate: FootballMatch) => {
+    if (!currentUser) return;
+    try {
+      await createBettingRound(matchToCreate, currentUser.id);
       addToast("Betting round created successfully!", "success");
-      fetchAdminData(); // Refresh list
+      fetchAdminPageData(true); // Pass true to indicate manual refresh for setIsDataLoading
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error("Error creating betting round:", error);
@@ -70,7 +121,7 @@ export const AdminDashboardPage: React.FC = () => {
     try {
       const updatedRound = await updateBettingRoundResult(roundId, winningTeam, updateUserPoints);
       addToast(`Result updated for round: ${updatedRound.matchDetails.homeTeam} vs ${updatedRound.matchDetails.awayTeam}`, "success");
-      fetchAdminData(); // Refresh list
+      fetchAdminPageData(true); 
       refreshLeaderboard();
       setIsUpdateModalOpen(false);
       setSelectedRoundForUpdate(null);
@@ -97,8 +148,8 @@ export const AdminDashboardPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-textPrimary">Admin Dashboard</h1>
         <div className="space-x-2">
-           <Button onClick={fetchAdminData} variant="outline" size="sm" title="Refresh Data">
-            <RefreshIcon className="w-5 h-5"/>
+           <Button onClick={() => fetchAdminPageData(true)} variant="outline" size="sm" title="Refresh Data" disabled={isDataLoading}>
+            {isDataLoading ? <LoadingSpinner size="sm" className="w-5 h-5"/> : <RefreshIcon className="w-5 h-5"/>}
           </Button>
           <Button onClick={() => setIsCreateModalOpen(true)} >
             <PlusCircleIcon className="w-5 h-5 mr-2" />
@@ -106,13 +157,25 @@ export const AdminDashboardPage: React.FC = () => {
           </Button>
         </div>
       </div>
+      
+      {!apiAvailable && ( // This uses the local state of AdminDashboardPage
+         <div className="p-3 bg-warning/10 border border-warning text-sm text-yellow-700 rounded-md flex items-center">
+            <ShieldExclamationIcon className="w-5 h-5 mr-2"/>
+            Live football match API is unavailable (API key might be missing, invalid, or service unreachable). Falling back to mock match data.
+        </div>
+      )}
+
 
       {isCreateModalOpen && (
         <CreateBettingRoundModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          upcomingMatches={upcomingMatches}
-          onCreate={handleCreateRound}
+          apiAvailable={apiAvailable} // Pass local component state
+          leagues={leagues}
+          mockMatches={mockMatches} 
+          fetchMatchesFunction={handleLoadMatchesFromApi}
+          onCreateRound={handleCreateRound}
+          isDataLoading={isDataLoading} 
         />
       )}
 

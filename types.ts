@@ -14,11 +14,19 @@ export interface User {
 }
 
 export interface FootballMatch {
-  id: string;
+  id: string; // Will be the API's match ID
   homeTeam: string;
   awayTeam: string;
   startTime: Date;
-  league: string;
+  league: string; // League Name
+  leagueCode?: string; // Optional: API's code for the league
+  status?: string; // Optional: Match status from API (e.g., SCHEDULED, TIMED, IN_PLAY, FINISHED)
+}
+
+export interface League {
+  id: string; // API's ID or code for the league
+  name: string;
+  areaName?: string; // e.g., "England" for Premier League
 }
 
 export enum BettingRoundStatus {
@@ -50,7 +58,7 @@ export interface Bet {
 
 export interface BettingRound {
   id: string;
-  matchId: string; // Reference to FootballMatch
+  matchId: string; // Reference to FootballMatch (could be API's match ID)
   matchDetails: FootballMatch;
   status: BettingRoundStatus;
   bets: Bet[];
@@ -61,7 +69,7 @@ export interface BettingRound {
 
 export interface LeaderboardEntry {
   userId: string;
-  userName: string;
+  userName:string;
   avatarUrl?: string;
   points: number;
   betsMade: number;
@@ -73,4 +81,3 @@ export interface ToastMessage {
   message: string;
   type: 'success' | 'error' | 'info';
 }
-    

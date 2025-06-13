@@ -10,8 +10,7 @@ export const LeaderboardPage: React.FC = () => {
 
   useEffect(() => {
     refreshLeaderboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Refresh on mount
+  }, [refreshLeaderboard]); // Refresh on mount and if refreshLeaderboard instance changes
 
   return (
     <div className="space-y-6">

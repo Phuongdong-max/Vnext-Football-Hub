@@ -1,5 +1,6 @@
+
 import { firebaseConfig } from '../firebaseConfig';
-import { User, UserRole } from '../types';
+import { User, UserRole, LeaderboardEntry } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -141,4 +142,30 @@ export const getAppUserProfile = async (userId: string): Promise<User | null> =>
         return doc.data() as User;
     }
     return null;
+};
+
+export const getFirebaseLeaderboardEntries = async (): Promise<LeaderboardEntry[]> => {
+  if (!db) {
+    console.warn("Firestore not initialized. Cannot fetch Firebase leaderboard.");
+    return [];
+  }
+  try {
+    const usersSnapshot = await db.collection('users').orderBy('points', 'desc').get();
+    const leaderboardEntries: LeaderboardEntry[] = [];
+    usersSnapshot.forEach((doc: any) => {
+      const userData = doc.data() as User; // Assuming Firestore data matches User structure mostly
+      leaderboardEntries.push({
+        userId: userData.id,
+        userName: userData.name,
+        avatarUrl: userData.avatarUrl,
+        points: userData.points,
+        betsMade: 0, // Placeholder: Bets details are not in user profile
+        wins: 0,     // Placeholder: Wins details are not in user profile
+      });
+    });
+    return leaderboardEntries;
+  } catch (error) {
+    console.error("Error fetching Firebase leaderboard entries:", error);
+    return [];
+  }
 };
