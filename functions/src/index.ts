@@ -2,10 +2,10 @@
 // functions/src/index.ts
 
 import * as functions from "firebase-functions"; // For logger
-// Use HttpsRequest from firebase-functions/v2/https and Response from express for GCFv2
-import { onRequest, HttpsRequest } from "firebase-functions/v2/https";
-import { Response } from "express"; // Express Response type
-import axios, {isAxiosError, AxiosError} from "axios"; // Added AxiosError for explicit typing
+// Use onRequest and its specific Request types from firebase-functions/v2/https
+import { onRequest, Request as FirebaseV2Request } from "firebase-functions/v2/https"; // Renamed to avoid confusion with global Request
+import { Response as ExpressResponseType } from "express"; // Renamed to avoid confusion with global Response
+import axios, {isAxiosError, AxiosError} from "axios";
 import cors from "cors";
 
 
@@ -38,12 +38,15 @@ const corsHandler = cors({
 const FOOTBALL_DATA_ORG_BASE_URL = "https://api.football-data.org/v4";
 
 export const footballApiProxy = onRequest(
-  // Use HttpsRequest from v2 and Response from Express
-  (request: HttpsRequest, response: Response) => {
-    corsHandler(request, response, (err?: unknown) => {
-      if (err) {
-        const errorMessage = err instanceof Error ? err.message : "Unknown CORS error";
-        functions.logger.error("CORS error:", errorMessage, err);
+  async (request: FirebaseV2Request, response: ExpressResponseType): Promise<void> => {
+    // Cast request and response to 'any' for the corsHandler call to satisfy its type expectations,
+    // as Firebase v2 types might not perfectly align with Express types expected by 'cors'.
+    // The actual 'request' and 'response' objects used within the callback are the correctly typed
+    // FirebaseV2Request and ExpressResponseType from this function's scope.
+    corsHandler(request as any, response as any, async (corsErr?: Error | undefined) => {
+      if (corsErr) {
+        const errorMessage = corsErr instanceof Error ? corsErr.message : "Unknown CORS error";
+        functions.logger.error("CORS error:", errorMessage, corsErr);
         response.status(500).send("CORS error: " + errorMessage);
         return;
       }
@@ -99,48 +102,42 @@ export const footballApiProxy = onRequest(
 
       functions.logger.info(`Proxying request to: ${externalApiUrl}`);
 
-      axios.get(externalApiUrl, {
-          headers: {
-            "X-Auth-Token": apiKey,
-            "Accept": "application/json",
-          },
-          timeout: 10000, // 10 seconds timeout
-        })
-        .then(apiResponse => {
-          response.status(apiResponse.status).send(apiResponse.data);
-        })
-        .catch((error: unknown) => {
+      try {
+        const apiResponse = await axios.get(externalApiUrl, {
+            headers: {
+              "X-Auth-Token": apiKey,
+              "Accept": "application/json",
+            },
+            timeout: 10000, // 10 seconds timeout
+          });
+        response.status(apiResponse.status).send(apiResponse.data);
+      } catch (error: unknown) {
           let errorMessage = "Error fetching data from external API via proxy.";
           let responseStatus = 500; // Default error status
 
-          // Prepare details for logging
           let errorLogDetails: Record<string, any> = { url: externalApiUrl };
 
           if (error instanceof Error) {
-            errorMessage = error.message; // Base error message
+            errorMessage = error.message;
             errorLogDetails.name = error.name;
             errorLogDetails.message = error.message;
-            // Avoid logging full stack in concise error object unless verbose logging is on
-            // errorLogDetails.stack = error.stack;
           } else {
             errorLogDetails.errorObject = String(error);
           }
 
           functions.logger.error(
             "Proxy encountered an error:",
-            errorLogDetails // Log refined error details
+            errorLogDetails
           );
 
           if (isAxiosError(error)) {
-            // error is now of type AxiosError
-            const axiosError = error as AxiosError; // Explicit cast for clarity if needed, though isAxiosError guards
+            const axiosError = error as AxiosError;
             errorLogDetails.isAxiosError = true;
-            if (axiosError.code) { // e.g. 'ECONNABORTED', 'ERR_BAD_REQUEST'
+            if (axiosError.code) {
                 errorLogDetails.axiosErrorCode = axiosError.code;
             }
 
             if (axiosError.response) {
-              // Axios error with a response from the upstream API
               responseStatus = axiosError.response.status;
               const responseData = axiosError.response.data;
               functions.logger.error(
@@ -148,31 +145,26 @@ export const footballApiProxy = onRequest(
                 {
                   url: externalApiUrl,
                   status: responseStatus,
-                  data: responseData, // This can be large, consider logging selectively
+                  data: responseData,
                   axiosErrorMessage: axiosError.message,
                 }
               );
               response.status(responseStatus).send(responseData || errorMessage);
             } else {
-              // Axios error without a response (e.g., network error, timeout)
               functions.logger.warn(
                 "Axios error without response from upstream API (network issue or timeout):",
                 {
                   url: externalApiUrl,
-                  message: axiosError.message, // This is the primary message for network errors
+                  message: axiosError.message,
                   code: axiosError.code,
                 }
               );
-              // For network errors, errorMessage (from error.message) is usually informative
-              // responseStatus remains 500 (or could be 502, 503, 504 depending on policy)
               response.status(responseStatus).send(errorMessage);
             }
           } else {
-            // Non-Axios error (e.g., programming error before request, or other unexpected error type)
-            // errorMessage is already set if 'error instanceof Error'
             response.status(responseStatus).send(errorMessage);
           }
-        });
+        }
     });
   }
 );

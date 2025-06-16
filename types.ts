@@ -11,13 +11,15 @@ export interface User {
   role: UserRole;
   avatarUrl?: string;
   points: number;
+  betsMadeCount: number; // New field
+  winsCount: number;     // New field
 }
 
 export interface FootballMatch {
   id: string; // Will be the API's match ID
   homeTeam: string;
   awayTeam: string;
-  startTime: Date;
+  startTime: Date; // Stored as Timestamp in Firestore
   league: string; // League Name
   leagueCode?: string; // Optional: API's code for the league
   status?: string; // Optional: Match status from API (e.g., SCHEDULED, TIMED, IN_PLAY, FINISHED)
@@ -53,18 +55,19 @@ export interface Bet {
   roundId: string;
   selectedTeam: BetTeamSelection;
   pointsBet: number;
-  timestamp: Date;
+  timestamp: Date; // Stored as Timestamp in Firestore
 }
 
 export interface BettingRound {
   id: string;
   matchId: string; // Reference to FootballMatch (could be API's match ID)
-  matchDetails: FootballMatch;
+  matchDetails: FootballMatch; // Consider if all details need to be duplicated or just key ones
   status: BettingRoundStatus;
-  bets: Bet[];
+  bets: Bet[]; // Array of Bet objects
+  bettorIds?: string[]; // Array of user IDs who have bet on this round
   winningTeam?: MatchResultTeam | null; // null if not yet decided, or 'draw'
   createdBy: string; // Admin User ID
-  createdAt: Date;
+  createdAt: Date; // Stored as Timestamp in Firestore
 }
 
 export interface LeaderboardEntry {
@@ -72,8 +75,8 @@ export interface LeaderboardEntry {
   userName:string;
   avatarUrl?: string;
   points: number;
-  betsMade: number;
-  wins: number; // Could be enhanced later
+  betsMade: number; // Will come from User.betsMadeCount
+  wins: number;     // Will come from User.winsCount
 }
 
 export interface ToastMessage {

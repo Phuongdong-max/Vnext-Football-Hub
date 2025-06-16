@@ -39,8 +39,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.footballApiProxy = void 0;
 const functions = __importStar(require("firebase-functions")); // For logger
-// Use Request and Response types directly from firebase-functions/v1/https
-const https_1 = require("firebase-functions/v1/https");
+// Use onRequest and its specific Request types from firebase-functions/v2/https
+const https_1 = require("firebase-functions/v2/https");
 const axios_1 = __importStar(require("axios"));
 const cors_1 = __importDefault(require("cors"));
 const allowedOrigins = [
@@ -68,40 +68,39 @@ const corsHandler = (0, cors_1.default)({
 });
 const FOOTBALL_DATA_ORG_BASE_URL = "https://api.football-data.org/v4";
 exports.footballApiProxy = (0, https_1.onRequest)(
-// Use the Request and Response types directly from firebase-functions/v1/https
-(request, response) => {
-    corsHandler(request, response, (err) => {
-        if (err) {
-            const errorMessage = err instanceof Error ? err.message : "Unknown CORS error";
-            functions.logger.error("CORS error:", errorMessage, err);
-            response.status(500).send("CORS error: " + errorMessage); // .status() should be available
+// Use FirebaseRequest and ExpressResponse types
+async (request, response) => {
+    // Cast request to 'any' for corsHandler to resolve potential type conflicts
+    // FirebaseRequest should be compatible, but this is a common workaround.
+    corsHandler(request, response, async (corsErr) => {
+        if (corsErr) {
+            const errorMessage = corsErr instanceof Error ? corsErr.message : "Unknown CORS error";
+            functions.logger.error("CORS error:", errorMessage, corsErr);
+            response.status(500).send("CORS error: " + errorMessage);
             return;
         }
-        const rawTargetPath = request.query.targetPath; // .query should be available
+        const rawTargetPath = request.query.targetPath;
         const targetPath = Array.isArray(rawTargetPath)
             ? rawTargetPath[0]
             : rawTargetPath;
         if (typeof targetPath !== "string" || !targetPath) {
-            response.status(400).send(// .status() should be available
-            "Missing or invalid targetPath parameter.");
+            response.status(400).send("Missing or invalid targetPath parameter.");
             return;
         }
-        // Use process.env for environment variables in Cloud Functions v2 (and v1)
         const apiKey = process.env.FOOTBALL_DATA_API_KEY;
         if (!apiKey) {
             functions.logger.error("Environment variable FOOTBALL_DATA_API_KEY not configured for the Cloud Function.");
-            response.status(500).send(// .status() should be available
-            "Proxy API key (environment variable) is not configured.");
+            response.status(500).send("Proxy API key (environment variable) is not configured.");
             return;
         }
         let externalApiUrl = `${FOOTBALL_DATA_ORG_BASE_URL}${targetPath.startsWith("/") ? targetPath : `/${targetPath}`}`;
         const queryParams = new URLSearchParams();
-        for (const key in request.query) { // .query should be available
+        // Access query parameters from request.query (Firebase Functions V2 style)
+        for (const key in request.query) {
             if (Object.prototype.hasOwnProperty.call(request.query, key) && key !== "targetPath") {
                 const valueRaw = request.query[key];
                 if (valueRaw !== undefined) {
                     const value = Array.isArray(valueRaw) ? valueRaw[0] : valueRaw;
-                    // Ensure value is stringifiable for URLSearchParams
                     if (value !== undefined && typeof value === 'string') {
                         queryParams.append(key, value);
                     }
@@ -117,44 +116,59 @@ exports.footballApiProxy = (0, https_1.onRequest)(
                 queryString;
         }
         functions.logger.info(`Proxying request to: ${externalApiUrl}`);
-        axios_1.default.get(externalApiUrl, {
-            headers: {
-                "X-Auth-Token": apiKey,
-                "Accept": "application/json",
-            },
-            timeout: 10000, // 10 seconds timeout
-        })
-            .then(apiResponse => {
-            response.status(apiResponse.status).send(apiResponse.data); // .status() should be available
-        })
-            .catch((error) => {
+        try {
+            const apiResponse = await axios_1.default.get(externalApiUrl, {
+                headers: {
+                    "X-Auth-Token": apiKey,
+                    "Accept": "application/json",
+                },
+                timeout: 10000, // 10 seconds timeout
+            });
+            response.status(apiResponse.status).send(apiResponse.data);
+        }
+        catch (error) {
             let errorMessage = "Error fetching data from external API via proxy.";
-            let responseStatus = 500;
-            let responseData = null;
+            let responseStatus = 500; // Default error status
+            let errorLogDetails = { url: externalApiUrl };
             if (error instanceof Error) {
                 errorMessage = error.message;
-            }
-            functions.logger.error("Error calling Football-Data.org API via proxy:", {
-                message: errorMessage,
-                url: externalApiUrl,
-                originalError: error, // Log the original error object
-            });
-            if ((0, axios_1.isAxiosError)(error) && error.response) {
-                responseStatus = error.response.status;
-                responseData = error.response.data;
-                functions.logger.error("Axios error details from upstream API:", {
-                    status: responseStatus,
-                    data: responseData,
-                });
-                // Send the actual response body from the external API if available
-                response.status(responseStatus).send(// .status() should be available
-                responseData || errorMessage // Fallback to generic message if data is null/undefined
-                );
+                errorLogDetails.name = error.name;
+                errorLogDetails.message = error.message;
             }
             else {
-                response.status(responseStatus).send(errorMessage); // .status() should be available
+                errorLogDetails.errorObject = String(error);
             }
-        });
+            functions.logger.error("Proxy encountered an error:", errorLogDetails);
+            if ((0, axios_1.isAxiosError)(error)) {
+                const axiosError = error;
+                errorLogDetails.isAxiosError = true;
+                if (axiosError.code) {
+                    errorLogDetails.axiosErrorCode = axiosError.code;
+                }
+                if (axiosError.response) {
+                    responseStatus = axiosError.response.status;
+                    const responseData = axiosError.response.data;
+                    functions.logger.error("Axios error with response from upstream API:", {
+                        url: externalApiUrl,
+                        status: responseStatus,
+                        data: responseData,
+                        axiosErrorMessage: axiosError.message,
+                    });
+                    response.status(responseStatus).send(responseData || errorMessage);
+                }
+                else {
+                    functions.logger.warn("Axios error without response from upstream API (network issue or timeout):", {
+                        url: externalApiUrl,
+                        message: axiosError.message,
+                        code: axiosError.code,
+                    });
+                    response.status(responseStatus).send(errorMessage);
+                }
+            }
+            else {
+                response.status(responseStatus).send(errorMessage);
+            }
+        }
     });
 });
 //# sourceMappingURL=index.js.map

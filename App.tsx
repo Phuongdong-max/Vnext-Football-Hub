@@ -3,16 +3,18 @@ import React, { useState, useEffect, useCallback, createContext, useContext, use
 import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
 import { APP_TITLE, MOCK_USERS_DATA } from './constants'; 
-import { mockLogin as performMockLogin, mockLogout as performMockLogout, getCurrentUser as getCurrentMockUser, updateUserPointsInMock, SESSION_STORAGE_KEY } from './services/mockAuthService';
+import { mockLogin as performMockLogin, mockLogout as performMockLogout, getCurrentUser as getCurrentMockUser, updateUserPointsInMock, SESSION_STORAGE_KEY, resetMockUsers } from './services/mockAuthService';
 import { 
   initializeFirebase, 
   onFirebaseAuthStateChanged, 
   signInWithGoogle as performSignInWithGoogle, 
   firebaseSignOut as performFirebaseSignOut,
   updateUserPointsInFirestore,
-  getFirebaseLeaderboardEntries 
+  getFirebaseLeaderboardEntries, 
+  findOrCreateUserProfile, // Import findOrCreateUserProfile
+  getAppUserProfile
 } from './services/firebaseService';
-import { getLeaderboard as getMockLeaderboard } from './services/mockBettingService'; 
+import { getLeaderboard as getMockLeaderboard, resetMockBettingData } from './services/mockBettingService'; 
 import { Header } from './components/Header';
 import { AuthComponent } from './components/Auth';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
@@ -30,7 +32,7 @@ interface AppContextType {
   leaderboard: LeaderboardEntry[];
   refreshLeaderboard: () => void;
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
-  updateUserPoints: (userId: string, points: number) => void;
+  updateUserPoints: (userId: string, points: number) => Promise<void>; 
   isFirebaseReady: boolean;
 }
 
@@ -47,9 +49,9 @@ export function useAppContext() {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Overall app loading
-  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false); // Specific to leaderboard UI refresh
-  const isLeaderboardLoadingRef = useRef(false); // Ref for re-entrancy guard
+  const [isLoading, setIsLoading] = useState(true); 
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const isLeaderboardLoadingRef = useRef(false);
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isEnvironmentSupported, setIsEnvironmentSupported] = useState(true);
@@ -61,18 +63,18 @@ const App: React.FC = () => {
   }, []);
 
   const refreshLeaderboard = useCallback(async () => {
-    if (isLeaderboardLoadingRef.current) return; // Prevent re-entry if already loading
+    if (isLeaderboardLoadingRef.current) return; 
 
     isLeaderboardLoadingRef.current = true;
     setIsLeaderboardLoading(true); 
     try {
-      let data: LeaderboardEntry[] = [];
+      let data: LeaderboardEntry[];
       if (isFirebaseReady && isEnvironmentSupported) {
-        data = await getFirebaseLeaderboardEntries();
+        data = await getFirebaseLeaderboardEntries(); 
       } else {
         data = await getMockLeaderboard();
       }
-      setLeaderboard(data);
+      setLeaderboard(data.sort((a,b) => b.points - a.points));
     } catch (error) {
       console.error("Failed to refresh leaderboard:", error);
       addToast("Failed to refresh leaderboard", "error");
@@ -80,7 +82,7 @@ const App: React.FC = () => {
       setIsLeaderboardLoading(false);
       isLeaderboardLoadingRef.current = false;
     }
-  }, [addToast, isFirebaseReady, isEnvironmentSupported]); // Removed isLeaderboardLoading from deps
+  }, [addToast, isFirebaseReady, isEnvironmentSupported]);
 
   useEffect(() => {
     const envCheck = checkFirebaseEnvironment();
@@ -98,59 +100,67 @@ const App: React.FC = () => {
 
     setIsLoading(true); 
     if (firebaseInitialized && envCheck.isSupported) {
-      const unsubscribe = onFirebaseAuthStateChanged(async (userFromFirebase) => {
-        if (userFromFirebase) {
-          setCurrentUser(userFromFirebase);
-          sessionStorage.removeItem(SESSION_STORAGE_KEY); 
-          addToast(`Logged in as ${userFromFirebase.name} via Google!`, 'success');
-        } else {
-          const mockUser = await getCurrentMockUser();
-          setCurrentUser(mockUser); 
+      const unsubscribe = onFirebaseAuthStateChanged(async (firebaseUserFromAuth) => {
+        try {
+          if (firebaseUserFromAuth) {
+            // Use findOrCreateUserProfile here
+            const appUser = await findOrCreateUserProfile(firebaseUserFromAuth);
+            setCurrentUser(appUser);
+            sessionStorage.removeItem(SESSION_STORAGE_KEY); 
+            if(appUser.name) addToast(`Logged in as ${appUser.name} via Google!`, 'success');
+          } else {
+            // If Firebase logs out, check for mock user session
+            const mockUser = await getCurrentMockUser();
+            setCurrentUser(mockUser); 
+          }
+          await refreshLeaderboard(); 
+        } catch (error) {
+            console.error("Error processing auth state change:", error);
+            addToast("An error occurred during authentication processing.", "error");
+        } finally {
+            setIsLoading(false); 
         }
-        await refreshLeaderboard(); 
-        setIsLoading(false); 
       });
       return () => unsubscribe();
     } else {
       const initMockUserAndLeaderboard = async () => {
-        const user = await getCurrentMockUser();
-        setCurrentUser(user);
-        await refreshLeaderboard(); 
-        setIsLoading(false);
+        try {
+            resetMockUsers(); 
+            resetMockBettingData(); 
+            const user = await getCurrentMockUser(); 
+            setCurrentUser(user);
+            await refreshLeaderboard(); 
+        } catch (error) {
+            console.error("Error initializing mock user and leaderboard:", error);
+            addToast("An error occurred setting up mock data.", "error");
+        } finally {
+            setIsLoading(false);
+        }
       };
       initMockUserAndLeaderboard();
-       if (!firebaseInitialized && envCheck.isSupported) { 
-        addToast("Firebase could not be initialized. Google Sign-In will be unavailable. Leaderboard may show mock data.", "error");
+      if (!firebaseInitialized && envCheck.isSupported) { 
+        addToast("Firebase could not be initialized. Google Sign-In will be unavailable. Using mock data.", "error");
       }
     }
   }, [addToast, refreshLeaderboard]); 
 
   const handleMockLogin = useCallback(async (userId: string) => {
     setIsLoading(true);
-    if (isFirebaseReady && currentUser?.id !== userId) { 
-      const firebaseUserViaAuth = window.firebase?.auth?.().currentUser;
-      if (firebaseUserViaAuth) {
-          await performFirebaseSignOut(); 
-      } else {
-        const user = await performMockLogin(userId);
-        setCurrentUser(user);
-        await refreshLeaderboard();
-        setIsLoading(false);
-        if (user) addToast(`Welcome ${user.name}! (Mock User)`, 'success');
-      }
-    } else {
-      const user = await performMockLogin(userId);
-      setCurrentUser(user); 
-      await refreshLeaderboard(); 
-      setIsLoading(false); 
-      if (user) addToast(`Welcome ${user.name}! (Mock User)`, 'success');
+    if (isFirebaseReady && currentUser && !MOCK_USERS_DATA.some(mock => mock.id === currentUser.id)) {
+        await performFirebaseSignOut(); 
     }
-    return currentUser; 
+    const user = await performMockLogin(userId);
+    setCurrentUser(user); 
+    await refreshLeaderboard();
+    setIsLoading(false);
+    if (user) addToast(`Welcome ${user.name}! (Mock User)`, 'success');
+    return user; 
   }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser]);
+
 
   const handleSignInWithGoogle = useCallback(async (): Promise<User | null> => {
     if (!isEnvironmentSupported) {
-      addToast("Google Sign-In is not supported in this environment (e.g. 'file://' protocol or web storage disabled). Please use a local web server.", "error");
+      addToast("Google Sign-In is not supported in this environment. Please use a local web server.", "error");
       return null;
     }
     if (!isFirebaseReady) {
@@ -159,12 +169,10 @@ const App: React.FC = () => {
     }
     setIsLoading(true); 
     try {
-      const firebaseUserResult = await performSignInWithGoogle(); 
-      if (firebaseUserResult) {
-        return null; 
-      }
-      setIsLoading(false); 
-      return null;
+      await performSignInWithGoogle(); 
+      // User state will be updated by onFirebaseAuthStateChanged
+      // No need to set isLoading(false) here, onFirebaseAuthStateChanged's finally block will handle it.
+      return null; 
     } catch (error: any) {
       let errorMessage = "Google Sign-In Error: Unknown error";
       if (error.message) {
@@ -172,9 +180,11 @@ const App: React.FC = () => {
       }
       if (error.code === 'auth/operation-not-supported-in-this-environment'){
         errorMessage = "Google Sign-In is not supported in this environment. Please ensure you are not using 'file://' protocol and web storage is enabled.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "Google Sign-In cancelled by user.";
       }
       addToast(errorMessage, "error");
-      setIsLoading(false); 
+      setIsLoading(false); // Set loading to false here on error if onFirebaseAuthStateChanged isn't triggered
       return null;
     }
   }, [addToast, isFirebaseReady, isEnvironmentSupported]);
@@ -186,32 +196,37 @@ const App: React.FC = () => {
 
     if (isFirebaseReady && wasFirebaseUser) {
         await performFirebaseSignOut(); 
+        // onFirebaseAuthStateChanged will set currentUser to null and handle isLoading
     } else {
       await performMockLogout(); 
-      setCurrentUser(null);
+      setCurrentUser(null); 
       await refreshLeaderboard(); 
-      setIsLoading(false);
+      setIsLoading(false); // Explicitly set for mock logout
     }
+    // Common actions after logout, regardless of type
     addToast("Logged out successfully.", 'info');
   }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser]);
   
-  const updateUserPoints = useCallback(async (userId: string, points: number) => {
+  const updateUserPoints = useCallback(async (userId: string, newPoints: number) => {
     const isMockUser = MOCK_USERS_DATA.some(mockUser => mockUser.id === userId);
     try {
       if (isMockUser) {
-        updateUserPointsInMock(userId, points);
+        updateUserPointsInMock(userId, newPoints);
       } else if (isFirebaseReady && isEnvironmentSupported) { 
-        await updateUserPointsInFirestore(userId, points);
+        await updateUserPointsInFirestore(userId, newPoints);
       } else {
         throw new Error("Cannot update points: No suitable persistence layer available.");
       }
-      setCurrentUser(prevUser => prevUser && prevUser.id === userId ? { ...prevUser, points } : prevUser);
+      
+      if (currentUser && currentUser.id === userId) {
+        setCurrentUser(prevUser => prevUser ? { ...prevUser, points: newPoints } : null);
+      }
       await refreshLeaderboard(); 
     } catch (error) {
         console.error("Error updating user points:", error);
         addToast("Failed to update user points.", "error");
     }
-  }, [refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported]);
+  }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported]);
 
 
   if (isLoading && !toasts.some(t => t.message.includes("Firebase Environment Check Failed"))) { 

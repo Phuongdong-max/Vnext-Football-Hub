@@ -1,10 +1,16 @@
+
 import { User, UserRole } from '../types';
 import { MOCK_USERS_DATA, INITIAL_USER_POINTS } from '../constants';
 
 export const SESSION_STORAGE_KEY = 'currentUserFootballBetHub';
 
 // Simulate a database of users
-let users: User[] = MOCK_USERS_DATA.map(u => ({...u})); // Create a mutable copy
+// Ensure each user object includes all properties from the User type
+let users: User[] = MOCK_USERS_DATA.map(u => ({
+  ...u,
+  betsMadeCount: u.betsMadeCount || 0, // Ensure these exist
+  winsCount: u.winsCount || 0,
+}));
 
 export const getCurrentUser = async (): Promise<User | null> => {
   const storedUser = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -56,7 +62,12 @@ export const updateUserPointsInMock = (userId: string, newPoints: number): void 
 
 // Function to reset users to initial state (for testing or demo purposes)
 export const resetMockUsers = (): void => {
-  users = MOCK_USERS_DATA.map(u => ({...u, points: INITIAL_USER_POINTS}));
+  users = MOCK_USERS_DATA.map(u => ({
+    ...u, 
+    points: INITIAL_USER_POINTS,
+    betsMadeCount: 0, // Explicitly reset these
+    winsCount: 0,
+  }));
    const storedUserJson = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (storedUserJson) {
         const storedUser = JSON.parse(storedUserJson) as User;

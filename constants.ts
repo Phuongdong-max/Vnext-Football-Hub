@@ -1,3 +1,4 @@
+
 import { UserRole } from './types';
 
 export const APP_TITLE = "Vnext FootballHub";
@@ -15,9 +16,9 @@ export const MOCK_MEMBER_ID_2 = 'member002';
 export const INITIAL_USER_POINTS = 1000;
 
 export const MOCK_USERS_DATA = [
-  { id: MOCK_ADMIN_ID, name: 'Admin User', email: 'admin@example.com', role: UserRole.ADMIN, points: INITIAL_USER_POINTS, avatarUrl: 'https://picsum.photos/seed/admin/100/100' },
-  { id: MOCK_MEMBER_ID, name: 'Member User', email: 'member@example.com', role: UserRole.MEMBER, points: INITIAL_USER_POINTS, avatarUrl: 'https://picsum.photos/seed/member1/100/100' },
-  { id: MOCK_MEMBER_ID_2, name: 'Jane Doe', email: 'jane@example.com', role: UserRole.MEMBER, points: INITIAL_USER_POINTS, avatarUrl: 'https://picsum.photos/seed/member2/100/100' },
+  { id: MOCK_ADMIN_ID, name: 'Admin User', email: 'admin@example.com', role: UserRole.ADMIN, points: INITIAL_USER_POINTS, avatarUrl: 'https://picsum.photos/seed/admin/100/100', betsMadeCount: 0, winsCount: 0 },
+  { id: MOCK_MEMBER_ID, name: 'Member User', email: 'member@example.com', role: UserRole.MEMBER, points: INITIAL_USER_POINTS, avatarUrl: 'https://picsum.photos/seed/member1/100/100', betsMadeCount: 0, winsCount: 0 },
+  { id: MOCK_MEMBER_ID_2, name: 'Jane Doe', email: 'jane@example.com', role: UserRole.MEMBER, points: INITIAL_USER_POINTS, avatarUrl: 'https://picsum.photos/seed/member2/100/100', betsMadeCount: 0, winsCount: 0 },
 ];
 
 export const MOCK_FOOTBALL_MATCHES_DATA = [
