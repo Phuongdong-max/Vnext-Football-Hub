@@ -1,9 +1,11 @@
+
 // functions/src/index.ts
 
 import * as functions from "firebase-functions"; // For logger
-// Use Request and Response types directly from firebase-functions/v1/https
-import { onRequest, Request, Response } from "firebase-functions/v1/https";
-import axios, {isAxiosError} from "axios";
+// Use HttpsRequest from firebase-functions/v2/https and Response from express for GCFv2
+import { onRequest, HttpsRequest } from "firebase-functions/v2/https";
+import { Response } from "express"; // Express Response type
+import axios, {isAxiosError, AxiosError} from "axios"; // Added AxiosError for explicit typing
 import cors from "cors";
 
 
@@ -36,36 +38,35 @@ const corsHandler = cors({
 const FOOTBALL_DATA_ORG_BASE_URL = "https://api.football-data.org/v4";
 
 export const footballApiProxy = onRequest(
-  // Use the Request and Response types directly from firebase-functions/v1/https
-  (request: Request, response: Response) => {
-    corsHandler(request, response, (err?: unknown) => { // Now `request` is firebase-functions/v1/https.Request and `response` is firebase-functions/v1/https.Response
+  // Use HttpsRequest from v2 and Response from Express
+  (request: HttpsRequest, response: Response) => {
+    corsHandler(request, response, (err?: unknown) => {
       if (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown CORS error";
         functions.logger.error("CORS error:", errorMessage, err);
-        response.status(500).send("CORS error: " + errorMessage); // .status() should be available
+        response.status(500).send("CORS error: " + errorMessage);
         return;
       }
 
-      const rawTargetPath = request.query.targetPath; // .query should be available
+      const rawTargetPath = request.query.targetPath;
       const targetPath = Array.isArray(rawTargetPath)
         ? rawTargetPath[0] as string
         : rawTargetPath as string;
 
       if (typeof targetPath !== "string" || !targetPath) {
-        response.status(400).send( // .status() should be available
+        response.status(400).send(
           "Missing or invalid targetPath parameter."
         );
         return;
       }
 
-      // Use process.env for environment variables in Cloud Functions v2 (and v1)
       const apiKey = process.env.FOOTBALL_DATA_API_KEY;
 
       if (!apiKey) {
         functions.logger.error(
           "Environment variable FOOTBALL_DATA_API_KEY not configured for the Cloud Function."
         );
-        response.status(500).send( // .status() should be available
+        response.status(500).send(
           "Proxy API key (environment variable) is not configured."
         );
         return;
@@ -76,12 +77,11 @@ export const footballApiProxy = onRequest(
       }`;
 
       const queryParams = new URLSearchParams();
-      for (const key in request.query) { // .query should be available
+      for (const key in request.query) {
         if (Object.prototype.hasOwnProperty.call(request.query, key) && key !== "targetPath") {
           const valueRaw = request.query[key];
           if (valueRaw !== undefined) {
             const value = Array.isArray(valueRaw) ? valueRaw[0] : valueRaw;
-            // Ensure value is stringifiable for URLSearchParams
             if (value !== undefined && typeof value === 'string') {
                  queryParams.append(key, value);
             } else if (value !== undefined) {
@@ -107,40 +107,70 @@ export const footballApiProxy = onRequest(
           timeout: 10000, // 10 seconds timeout
         })
         .then(apiResponse => {
-          response.status(apiResponse.status).send(apiResponse.data); // .status() should be available
+          response.status(apiResponse.status).send(apiResponse.data);
         })
         .catch((error: unknown) => {
-          let errorMessage =
-            "Error fetching data from external API via proxy.";
-          let responseStatus = 500;
-          let responseData: unknown = null;
+          let errorMessage = "Error fetching data from external API via proxy.";
+          let responseStatus = 500; // Default error status
+
+          // Prepare details for logging
+          let errorLogDetails: Record<string, any> = { url: externalApiUrl };
 
           if (error instanceof Error) {
-            errorMessage = error.message;
+            errorMessage = error.message; // Base error message
+            errorLogDetails.name = error.name;
+            errorLogDetails.message = error.message;
+            // Avoid logging full stack in concise error object unless verbose logging is on
+            // errorLogDetails.stack = error.stack;
+          } else {
+            errorLogDetails.errorObject = String(error);
           }
 
           functions.logger.error(
-            "Error calling Football-Data.org API via proxy:",
-            {
-              message: errorMessage,
-              url: externalApiUrl,
-              originalError: error, // Log the original error object
-            }
+            "Proxy encountered an error:",
+            errorLogDetails // Log refined error details
           );
 
-          if (isAxiosError(error) && error.response) {
-            responseStatus = error.response.status;
-            responseData = error.response.data;
-            functions.logger.error("Axios error details from upstream API:", { // More specific log
-              status: responseStatus,
-              data: responseData,
-            });
-            // Send the actual response body from the external API if available
-            response.status(responseStatus).send( // .status() should be available
-              responseData || errorMessage // Fallback to generic message if data is null/undefined
-            );
+          if (isAxiosError(error)) {
+            // error is now of type AxiosError
+            const axiosError = error as AxiosError; // Explicit cast for clarity if needed, though isAxiosError guards
+            errorLogDetails.isAxiosError = true;
+            if (axiosError.code) { // e.g. 'ECONNABORTED', 'ERR_BAD_REQUEST'
+                errorLogDetails.axiosErrorCode = axiosError.code;
+            }
+
+            if (axiosError.response) {
+              // Axios error with a response from the upstream API
+              responseStatus = axiosError.response.status;
+              const responseData = axiosError.response.data;
+              functions.logger.error(
+                "Axios error with response from upstream API:",
+                {
+                  url: externalApiUrl,
+                  status: responseStatus,
+                  data: responseData, // This can be large, consider logging selectively
+                  axiosErrorMessage: axiosError.message,
+                }
+              );
+              response.status(responseStatus).send(responseData || errorMessage);
+            } else {
+              // Axios error without a response (e.g., network error, timeout)
+              functions.logger.warn(
+                "Axios error without response from upstream API (network issue or timeout):",
+                {
+                  url: externalApiUrl,
+                  message: axiosError.message, // This is the primary message for network errors
+                  code: axiosError.code,
+                }
+              );
+              // For network errors, errorMessage (from error.message) is usually informative
+              // responseStatus remains 500 (or could be 502, 503, 504 depending on policy)
+              response.status(responseStatus).send(errorMessage);
+            }
           } else {
-            response.status(responseStatus).send(errorMessage); // .status() should be available
+            // Non-Axios error (e.g., programming error before request, or other unexpected error type)
+            // errorMessage is already set if 'error instanceof Error'
+            response.status(responseStatus).send(errorMessage);
           }
         });
     });
