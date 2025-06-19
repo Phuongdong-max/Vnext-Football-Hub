@@ -8,6 +8,8 @@ export const APP_TITLE = "Vnext FootballHub";
 // Since your project ID appears to be 'vnext-football-hub', the URL below is likely correct.
 // If not, ensure 'vnext-football-hub' is replaced with your Firebase project ID.
 export const FOOTBALL_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/footballApiProxy'; 
+export const CREATE_BETTING_ROUND_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/createBettingRoundProxy';
+
 
 export const MOCK_ADMIN_ID = 'admin001';
 export const MOCK_MEMBER_ID = 'member001';

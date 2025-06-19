@@ -11,7 +11,7 @@ import {
   firebaseSignOut as performFirebaseSignOut,
   updateUserPointsInFirestore,
   getFirebaseLeaderboardEntries, 
-  findOrCreateUserProfile, // Import findOrCreateUserProfile
+  // findOrCreateUserProfile, // No longer directly called from here for auth state changes
   getAppUserProfile
 } from './services/firebaseService';
 import { getLeaderboard as getMockLeaderboard, resetMockBettingData } from './services/mockBettingService'; 
@@ -100,14 +100,14 @@ const App: React.FC = () => {
 
     setIsLoading(true); 
     if (firebaseInitialized && envCheck.isSupported) {
-      const unsubscribe = onFirebaseAuthStateChanged(async (firebaseUserFromAuth) => {
+      // onFirebaseAuthStateChanged's callback receives the fully processed User (or null)
+      // from firebaseService.ts, which already calls findOrCreateUserProfile.
+      const unsubscribe = onFirebaseAuthStateChanged(async (appUserFromService) => {
         try {
-          if (firebaseUserFromAuth) {
-            // Use findOrCreateUserProfile here
-            const appUser = await findOrCreateUserProfile(firebaseUserFromAuth);
-            setCurrentUser(appUser);
+          if (appUserFromService) {
+            setCurrentUser(appUserFromService); // Directly use the user object from the service
             sessionStorage.removeItem(SESSION_STORAGE_KEY); 
-            if(appUser.name) addToast(`Logged in as ${appUser.name} via Google!`, 'success');
+            if(appUserFromService.name) addToast(`Logged in as ${appUserFromService.name} via Google!`, 'success');
           } else {
             // If Firebase logs out, check for mock user session
             const mockUser = await getCurrentMockUser();

@@ -41,9 +41,15 @@ export const MemberHomePage: React.FC = () => {
       }
       setOpenRounds(open.sort((a,b) => new Date(a.matchDetails.startTime).getTime() - new Date(b.matchDetails.startTime).getTime() ));
       setClosedRounds(closed.sort((a,b) => new Date(b.matchDetails.startTime).getTime() - new Date(a.matchDetails.startTime).getTime() ));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching member data:", error);
-      addToast("Failed to load betting rounds.", "error");
+      let toastMessage = "Failed to load betting rounds.";
+       if (error.code === 'unavailable' || (typeof error.message === 'string' && (error.message.toLowerCase().includes('network error') || error.message.toLowerCase().includes('failed to fetch') || error.code === 'resource-exhausted'))) {
+        toastMessage = "Failed to connect to betting services. This might be due to a network issue, an ad blocker, or API limits. Please check your connection, extensions, and try again later.";
+      } else if (error.message) {
+        toastMessage = `Failed to load betting rounds: ${error.message}`;
+      }
+      addToast(toastMessage, "error");
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
@@ -81,22 +87,29 @@ export const MemberHomePage: React.FC = () => {
       }
       addToast(`Successfully placed a bet of ${points} points!`, "success");
       
-      // Update points in AppContext (which handles mock or Firestore)
       updateUserPoints(currentUser.id, currentUser.points - points);
       
-      fetchMemberData(true); // Refresh lists
+      fetchMemberData(true); 
       refreshLeaderboard();
       setIsBettingModalOpen(false);
       setSelectedRoundForBet(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error placing bet:", error);
-      addToast(`Error: ${(error as Error).message}`, "error");
+      let betErrorMsg = "Error placing bet.";
+       if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
+        betErrorMsg = "Permission denied to place bet. Firestore rules might be misconfigured.";
+      } else if (error.code === 'unavailable' || (typeof error.message === 'string' && (error.message.toLowerCase().includes('network error') || error.message.toLowerCase().includes('failed to fetch')))) {
+        betErrorMsg = "Network error placing bet. Check connection/extensions.";
+      } else if (error.message) {
+        betErrorMsg = `Error: ${error.message}`;
+      }
+      addToast(betErrorMsg, "error");
     } finally {
       setIsDataLoading(false);
     }
   };
   
-  if (isLoading && !isDataLoading) { // Show initial loading spinner only
+  if (isLoading && !isDataLoading) { 
     return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /> <span className="ml-2">Loading Betting Rounds...</span></div>;
   }
 

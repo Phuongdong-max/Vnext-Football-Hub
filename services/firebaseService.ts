@@ -4,13 +4,130 @@ import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, Bet
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
-declare global {
-  interface Window { firebase: any; }
+// This namespace is for type annotations like `param: FirebaseGlob.auth.User`.
+// It mirrors the structure of the v8/compat Firebase SDK.
+declare namespace FirebaseGlob {
+  namespace auth {
+    interface Auth {
+      currentUser: FirebaseGlob.auth.User | null; // Added currentUser
+      onAuthStateChanged(callback: (user: User | null) => void): () => void;
+      signInWithPopup(provider: GoogleAuthProvider): Promise<UserCredential>;
+      signOut(): Promise<void>;
+      // Add other methods if used
+    }
+
+    interface User {
+      uid: string;
+      displayName: string | null;
+      email: string | null;
+      photoURL: string | null;
+      getIdToken(forceRefresh?: boolean): Promise<string>; // Ensure getIdToken is defined
+      // Add other User properties if used from firebaseUser
+    }
+
+    interface UserCredential {
+      user: User | null;
+      // Add other properties if needed
+    }
+
+    // Provider class
+    class GoogleAuthProvider {
+      // No methods/properties needed for instantiation typically
+    }
+  }
+
+  namespace firestore {
+    interface Firestore {
+      collection(collectionPath: string): CollectionReference;
+      doc(documentPath: string): DocumentReference;
+      runTransaction<T>(updateFunction: (transaction: Transaction) => Promise<T>): Promise<T>;
+    }
+
+    interface DocumentReference {
+      id: string;
+      get(): Promise<DocumentSnapshot>;
+      set(data: any): Promise<void>; 
+      update(data: any): Promise<void>;
+    }
+
+    interface CollectionReference { // extends Query
+      id: string;
+      doc(documentPath?: string): DocumentReference;
+      where(fieldPath: string | FieldPath, opStr: WhereFilterOp, value: any): Query;
+      orderBy(fieldPath: string | FieldPath, directionStr?: OrderByDirection): Query;
+      limit(limit: number): Query;
+      get(): Promise<QuerySnapshot>;
+    }
+    
+    interface Query {
+       where(fieldPath: string | FieldPath, opStr: WhereFilterOp, value: any): Query;
+       orderBy(fieldPath: string | FieldPath, directionStr?: OrderByDirection): Query;
+       limit(limit: number): Query;
+       get(): Promise<QuerySnapshot>;
+    }
+
+    interface DocumentSnapshot {
+      id: string;
+      exists: boolean;
+      data(): any | undefined; 
+    }
+
+    interface QuerySnapshot {
+      docs: DocumentSnapshot[]; 
+      empty: boolean;
+      forEach(callback: (result: DocumentSnapshot) => void, thisArg?: any): void;
+    }
+    
+    interface FieldPath { /* Minimal definition, expand if needed */ }
+    type WhereFilterOp = '==' | '<' | '<=' | '>' | '>=' | '!=' | 'array-contains' | 'array-contains-any' | 'in' | 'not-in';
+    type OrderByDirection = 'desc' | 'asc';
+
+    interface Transaction {
+      get(documentRef: DocumentReference): Promise<DocumentSnapshot>;
+      update(documentRef: DocumentReference, data: any): Transaction; 
+    }
+
+    const FieldValue: {
+      serverTimestamp: () => any; 
+      delete: () => any; 
+      arrayUnion: (...elements: any[]) => any; 
+      arrayRemove: (...elements: any[]) => any; 
+      increment: (n: number) => any; 
+    };
+    
+    interface Timestamp {
+      toDate(): Date;
+    }
+    const Timestamp: {
+      now(): Timestamp;
+      fromDate(date: Date): Timestamp;
+    };
+  }
 }
 
+declare global {
+  interface Window {
+    firebase: {
+      initializeApp: (config: any) => any; // Returns FirebaseApp
+      app: (name?: string) => any; // Returns FirebaseApp
+      apps: any[];
+      auth: {
+        (): FirebaseGlob.auth.Auth;
+        GoogleAuthProvider: new () => FirebaseGlob.auth.GoogleAuthProvider;
+      };
+      firestore: {
+        (): FirebaseGlob.firestore.Firestore;
+        Timestamp: typeof FirebaseGlob.firestore.Timestamp;
+        FieldValue: typeof FirebaseGlob.firestore.FieldValue;
+      };
+    };
+  }
+}
+declare var firebase: Window['firebase']; // Make firebase directly available
+
 let app: any = null; // Firebase App instance
-let auth: any = null; // Firebase Auth instance
-let db: any = null;  // Firebase Firestore instance
+let auth: FirebaseGlob.auth.Auth | null = null; // Firebase Auth instance
+let db: FirebaseGlob.firestore.Firestore | null = null;  // Firebase Firestore instance
 
 export const initializeFirebase = () => {
   if (!window.firebase) {
@@ -22,18 +139,6 @@ export const initializeFirebase = () => {
       app = window.firebase.initializeApp(firebaseConfig);
       auth = window.firebase.auth();
       db = window.firebase.firestore();
-      // Enable offline persistence (optional, but good for UX)
-      // try {
-      //   db.enablePersistence().catch((err: any) => {
-      //     if (err.code === 'failed-precondition') {
-      //       console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-      //     } else if (err.code === 'unimplemented') {
-      //       console.warn('The current browser does not support all of the features required to enable persistence.');
-      //     }
-      //   });
-      // } catch (e) {
-      //    console.error("Error enabling Firestore persistence:", e);
-      // }
       console.log("Firebase initialized successfully");
       return true;
     } catch (error) {
@@ -42,8 +147,7 @@ export const initializeFirebase = () => {
       return false;
     }
   } else if (window.firebase.apps && window.firebase.apps.length > 0) {
-    // Already initialized
-    app = window.firebase.app(); // Get default app
+    app = window.firebase.app(); 
     auth = window.firebase.auth();
     db = window.firebase.firestore();
     return true;
@@ -55,9 +159,9 @@ export const initializeFirebase = () => {
 export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void) => {
   if (!auth) {
     console.warn("Firebase Auth not initialized. Call initializeFirebase first.");
-    return () => {}; // Return an empty unsubscribe function
+    return () => {}; 
   }
-  return auth.onAuthStateChanged(async (firebaseUser: any) => {
+  return auth.onAuthStateChanged(async (firebaseUser: FirebaseGlob.auth.User | null) => {
     if (firebaseUser) {
       const appUser = await findOrCreateUserProfile(firebaseUser);
       callback(appUser);
@@ -67,15 +171,15 @@ export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void
   });
 };
 
-export const signInWithGoogle = async (): Promise<any | null> => {
+export const signInWithGoogle = async (): Promise<FirebaseGlob.auth.User | null> => {
   if (!auth) {
     console.error("Firebase Auth not initialized.");
     throw new Error("Firebase Auth not initialized.");
   }
   const provider = new window.firebase.auth.GoogleAuthProvider();
   try {
-    const result = await auth.signInWithPopup(provider);
-    return result.user; // Firebase User object
+    const result: FirebaseGlob.auth.UserCredential = await auth.signInWithPopup(provider);
+    return result.user; 
   } catch (error) {
     console.error("Google Sign-In Error:", error);
     throw error;
@@ -94,33 +198,37 @@ export const firebaseSignOut = async (): Promise<void> => {
   }
 };
 
-export const findOrCreateUserProfile = async (firebaseUser: any): Promise<User> => {
+export const findOrCreateUserProfile = async (firebaseUser: FirebaseGlob.auth.User): Promise<User> => {
   if (!db) {
     console.error("Firestore not initialized.");
     throw new Error("Firestore not initialized.");
   }
+
+  if (!firebaseUser.uid) {
+      console.error("Firebase user object is missing UID in findOrCreateUserProfile.", firebaseUser);
+      throw new Error("Firebase user is invalid (missing UID).");
+  }
+
   const userRef = db.collection('users').doc(firebaseUser.uid);
   const doc = await userRef.get();
 
   if (!doc.exists) {
-    // Create new user profile
     const newUserProfile: User = {
-      id: firebaseUser.uid,
+      id: firebaseUser.uid, 
       name: firebaseUser.displayName || 'Anonymous User',
       email: firebaseUser.email || '',
       avatarUrl: firebaseUser.photoURL || undefined,
-      role: UserRole.MEMBER, // Default role
+      role: UserRole.MEMBER, 
       points: INITIAL_USER_POINTS,
-      betsMadeCount: 0, // Initialize new field
-      winsCount: 0,     // Initialize new field
+      betsMadeCount: 0,
+      winsCount: 0,
     };
     await userRef.set(newUserProfile);
     return newUserProfile;
   } else {
-    // User exists, return their profile
-    const data = doc.data();
+    const data = doc.data() as any; // data() returns any with current typings
     return {
-      id: firebaseUser.uid,
+      id: doc.id, 
       name: data.name || firebaseUser.displayName || 'Anonymous User',
       email: data.email || firebaseUser.email || '',
       avatarUrl: data.avatarUrl || firebaseUser.photoURL || undefined,
@@ -154,10 +262,9 @@ export const getAppUserProfile = async (userId: string): Promise<User | null> =>
     const userRef = db.collection('users').doc(userId);
     const doc = await userRef.get();
     if (doc.exists) {
-        // Cast to User, ensuring all fields are present or defaulted
-        const data = doc.data();
+        const data = doc.data() as any; // data() returns any
         return {
-            id: doc.id,
+            id: doc.id, 
             name: data.name || 'Anonymous User',
             email: data.email || '',
             avatarUrl: data.avatarUrl || undefined,
@@ -175,51 +282,71 @@ export const getAppUserProfile = async (userId: string): Promise<User | null> =>
 export const createFirebaseBettingRound = async (match: FootballMatch, adminUserId: string): Promise<BettingRound> => {
   if (!db) throw new Error("Firestore not initialized.");
   
-  // Check if a round for this match already exists (optional, depends on business logic)
   const existingRoundQuery = await db.collection('bettingRounds').where('matchId', '==', match.id).limit(1).get();
   if (!existingRoundQuery.empty) {
     throw new Error("A betting round for this match already exists in Firebase.");
   }
 
-  const newRoundRef = db.collection('bettingRounds').doc(); // Auto-generate ID
-  const newRoundData: BettingRound = {
+  const newRoundRef = db.collection('bettingRounds').doc();
+  
+  // Construct matchDetails carefully to avoid undefined values
+  const matchDetailsForFirestore: any = {
+    id: match.id,
+    homeTeam: match.homeTeam,
+    awayTeam: match.awayTeam,
+    startTime: window.firebase.firestore.Timestamp.fromDate(new Date(match.startTime)),
+    league: match.league,
+  };
+  if (match.leagueCode !== undefined) {
+    matchDetailsForFirestore.leagueCode = match.leagueCode;
+  }
+  if (match.status !== undefined) {
+    matchDetailsForFirestore.status = match.status;
+  }
+
+  const newRoundDataToSet = { 
     id: newRoundRef.id,
     matchId: match.id,
-    matchDetails: { // Store a snapshot of match details
-        ...match,
-        startTime: window.firebase.firestore.Timestamp.fromDate(new Date(match.startTime)), // Convert to Firestore Timestamp
-    },
+    matchDetails: matchDetailsForFirestore,
     status: BettingRoundStatus.OPEN,
     bets: [],
     bettorIds: [],
     createdBy: adminUserId,
-    createdAt: window.firebase.firestore.Timestamp.now(), // Firestore Timestamp
+    createdAt: window.firebase.firestore.Timestamp.now(),
   };
-  await newRoundRef.set(newRoundData);
-  // Convert Timestamps back to Dates for client-side use
+  await newRoundRef.set(newRoundDataToSet);
+  
+  // Return BettingRound with Date objects
   return {
-      ...newRoundData,
+      ...newRoundDataToSet,
       matchDetails: {
-          ...newRoundData.matchDetails,
-          startTime: (newRoundData.matchDetails.startTime as any).toDate(),
+          ...newRoundDataToSet.matchDetails,
+          startTime: (newRoundDataToSet.matchDetails.startTime as FirebaseGlob.firestore.Timestamp).toDate(),
       },
-      createdAt: (newRoundData.createdAt as any).toDate(),
-  };
+      createdAt: (newRoundDataToSet.createdAt as FirebaseGlob.firestore.Timestamp).toDate(),
+  } as BettingRound;
 };
 
-const mapFirestoreTimestampToDate = (round: any): BettingRound => {
-  return {
-    ...round,
-    matchDetails: {
-      ...round.matchDetails,
-      startTime: round.matchDetails.startTime.toDate(),
-    },
-    createdAt: round.createdAt.toDate(),
-    bets: round.bets.map((bet: any) => ({
-      ...bet,
-      timestamp: bet.timestamp.toDate(),
-    })),
+const mapFirestoreTimestampToDate = (roundDataInput: any): BettingRound => {
+  if (!roundDataInput) return roundDataInput; 
+  const data = typeof roundDataInput.data === 'function' ? roundDataInput.data() : roundDataInput; 
+
+  const mappedMatchDetails = {
+    ...data.matchDetails,
+    startTime: data.matchDetails.startTime?.toDate ? data.matchDetails.startTime.toDate() : new Date(data.matchDetails.startTime),
   };
+
+  const mappedBets = (data.bets || []).map((bet: any) => ({
+    ...bet,
+    timestamp: bet.timestamp?.toDate ? bet.timestamp.toDate() : new Date(bet.timestamp),
+  }));
+
+  return {
+    ...data,
+    matchDetails: mappedMatchDetails,
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+    bets: mappedBets,
+  } as BettingRound;
 };
 
 export const getFirebaseBettingRoundById = async (roundId: string): Promise<BettingRound | null> => {
@@ -236,7 +363,7 @@ export const getFirebaseBettingRoundsByAdmin = async (adminId: string): Promise<
                               .where('createdBy', '==', adminId)
                               .orderBy('createdAt', 'desc')
                               .get();
-  return querySnapshot.docs.map((doc: any) => mapFirestoreTimestampToDate(doc.data()));
+  return querySnapshot.docs.map((doc: FirebaseGlob.firestore.DocumentSnapshot) => mapFirestoreTimestampToDate(doc.data()));
 };
 
 export const getFirebaseOpenBettingRounds = async (): Promise<BettingRound[]> => {
@@ -245,7 +372,7 @@ export const getFirebaseOpenBettingRounds = async (): Promise<BettingRound[]> =>
                               .where('status', '==', BettingRoundStatus.OPEN)
                               .orderBy('matchDetails.startTime', 'asc')
                               .get();
-  return querySnapshot.docs.map((doc: any) => mapFirestoreTimestampToDate(doc.data()));
+  return querySnapshot.docs.map((doc: FirebaseGlob.firestore.DocumentSnapshot) => mapFirestoreTimestampToDate(doc.data()));
 };
 
 export const getFirebaseClosedBettingRoundsForMember = async (userId: string): Promise<BettingRound[]> => {
@@ -255,7 +382,7 @@ export const getFirebaseClosedBettingRoundsForMember = async (userId: string): P
                               .where('status', 'in', [BettingRoundStatus.CLOSED, BettingRoundStatus.RESULT_UPDATED])
                               .orderBy('matchDetails.startTime', 'desc')
                               .get();
-  return querySnapshot.docs.map((doc: any) => mapFirestoreTimestampToDate(doc.data()));
+  return querySnapshot.docs.map((doc: FirebaseGlob.firestore.DocumentSnapshot) => mapFirestoreTimestampToDate(doc.data()));
 };
 
 export const placeFirebaseBet = async (
@@ -271,22 +398,22 @@ export const placeFirebaseBet = async (
   const roundRef = db.collection('bettingRounds').doc(roundId);
   const userRef = db.collection('users').doc(userId);
 
-  const newBet: Bet = {
+  const newBetDataForFirestore = { 
     userId,
     userName,
     roundId,
     selectedTeam,
     pointsBet,
-    timestamp: window.firebase.firestore.Timestamp.now(), // Firestore Timestamp
+    timestamp: window.firebase.firestore.Timestamp.now(), 
   };
 
-  await db.runTransaction(async (transaction: any) => {
+  await db.runTransaction(async (transaction: FirebaseGlob.firestore.Transaction) => {
     const roundDoc = await transaction.get(roundRef);
     if (!roundDoc.exists) throw new Error("Betting round not found.");
-    const roundData = roundDoc.data() as BettingRound;
+    const roundData = roundDoc.data() as BettingRound; // Assuming data structure matches
 
     if (roundData.status !== BettingRoundStatus.OPEN) throw new Error("This round is not open for betting.");
-    if (roundData.bets.some(b => b.userId === userId)) throw new Error("You have already placed a bet on this round.");
+    if ((roundData.bets || []).some(b => b.userId === userId)) throw new Error("You have already placed a bet on this round.");
 
     const userDoc = await transaction.get(userRef);
     if (!userDoc.exists) throw new Error("User not found.");
@@ -295,7 +422,7 @@ export const placeFirebaseBet = async (
     if (userData.points < pointsBet) throw new Error("Insufficient points.");
 
     transaction.update(roundRef, {
-      bets: window.firebase.firestore.FieldValue.arrayUnion(newBet),
+      bets: window.firebase.firestore.FieldValue.arrayUnion(newBetDataForFirestore),
       bettorIds: window.firebase.firestore.FieldValue.arrayUnion(userId),
     });
     transaction.update(userRef, {
@@ -303,18 +430,21 @@ export const placeFirebaseBet = async (
       betsMadeCount: window.firebase.firestore.FieldValue.increment(1),
     });
   });
-
-  return { ...newBet, timestamp: (newBet.timestamp as any).toDate() }; // Convert timestamp for client
+  
+  return { 
+    ...newBetDataForFirestore, 
+    timestamp: (newBetDataForFirestore.timestamp as FirebaseGlob.firestore.Timestamp).toDate() 
+  } as Bet;
 };
 
 export const updateFirebaseMatchResult = async (roundId: string, winningTeam: MatchResultTeam): Promise<BettingRound> => {
   if (!db) throw new Error("Firestore not initialized.");
   const roundRef = db.collection('bettingRounds').doc(roundId);
 
-  await db.runTransaction(async (transaction: any) => {
+  await db.runTransaction(async (transaction: FirebaseGlob.firestore.Transaction) => {
     const roundDoc = await transaction.get(roundRef);
     if (!roundDoc.exists) throw new Error("Betting round not found.");
-    const roundData = roundDoc.data() as BettingRound;
+    const roundData = mapFirestoreTimestampToDate(roundDoc.data()); // Get with Dates
 
     if (roundData.status === BettingRoundStatus.RESULT_UPDATED) throw new Error("Result already updated for this round.");
 
@@ -323,21 +453,20 @@ export const updateFirebaseMatchResult = async (roundId: string, winningTeam: Ma
       winningTeam: winningTeam,
     });
 
-    for (const bet of roundData.bets) {
-      const userRef = db.collection('users').doc(bet.userId);
+    for (const bet of (roundData.bets || [])) {
+      const userRef = db!.collection('users').doc(bet.userId); // db is checked, so ! is safe
       let pointsToAddBack = 0;
       let incrementWins = false;
 
       if (winningTeam === MatchResultTeam.DRAW) {
-        pointsToAddBack = bet.pointsBet; // Return stake
+        pointsToAddBack = bet.pointsBet;
       } else {
         const betWon = (bet.selectedTeam === BetTeamSelection.HOME && winningTeam === MatchResultTeam.HOME_WIN) ||
                        (bet.selectedTeam === BetTeamSelection.AWAY && winningTeam === MatchResultTeam.AWAY_WIN);
         if (betWon) {
-          pointsToAddBack = bet.pointsBet * 2; // Return stake + winnings
+          pointsToAddBack = bet.pointsBet * 2;
           incrementWins = true;
         }
-        // If loss, pointsToAddBack remains 0 (points already deducted)
       }
 
       if (pointsToAddBack > 0) {
@@ -360,17 +489,17 @@ export const getFirebaseLeaderboardEntries = async (): Promise<LeaderboardEntry[
     return [];
   }
   try {
-    const usersSnapshot = await db.collection('users').orderBy('points', 'desc').limit(100).get(); // Limit for performance
+    const usersSnapshot = await db.collection('users').orderBy('points', 'desc').limit(100).get();
     const leaderboardEntries: LeaderboardEntry[] = [];
-    usersSnapshot.forEach((doc: any) => {
-      const userData = doc.data() as User;
+    usersSnapshot.forEach((doc: FirebaseGlob.firestore.DocumentSnapshot) => {
+      const userData = doc.data() as User; 
       leaderboardEntries.push({
-        userId: userData.id,
+        userId: userData.id || doc.id, 
         userName: userData.name,
         avatarUrl: userData.avatarUrl,
         points: userData.points,
-        betsMade: userData.betsMadeCount || 0, // Use new field
-        wins: userData.winsCount || 0,         // Use new field
+        betsMade: userData.betsMadeCount || 0,
+        wins: userData.winsCount || 0,
       });
     });
     return leaderboardEntries;
