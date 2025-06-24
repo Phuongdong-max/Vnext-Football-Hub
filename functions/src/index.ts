@@ -1,23 +1,16 @@
 // functions/src/index.ts
 
-import * as functions from "firebase-functions"; // For logger
-import { onRequest, Request as FunctionsRequest } from "firebase-functions/v2/https";
-import { Request as ExpressRequestType, Response as ExpressResponse } from "express"; // Import Response from express
-import axios, {isAxiosError, AxiosError} from "axios";
-import cors from "cors";
-import * as admin from "firebase-admin";
-import { FootballMatch, BettingRoundStatus } from "./types";
+// Import necessary modules and types from Firebase and other libraries
+import * as logger from "firebase-functions/logger";
+// Import Request type from firebase-functions v2 and alias it
+// Import Response type directly from express
+import { onRequest, Request as FirebaseV2Request } from "firebase-functions/v2/https";
+import type { Response as ExpressResponse } from "express"; // Import Express Response type
+import axios, { isAxiosError, AxiosError } from "axios";
+import cors from "cors"; // This will use express types for its handler signature
 
-
-// Initialize Firebase Admin SDK
-try {
-  admin.initializeApp();
-} catch (e) {
-  functions.logger.warn("Admin SDK already initialized or error during init:", e);
-}
-const db = admin.firestore();
-
-
+// --- Configuration for CORS (Cross-Origin Resource Sharing) ---
+// Define the list of allowed origins. Requests from these URLs will be permitted.
 const allowedOrigins = [
   "http://127.0.0.1:8000",
   "http://localhost:8000",
@@ -26,58 +19,73 @@ const allowedOrigins = [
   "https://vnext-football-hub.web.app",
 ];
 
+// Create a CORS handler. The types for req/res in its callback will be from Express.
 const corsHandler = cors({
   origin: (requestOrigin, callback) => {
-    functions.logger.info("Request origin:", requestOrigin);
+    logger.info("Request origin:", requestOrigin);
+    // Allow requests that don't have an origin (e.g., from server-to-server, curl).
     if (!requestOrigin) {
-      // Allow requests with no origin (like curl requests, server-to-server)
       return callback(null, true);
     }
+    // If the origin is not in our allowed list, reject the request.
     if (allowedOrigins.indexOf(requestOrigin) === -1) {
-      const msg =
-        "The CORS policy for this site does not allow access from " +
-        "the specified Origin.";
-      functions.logger.warn(msg, {origin: requestOrigin});
+      const msg = "The CORS policy for this site does not allow access from the specified Origin.";
+      logger.warn(msg, { origin: requestOrigin });
       return callback(new Error(msg), false);
     }
+    // Otherwise, allow the request.
     return callback(null, true);
   },
 });
 
+// The base URL for the external football data API.
 const FOOTBALL_DATA_ORG_BASE_URL = "https://api.football-data.org/v4";
 
+/**
+ * An HTTP Cloud Function that acts as a proxy to the football-data.org API.
+ * It forwards requests from the frontend, attaching the necessary API key on the server-side
+ * to keep the key secure. It also handles CORS.
+ */
 export const footballApiProxy = onRequest(
-  { secrets: ["FOOTBALL_DATA_API_KEY"] }, // Declare secret for football API key
-  async (req: FunctionsRequest, res: ExpressResponse): Promise<void> => { // Use ExpressResponse
-    corsHandler(req as ExpressRequestType, res, async (corsErr?: any) => {
+  // Use FirebaseV2Request and ExpressResponse types here
+  async (request: FirebaseV2Request, response: ExpressResponse): Promise<void> => {
+    // When corsHandler is invoked, it treats request and response as Express types.
+    // Cast to 'any' to resolve type conflicts with cors library's specific internal types.
+    // The 'request' and 'response' objects themselves retain their richer types within this scope.
+    corsHandler(request as any, response as any, async (corsErr?: Error | undefined) => {
       if (corsErr) {
         const errorMessage = corsErr instanceof Error ? corsErr.message : "Unknown CORS error";
-        functions.logger.error("CORS error:", errorMessage, corsErr);
-        res.status(500).send("CORS error: " + errorMessage);
+        logger.error("CORS error:", errorMessage, corsErr);
+        if (!response.headersSent) {
+          response.status(500).send("CORS error: " + errorMessage);
+        }
         return;
       }
 
-      const rawTargetPath = req.query.targetPath;
-      const targetPath = Array.isArray(rawTargetPath)
-        ? rawTargetPath[0] as string
-        : rawTargetPath as string;
+      // request.query is a property of express.Request, which FirebaseV2Request extends
+      const rawTargetPath = request.query.targetPath;
+      const targetPath = Array.isArray(rawTargetPath) ?
+        (rawTargetPath[0] as string) :
+        (rawTargetPath as string);
 
       if (typeof targetPath !== "string" || !targetPath) {
-        res.status(400).send(
-          "Missing or invalid targetPath parameter."
-        );
+        if (!response.headersSent) {
+          response.status(400).send("Missing or invalid targetPath parameter.");
+        }
         return;
       }
 
       const apiKey = process.env.FOOTBALL_DATA_API_KEY;
 
       if (!apiKey) {
-        functions.logger.error(
+        logger.error(
           "Environment variable FOOTBALL_DATA_API_KEY not configured for the Cloud Function."
         );
-        res.status(500).send(
-          "Proxy API key (environment variable) is not configured."
-        );
+        if (!response.headersSent) {
+          response.status(500).send(
+            "Proxy API key (environment variable) is not configured."
+          );
+        }
         return;
       }
 
@@ -86,15 +94,16 @@ export const footballApiProxy = onRequest(
       }`;
 
       const queryParams = new URLSearchParams();
-      for (const key in req.query) {
-        if (Object.prototype.hasOwnProperty.call(req.query, key) && key !== "targetPath") {
-          const valueRaw = req.query[key];
+      // request.query is used again
+      const requestQuery = request.query;
+      for (const key in requestQuery) {
+        if (Object.prototype.hasOwnProperty.call(requestQuery, key) && key !== "targetPath") {
+          const valueRaw = requestQuery[key];
           if (valueRaw !== undefined) {
-            const value = Array.isArray(valueRaw) ? valueRaw[0] : valueRaw;
-            if (value !== undefined && typeof value === 'string') {
-                 queryParams.append(key, value);
-            } else if (value !== undefined) {
-                 queryParams.append(key, String(value));
+            // Ensure value is properly cast to string for URLSearchParams
+            const value = Array.isArray(valueRaw) ? (valueRaw[0] as string) : String(valueRaw);
+            if (value !== undefined) { // Check again after potential String() conversion
+              queryParams.append(key, value);
             }
           }
         }
@@ -102,193 +111,82 @@ export const footballApiProxy = onRequest(
 
       const queryString = queryParams.toString();
       if (queryString) {
-        externalApiUrl += (externalApiUrl.includes("?") ? "&" : "?") +
-          queryString;
+        externalApiUrl += (externalApiUrl.includes("?") ? "&" : "?") + queryString;
       }
 
-      functions.logger.info(`Proxying request to: ${externalApiUrl}`);
+      logger.info(`Proxying request to: ${externalApiUrl}`);
 
       try {
         const apiResponse = await axios.get(externalApiUrl, {
-            headers: {
-              "X-Auth-Token": apiKey,
-              "Accept": "application/json",
-            },
-            timeout: 10000, // 10 seconds timeout
-          });
-        res.status(apiResponse.status).send(apiResponse.data);
+          headers: {
+            "X-Auth-Token": apiKey,
+            "Accept": "application/json",
+          },
+          timeout: 10000, // 10 seconds timeout
+        });
+        // Forward the status and data from the external API back to the client.
+        if (!response.headersSent) {
+          response.status(apiResponse.status).send(apiResponse.data);
+        }
       } catch (error: unknown) {
-          let errorMessage = "Error fetching data from external API via proxy.";
-          let responseStatus = 500;
+        // --- Comprehensive Error Handling ---
+        let errorMessage = "Error fetching data from external API via proxy.";
+        let httpStatus = 500; // Use httpStatus to avoid conflict with axiosErrorInstance.response.status
 
-          let errorLogDetails: Record<string, any> = { url: externalApiUrl };
+        const errorLogDetails: Record<string, any> = { url: externalApiUrl };
 
-          if (error instanceof Error) {
-            errorMessage = error.message;
-            errorLogDetails.name = error.name;
-            errorLogDetails.message = error.message;
-          } else {
-            errorLogDetails.errorObject = String(error);
-          }
-
-          functions.logger.error(
-            "Proxy encountered an error:",
-            errorLogDetails
-          );
-
-          if (isAxiosError(error)) {
-            const axiosError = error as AxiosError;
-            errorLogDetails.isAxiosError = true;
-            if (axiosError.code) {
-                errorLogDetails.axiosErrorCode = axiosError.code;
-            }
-
-            if (axiosError.response) {
-              responseStatus = axiosError.response.status;
-              const responseData = axiosError.response.data;
-              functions.logger.error(
-                "Axios error with response from upstream API:",
-                {
-                  url: externalApiUrl,
-                  status: responseStatus,
-                  data: responseData,
-                  axiosErrorMessage: axiosError.message,
-                }
-              );
-              res.status(responseStatus).send(responseData || errorMessage);
-            } else {
-              functions.logger.warn(
-                "Axios error without response from upstream API (network issue or timeout):",
-                {
-                  url: externalApiUrl,
-                  message: axiosError.message,
-                  code: axiosError.code,
-                }
-              );
-              res.status(responseStatus).send(errorMessage);
-            }
-          } else {
-            res.status(responseStatus).send(errorMessage);
-          }
-        }
-    });
-  }
-);
-
-
-export const createBettingRoundProxy = onRequest(
-  async (req: FunctionsRequest, res: ExpressResponse): Promise<void> => { // Use ExpressResponse
-    corsHandler(req as ExpressRequestType, res, async (corsErr?: any) => {
-      if (corsErr) {
-        functions.logger.error("CORS error in createBettingRoundProxy:", corsErr);
-        res.status(500).json({ message: "CORS error: " + (corsErr instanceof Error ? corsErr.message : "Unknown CORS error") });
-        return;
-      }
-
-      if (req.method !== "POST") {
-        res.status(405).json({ message: "Method Not Allowed. Only POST is accepted." });
-        return;
-      }
-
-      const authorizationHeader = req.headers.authorization;
-      if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
-        res.status(401).json({ message: "Unauthorized: Missing or invalid ID token." });
-        return;
-      }
-      const idToken = authorizationHeader.split("Bearer ")[1];
-
-      const { matchData } = req.body as { matchData: FootballMatch };
-
-      if (!matchData || !matchData.id || !matchData.homeTeam || !matchData.awayTeam || !matchData.startTime || !matchData.league) {
-        res.status(400).json({ message: "Bad Request: Missing or invalid matchData." });
-        return;
-      }
-
-      try {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const adminUid = decodedToken.uid;
-
-        const userDoc = await db.collection("users").doc(adminUid).get();
-        if (!userDoc.exists || userDoc.data()?.role !== "admin") {
-          functions.logger.warn(`User ${adminUid} attempted to create round but is not an admin or does not exist.`);
-          res.status(403).json({ message: "Forbidden: User is not authorized to create betting rounds." });
-          return;
-        }
-
-        const bettingRoundsCol = db.collection("bettingRounds");
-        
-        const existingRoundQuery = await bettingRoundsCol.where("matchId", "==", matchData.id).limit(1).get();
-        if (!existingRoundQuery.empty) {
-          res.status(409).json({ message: "Conflict: A betting round for this match already exists." });
-          return;
-        }
-        
-        const newRoundRef = bettingRoundsCol.doc();
-        const newRoundData = {
-          id: newRoundRef.id,
-          matchId: matchData.id,
-          matchDetails: {
-            id: matchData.id,
-            homeTeam: matchData.homeTeam,
-            awayTeam: matchData.awayTeam,
-            startTime: admin.firestore.Timestamp.fromDate(new Date(matchData.startTime)),
-            league: matchData.league,
-            ...(matchData.leagueCode && { leagueCode: matchData.leagueCode }),
-            ...(matchData.status && { status: matchData.status }),
-          },
-          status: BettingRoundStatus.OPEN,
-          bets: [],
-          bettorIds: [],
-          createdBy: adminUid,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        await newRoundRef.set(newRoundData);
-
-        const createdDoc = await newRoundRef.get();
-        const createdRoundData = createdDoc.data();
-        
-        const responseData = {
-          ...createdRoundData,
-          matchDetails: {
-            ...createdRoundData?.matchDetails,
-            startTime: (createdRoundData?.matchDetails.startTime as admin.firestore.Timestamp)?.toDate().toISOString(),
-          },
-          createdAt: (createdRoundData?.createdAt as admin.firestore.Timestamp)?.toDate().toISOString(),
-        };
-
-        functions.logger.info(`Betting round ${newRoundRef.id} created successfully by admin ${adminUid}`);
-        res.status(201).json(responseData);
-
-      } catch (error: any) {
-        functions.logger.error("Error creating betting round via proxy:", error);
-        if (error.code === "auth/id-token-expired" || error.code === "auth/argument-error") {
-          res.status(401).json({ message: `Unauthorized: ID token is invalid or expired. ${error.message}` });
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          errorLogDetails.name = error.name;
+          errorLogDetails.message = error.message;
         } else {
-          res.status(500).json({ message: `Internal Server Error: ${error.message || "Could not create betting round."}` });
+          errorLogDetails.errorObject = String(error);
+        }
+
+        if (isAxiosError(error)) {
+          const axiosErrorInstance: AxiosError = error;
+          errorLogDetails.isAxiosError = true;
+          if (axiosErrorInstance.code) {
+            errorLogDetails.axiosErrorCode = axiosErrorInstance.code;
+          }
+
+          if (axiosErrorInstance.response) {
+            httpStatus = axiosErrorInstance.response.status;
+            const responseData = axiosErrorInstance.response.data as any;
+            logger.error(
+              "Axios error with response from upstream API:",
+              {
+                url: externalApiUrl,
+                status: httpStatus,
+                data: responseData,
+                axiosErrorMessage: axiosErrorInstance.message,
+              }
+            );
+            if (!response.headersSent) {
+              response.status(httpStatus).send(responseData || errorMessage);
+            }
+          } else { // Network error or timeout, no response from upstream
+            logger.warn(
+              "Axios error without response from upstream API (network issue or timeout):",
+              {
+                url: externalApiUrl,
+                message: axiosErrorInstance.message,
+                code: axiosErrorInstance.code,
+              }
+            );
+            if (!response.headersSent) {
+              // For timeout or network errors, use a gateway timeout or service unavailable status
+              httpStatus = axiosErrorInstance.code === 'ECONNABORTED' ? 504 : 503;
+              response.status(httpStatus).send(errorMessage);
+            }
+          }
+        } else { // Non-Axios error
+          logger.error("Proxy encountered a non-Axios error:", errorLogDetails);
+          if (!response.headersSent) {
+            response.status(httpStatus).send(errorMessage);
+          }
         }
       }
     });
   }
 );
-// Make sure you have a types.ts file in your functions/src directory with the necessary type definitions
-// for FootballMatch and BettingRoundStatus, or adjust the import path if it's shared differently.
-// For example:
-/*
-// functions/src/types.ts
-export enum BettingRoundStatus {
-  OPEN = 'open',
-  // ... other statuses
-}
-export interface FootballMatch {
-  id: string;
-  homeTeam: string;
-  awayTeam: string;
-  startTime: string | Date; // Date for internal use, string from client for matchData
-  league: string;
-  leagueCode?: string;
-  status?: string; // API status of the match
-}
-*/
-// The import { FootballMatch, BettingRoundStatus } from "./types"; assumes a types.ts exists in functions/src folder.
-// The code correctly handles new Date(matchData.startTime) for conversion.

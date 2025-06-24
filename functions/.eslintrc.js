@@ -30,12 +30,15 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
-    "object-curly-spacing": ["error", "always"],
-    "max-len": ["error", {"code": 120}],
+    "object-curly-spacing": ["error", "always"], // Enforce space inside braces
+    "max-len": ["error", { "code": 120, "ignoreUrls": true, "ignoreStrings": true, "ignoreTemplateLiterals": true }],
     "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "firebase-functions/no-unused-vars": "off", // if using firebase-functions plugin
     "require-jsdoc": "off", // Optional: if you don't want to enforce JSDoc
     "valid-jsdoc": "off", // Optional
-    "@typescript-eslint/no-explicit-any": "warn" // Allow any for now, but good to tighten later
+    "@typescript-eslint/no-explicit-any": "warn", // Allow any for now, but good to tighten later
+    "linebreak-style": ["error", "unix"], // Enforce LF line endings
+    "operator-linebreak": ["error", "after", { "overrides": { "?": "before", ":": "before" } }],
+    "comma-dangle": ["error", "always-multiline"], // Enforce trailing commas for multiline
   },
 };

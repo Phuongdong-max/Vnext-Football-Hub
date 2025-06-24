@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { XIcon } from '../icons';
 
@@ -26,7 +25,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         className={`bg-surface rounded-lg shadow-2xl ${sizeClasses[size]} w-full m-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalShow`}
         onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="text-xl font-semibold text-textPrimary">{title}</h3>
           <button
             onClick={onClose}
@@ -54,4 +53,3 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     </div>
   );
 };
-    

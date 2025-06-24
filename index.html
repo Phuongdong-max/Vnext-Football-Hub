@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -8,18 +7,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class', // Enable class-based dark mode
         theme: {
           extend: {
             colors: {
-              primary: 'var(--color-primary, #f97316)', // Default primary color (Orange)
-              secondary: 'var(--color-secondary, #475569)', // Default secondary color (Slate)
-              background: 'var(--color-background, #f8f9fa)', // Default background
-              surface: 'var(--color-surface, #ffffff)', // Default surface for cards, modals
-              textPrimary: 'var(--color-text-primary, #212529)', // Default primary text
-              textSecondary: 'var(--color-text-secondary, #495057)', // Default secondary text
+              primary: 'var(--color-primary)', 
+              secondary: 'var(--color-secondary)', 
+              background: 'var(--color-background)', 
+              surface: 'var(--color-surface)', 
+              textPrimary: 'var(--color-text-primary)', 
+              textSecondary: 'var(--color-text-secondary)',
+              border: 'var(--color-border)',
               success: '#28a745',
               danger: '#dc3545',
-              warning: '#ffc107', // This is a Tailwind yellow-500, often used for warnings. Could be adjusted if needed.
+              warning: '#ffc107',
             },
           },
         },
@@ -27,24 +28,26 @@
     </script>
     <style>
       body {
-        font-family: 'Inter', sans-serif; /* A nice, modern sans-serif font */
-        @apply bg-background text-textPrimary;
+        font-family: 'Inter', sans-serif;
+        @apply bg-background text-textPrimary transition-colors duration-300;
       }
-      /* Custom scrollbar for better aesthetics */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        @apply bg-gray-100; /* Consider var(--color-surface) or var(--color-background) */
+        @apply bg-gray-100;
         border-radius: 10px;
       }
+      html.dark ::-webkit-scrollbar-track {
+        background-color: var(--color-background); 
+      }
       ::-webkit-scrollbar-thumb {
-        @apply bg-primary; /* Will now be orange */
+        @apply bg-primary;
         border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        @apply bg-opacity-80; /* Orange with 80% opacity */
+        @apply bg-opacity-80;
       }
       :root {
         --color-primary: #f97316; /* Orange-500 */
@@ -53,6 +56,64 @@
         --color-surface: #ffffff;
         --color-text-primary: #1e293b; /* Slate-800 */
         --color-text-secondary: #475569; /* Slate-600 */
+        --color-border: #e2e8f0; /* Slate-200 */
+      }
+      html.dark {
+        --color-primary: #ea580c; /* Orange-600 */
+        --color-secondary: #94a3b8; /* Slate-400 */
+        --color-background: #0f172a; /* Slate-900 */
+        --color-surface: #1e293b;    /* Slate-800 */
+        --color-text-primary: #f1f5f9; /* Slate-100 */
+        --color-text-secondary: #94a3b8; /* Slate-400 */
+        --color-border: #334155; /* Slate-700 */
+      }
+
+      /* Animated Gradient Background - Darker Version */
+      .animated-gradient-bg {
+        /* Darker, richer tones */
+        background: linear-gradient(-45deg, #4a044e, #042f4e, #0c4a6e, #311b92, #7c2d12); /* Dark Purple, Dark Teal, Dark Blue, Deep Indigo, Dark Orange/Brown */
+        background-size: 400% 400%; /* Larger size for smoother transition */
+        animation: dynamicGradient 30s ease infinite; /* Slower animation */
+        color: white; 
+      }
+
+      @keyframes dynamicGradient {
+        0% { background-position: 0% 50%; }
+        25% { background-position: 100% 0%; }
+        50% { background-position: 100% 100%; }
+        75% { background-position: 0% 100%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      /* Floating Soccer Ball Animation */
+      @keyframes floatUpAndDown {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        25% { transform: translateY(-15px) rotate(15deg); }
+        50% { transform: translateY(0) rotate(0deg); }
+        75% { transform: translateY(15px) rotate(-15deg); }
+      }
+      .floating-soccer-ball {
+        animation: floatUpAndDown 10s ease-in-out infinite;
+        position: absolute;
+        pointer-events: none;
+      }
+
+      /* Floating Points Indicator Animation */
+      @keyframes floatPoints {
+        0% { transform: translateY(0) scale(1); opacity: 0.8; }
+        50% { transform: translateY(-60px) scale(1.1); opacity: 1; }
+        100% { transform: translateY(-120px) scale(0.8); opacity: 0; }
+      }
+      .floating-points-indicator {
+        animation: floatPoints 4s ease-out infinite;
+        position: absolute;
+        pointer-events: none;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        padding: 2px 6px;
+        border-radius: 8px;
+        background-color: rgba(0, 0, 0, 0.2); /* Slight background for visibility */
       }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,15 +132,26 @@
     "react": "https://esm.sh/react@^19.1.0",
     "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
     "react-router-dom": "https://esm.sh/react-router-dom@^7.6.2",
-    "axios": "https://esm.sh/axios@^1.9.0",
     "firebase-functions": "https://esm.sh/firebase-functions@^6.3.2",
-    "firebase-functions/": "https://esm.sh/firebase-functions@^6.3.2/",
-    "express": "https://esm.sh/express@^5.1.0",
+    "axios": "https://esm.sh/axios@^1.9.0",
     "cors": "https://esm.sh/cors@^2.8.5",
-    "firebase-admin": "https://esm.sh/firebase-admin@^13.4.0"
+    "express": "https://esm.sh/express@^5.1.0",
+    "firebase-functions/": "https://esm.sh/firebase-functions@^6.3.2/"
   }
 }
 </script>
+  <script>
+    // Script to apply theme before React loads to prevent FOUC
+    (function() {
+      const theme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (theme === 'dark' || (!theme && theme !== 'light' && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
 </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

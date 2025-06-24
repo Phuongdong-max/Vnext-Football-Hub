@@ -1,3 +1,4 @@
+
 import { FootballMatch, League } from '../types';
 import { FOOTBALL_API_BASE_URL, TIER_ONE_LEAGUE_CODES } from '../constants';
 
@@ -14,72 +15,75 @@ if (!IS_INTENDED_TO_USE_API_FEATURES_VIA_ENV) {
   );
 }
 
+interface FootballDataArea {
+  id: number;
+  name: string;
+  code?: string; // Optional, might not always be present
+  ensignUrl?: string; // Older API version field, keep for potential compatibility or remove if not used
+  parentArea?: string;
+  parentAreaId?: number;
+}
+
 interface FootballDataCompetition {
   id: number;
   name: string;
   code: string;
-  area: {
-    name: string;
-  };
+  area: FootballDataArea; // Updated to use the detailed FootballDataArea
+  type?: string; // Optional, e.g., "LEAGUE", "CUP"
+  emblem?: string; // Optional URL to league emblem
+}
+
+interface FootballDataTeam {
+  id: number;
+  name: string;
+  shortName?: string; // Optional
+  tla?: string; // Optional (Three Letter Abbreviation)
+  crest?: string; // Optional URL to team crest
 }
 
 interface FootballDataMatch {
   id: number;
   utcDate: string;
-  status: string;
-  homeTeam: {
-    id: number;
-    name: string;
-    shortName: string;
-  };
-  awayTeam: {
-    id: number;
-    name: string;
-    shortName: string;
-  };
-  competition: {
-    id: number;
-    name: string;
-    code: string;
-  };
+  status: string; // e.g., "SCHEDULED", "TIMED", "IN_PLAY", "PAUSED", "FINISHED", "SUSPENDED", "POSTPONED", "CANCELLED"
+  matchday?: number; // Optional
+  stage?: string; // Optional, e.g., "REGULAR_SEASON"
+  group?: string | null; // Optional
+  lastUpdated?: string; // Optional ISO date string
+  homeTeam: FootballDataTeam | null; // Can be null if data is incomplete
+  awayTeam: FootballDataTeam | null; // Can be null if data is incomplete
+  competition: FootballDataCompetition | null; // Can be null
+  // score, odds, referees etc. could also be here if needed
 }
 
 export const checkIsFootballApiAvailable = (): boolean => {
-  // The primary check from the client's perspective is if the proxy URL is configured
-  // and doesn't look like a generic placeholder.
   const proxyUrlConfigured = FOOTBALL_API_BASE_URL &&
                              (FOOTBALL_API_BASE_URL.startsWith('http://') || FOOTBALL_API_BASE_URL.startsWith('https://')) &&
-                             !FOOTBALL_API_BASE_URL.includes("YOUR_PROJECT_ID"); // Ensures the generic placeholder from examples is replaced.
+                             !FOOTBALL_API_BASE_URL.includes("YOUR_PROJECT_ID"); 
 
   if (!proxyUrlConfigured) {
     console.warn(
-      "The FOOTBALL_API_PROXY_URL in constants.ts appears to be a placeholder (e.g., contains 'YOUR_PROJECT_ID') or is not a valid URL. " +
+      "The FOOTBALL_API_PROXY_URL in constants.ts appears to be a placeholder or is not a valid URL. " +
       "Live API features will likely fail. Current URL:", FOOTBALL_API_BASE_URL
     );
   }
   
-  // If the proxy URL looks okay, but the client-side .env var was missing, it's a soft warning.
-  // The app will still *try* to use the proxy.
   if (proxyUrlConfigured && !IS_INTENDED_TO_USE_API_FEATURES_VIA_ENV) {
       console.info(
           "FOOTBALL_API_PROXY_URL seems configured, but the client-side FOOTBALL_DATA_API_KEY environment variable was not detected. " +
           "Calls to the proxy will proceed. Ensure the proxy itself is configured with the necessary API key."
       );
   }
-  
-  // The function returns true if the proxy URL seems configured.
-  // Actual success of API calls will determine further behavior (e.g., fallback to mock data).
   return proxyUrlConfigured;
 };
 
 
 export const fetchAvailableLeagues = async (): Promise<League[]> => {
-  if (!checkIsFootballApiAvailable()) { // This check now primarily validates FOOTBALL_API_BASE_URL format
-    console.log("Football API proxy URL not correctly configured or is a placeholder; cannot fetch leagues.");
+  if (!checkIsFootballApiAvailable()) {
+    console.log("Football API proxy URL not correctly configured; cannot fetch leagues.");
     return [];
   }
 
-  const targetPath = "/competitions"; // Path for the external Football-Data.org API
+  const targetPath = "/competitions";
   try {
     const response = await fetch(`${FOOTBALL_API_BASE_URL}?targetPath=${encodeURIComponent(targetPath)}`);
     
@@ -90,10 +94,15 @@ export const fetchAvailableLeagues = async (): Promise<League[]> => {
     }
     const data = await response.json();
     
+    if (!data.competitions || !Array.isArray(data.competitions)) {
+      console.warn("Fetched leagues data is not in the expected format (missing 'competitions' array):", data);
+      return [];
+    }
+    
     const leagues: League[] = (data.competitions as FootballDataCompetition[])
-      .filter(comp => TIER_ONE_LEAGUE_CODES.includes(comp.code)) // Filter for Tier One leagues
+      .filter(comp => comp && comp.code && TIER_ONE_LEAGUE_CODES.includes(comp.code) && comp.name && comp.area?.name)
       .map(comp => ({
-        id: comp.code, // Using code as ID
+        id: comp.code,
         name: comp.name,
         areaName: comp.area.name,
       }));
@@ -107,7 +116,7 @@ export const fetchAvailableLeagues = async (): Promise<League[]> => {
 
 export const fetchMatchesByDateAndLeague = async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
   if (!checkIsFootballApiAvailable()) {
-    console.log("Football API proxy URL not correctly configured or is a placeholder; cannot fetch matches.");
+    console.log("Football API proxy URL not correctly configured; cannot fetch matches.");
     return [];
   }
   
@@ -124,20 +133,38 @@ export const fetchMatchesByDateAndLeague = async (date: string, leagueCode: stri
     }
     const data = await response.json();
 
-    if (!data.matches) {
-        console.warn(`No matches found in API response (via proxy) for league ${leagueCode} on ${date}. URL: ${fullProxyUrl}, Response:`, data);
+    if (!data.matches || !Array.isArray(data.matches)) {
+        console.warn(`No matches array found in API response (via proxy) for league ${leagueCode} on ${date}. URL: ${fullProxyUrl}, Response:`, data);
         return [];
     }
 
-    return (data.matches as FootballDataMatch[]).map(match => ({
+    const validMatches = (data.matches as (FootballDataMatch | null | undefined)[])
+      .filter((match): match is FootballDataMatch => 
+        // Ensure match and its critical nested properties exist
+        Boolean(
+          match &&
+          typeof match.id === 'number' &&
+          match.homeTeam && typeof match.homeTeam.name === 'string' &&
+          match.awayTeam && typeof match.awayTeam.name === 'string' &&
+          match.competition && typeof match.competition.name === 'string' &&
+          typeof match.utcDate === 'string'
+        )
+      );
+
+    if (validMatches.length !== data.matches.length) {
+        console.warn(`Filtered out ${data.matches.length - validMatches.length} incomplete match objects from API response for ${leagueCode} on ${date}.`);
+    }
+    
+    return validMatches.map(match => ({
       id: String(match.id),
-      homeTeam: match.homeTeam.name,
-      awayTeam: match.awayTeam.name,
+      homeTeam: match.homeTeam.name, // Safe to access due to filter
+      awayTeam: match.awayTeam.name, // Safe to access
       startTime: new Date(match.utcDate),
-      league: match.competition.name,
-      leagueCode: match.competition.code,
-      status: match.status,
+      league: match.competition.name, // Safe to access
+      leagueCode: match.competition.code || leagueCode, // Fallback to requested leagueCode
+      status: match.status || 'SCHEDULED', // Fallback status
     }));
+
   } catch (error) {
     console.error(`Network or parsing error fetching matches via proxy. URL: ${fullProxyUrl}:`, error);
     if (error instanceof Error && error.message.includes(`Failed to fetch matches for ${leagueCode} via proxy`)) throw error;

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { BettingRound, BetTeamSelection } from '../types';
 import { Modal } from './shared/Modal';
@@ -44,6 +43,9 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
     }
   };
 
+  const inputBaseClasses = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500";
+
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Place Bet on: ${round.matchDetails.homeTeam} vs ${round.matchDetails.awayTeam}`}>
       <div className="space-y-4">
@@ -78,7 +80,7 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
             onChange={handlePointsChange}
             min="1"
             max={currentUserPoints}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+            className={inputBaseClasses} // This class already includes dark mode styles
           />
         </div>
 
@@ -95,4 +97,3 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
     </Modal>
   );
 };
-    

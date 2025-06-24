@@ -4,130 +4,13 @@ import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, Bet
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
-// This namespace is for type annotations like `param: FirebaseGlob.auth.User`.
-// It mirrors the structure of the v8/compat Firebase SDK.
-declare namespace FirebaseGlob {
-  namespace auth {
-    interface Auth {
-      currentUser: FirebaseGlob.auth.User | null; // Added currentUser
-      onAuthStateChanged(callback: (user: User | null) => void): () => void;
-      signInWithPopup(provider: GoogleAuthProvider): Promise<UserCredential>;
-      signOut(): Promise<void>;
-      // Add other methods if used
-    }
-
-    interface User {
-      uid: string;
-      displayName: string | null;
-      email: string | null;
-      photoURL: string | null;
-      getIdToken(forceRefresh?: boolean): Promise<string>; // Ensure getIdToken is defined
-      // Add other User properties if used from firebaseUser
-    }
-
-    interface UserCredential {
-      user: User | null;
-      // Add other properties if needed
-    }
-
-    // Provider class
-    class GoogleAuthProvider {
-      // No methods/properties needed for instantiation typically
-    }
-  }
-
-  namespace firestore {
-    interface Firestore {
-      collection(collectionPath: string): CollectionReference;
-      doc(documentPath: string): DocumentReference;
-      runTransaction<T>(updateFunction: (transaction: Transaction) => Promise<T>): Promise<T>;
-    }
-
-    interface DocumentReference {
-      id: string;
-      get(): Promise<DocumentSnapshot>;
-      set(data: any): Promise<void>; 
-      update(data: any): Promise<void>;
-    }
-
-    interface CollectionReference { // extends Query
-      id: string;
-      doc(documentPath?: string): DocumentReference;
-      where(fieldPath: string | FieldPath, opStr: WhereFilterOp, value: any): Query;
-      orderBy(fieldPath: string | FieldPath, directionStr?: OrderByDirection): Query;
-      limit(limit: number): Query;
-      get(): Promise<QuerySnapshot>;
-    }
-    
-    interface Query {
-       where(fieldPath: string | FieldPath, opStr: WhereFilterOp, value: any): Query;
-       orderBy(fieldPath: string | FieldPath, directionStr?: OrderByDirection): Query;
-       limit(limit: number): Query;
-       get(): Promise<QuerySnapshot>;
-    }
-
-    interface DocumentSnapshot {
-      id: string;
-      exists: boolean;
-      data(): any | undefined; 
-    }
-
-    interface QuerySnapshot {
-      docs: DocumentSnapshot[]; 
-      empty: boolean;
-      forEach(callback: (result: DocumentSnapshot) => void, thisArg?: any): void;
-    }
-    
-    interface FieldPath { /* Minimal definition, expand if needed */ }
-    type WhereFilterOp = '==' | '<' | '<=' | '>' | '>=' | '!=' | 'array-contains' | 'array-contains-any' | 'in' | 'not-in';
-    type OrderByDirection = 'desc' | 'asc';
-
-    interface Transaction {
-      get(documentRef: DocumentReference): Promise<DocumentSnapshot>;
-      update(documentRef: DocumentReference, data: any): Transaction; 
-    }
-
-    const FieldValue: {
-      serverTimestamp: () => any; 
-      delete: () => any; 
-      arrayUnion: (...elements: any[]) => any; 
-      arrayRemove: (...elements: any[]) => any; 
-      increment: (n: number) => any; 
-    };
-    
-    interface Timestamp {
-      toDate(): Date;
-    }
-    const Timestamp: {
-      now(): Timestamp;
-      fromDate(date: Date): Timestamp;
-    };
-  }
-}
-
 declare global {
-  interface Window {
-    firebase: {
-      initializeApp: (config: any) => any; // Returns FirebaseApp
-      app: (name?: string) => any; // Returns FirebaseApp
-      apps: any[];
-      auth: {
-        (): FirebaseGlob.auth.Auth;
-        GoogleAuthProvider: new () => FirebaseGlob.auth.GoogleAuthProvider;
-      };
-      firestore: {
-        (): FirebaseGlob.firestore.Firestore;
-        Timestamp: typeof FirebaseGlob.firestore.Timestamp;
-        FieldValue: typeof FirebaseGlob.firestore.FieldValue;
-      };
-    };
-  }
+  interface Window { firebase: any; }
 }
-declare var firebase: Window['firebase']; // Make firebase directly available
 
 let app: any = null; // Firebase App instance
-let auth: FirebaseGlob.auth.Auth | null = null; // Firebase Auth instance
-let db: FirebaseGlob.firestore.Firestore | null = null;  // Firebase Firestore instance
+let auth: any = null; // Firebase Auth instance
+let db: any = null;  // Firebase Firestore instance
 
 export const initializeFirebase = () => {
   if (!window.firebase) {
@@ -147,7 +30,7 @@ export const initializeFirebase = () => {
       return false;
     }
   } else if (window.firebase.apps && window.firebase.apps.length > 0) {
-    app = window.firebase.app(); 
+    app = window.firebase.app();
     auth = window.firebase.auth();
     db = window.firebase.firestore();
     return true;
@@ -159,27 +42,45 @@ export const initializeFirebase = () => {
 export const onFirebaseAuthStateChanged = (callback: (user: User | null) => void) => {
   if (!auth) {
     console.warn("Firebase Auth not initialized. Call initializeFirebase first.");
-    return () => {}; 
+    return () => {}; // Return an empty unsubscribe function
   }
-  return auth.onAuthStateChanged(async (firebaseUser: FirebaseGlob.auth.User | null) => {
-    if (firebaseUser) {
-      const appUser = await findOrCreateUserProfile(firebaseUser);
-      callback(appUser);
+  return auth.onAuthStateChanged(async (firebaseUserFromSdk: any) => {
+    console.log("[AuthService] Raw SDK user from onAuthStateChanged:", firebaseUserFromSdk);
+    
+    if (firebaseUserFromSdk) {
+      // Robust check for UID existence and type
+      if (typeof firebaseUserFromSdk.uid === 'string' && firebaseUserFromSdk.uid.length > 0) {
+        console.log("[AuthService] SDK user has valid UID:", firebaseUserFromSdk.uid);
+        try {
+          const appUser = await findOrCreateUserProfile(firebaseUserFromSdk);
+          callback(appUser);
+        } catch (error) {
+          console.error("[AuthService] Error in findOrCreateUserProfile:", error);
+          callback(null); // Propagate error as a null user state
+        }
+      } else {
+        console.error("[AuthService] SDK user received from onAuthStateChanged is missing a valid UID.", 
+                      "UID type:", typeof firebaseUserFromSdk.uid, 
+                      "UID value:", firebaseUserFromSdk.uid,
+                      "Full SDK user object:", firebaseUserFromSdk);
+        callback(null); // Treat as an invalid/error state
+      }
     } else {
+      console.log("[AuthService] No SDK user (logged out).");
       callback(null);
     }
   });
 };
 
-export const signInWithGoogle = async (): Promise<FirebaseGlob.auth.User | null> => {
+export const signInWithGoogle = async (): Promise<any | null> => {
   if (!auth) {
     console.error("Firebase Auth not initialized.");
     throw new Error("Firebase Auth not initialized.");
   }
   const provider = new window.firebase.auth.GoogleAuthProvider();
   try {
-    const result: FirebaseGlob.auth.UserCredential = await auth.signInWithPopup(provider);
-    return result.user; 
+    const result = await auth.signInWithPopup(provider);
+    return result.user; // Firebase User object
   } catch (error) {
     console.error("Google Sign-In Error:", error);
     throw error;
@@ -198,27 +99,35 @@ export const firebaseSignOut = async (): Promise<void> => {
   }
 };
 
-export const findOrCreateUserProfile = async (firebaseUser: FirebaseGlob.auth.User): Promise<User> => {
+export const findOrCreateUserProfile = async (firebaseUserFromSdk: any): Promise<User> => {
   if (!db) {
-    console.error("Firestore not initialized.");
+    console.error("Firestore not initialized for findOrCreateUserProfile.");
     throw new Error("Firestore not initialized.");
   }
 
-  if (!firebaseUser.uid) {
-      console.error("Firebase user object is missing UID in findOrCreateUserProfile.", firebaseUser);
-      throw new Error("Firebase user is invalid (missing UID).");
+  // This check is crucial and now more descriptive if it fails.
+  if (!firebaseUserFromSdk || typeof firebaseUserFromSdk.uid !== 'string' || firebaseUserFromSdk.uid.length === 0) {
+    console.error(
+      "findOrCreateUserProfile called with invalid firebaseUserFromSdk or missing/empty UID.",
+      "firebaseUserFromSdk:", firebaseUserFromSdk,
+      "UID type:", typeof firebaseUserFromSdk?.uid,
+      "UID value:", firebaseUserFromSdk?.uid
+    );
+    throw new Error("Cannot process user profile: Firebase user from SDK is invalid or UID is missing/empty.");
   }
 
-  const userRef = db.collection('users').doc(firebaseUser.uid);
+  const uid = firebaseUserFromSdk.uid; // uid is now confirmed to be a valid string
+  const userRef = db.collection('users').doc(uid);
   const doc = await userRef.get();
 
   if (!doc.exists) {
+    console.log(`[AuthService] Creating new user profile for UID: ${uid}`);
     const newUserProfile: User = {
-      id: firebaseUser.uid, 
-      name: firebaseUser.displayName || 'Anonymous User',
-      email: firebaseUser.email || '',
-      avatarUrl: firebaseUser.photoURL || undefined,
-      role: UserRole.MEMBER, 
+      id: uid, // Use the validated uid
+      name: firebaseUserFromSdk.displayName || 'Anonymous User',
+      email: firebaseUserFromSdk.email || '',
+      avatarUrl: firebaseUserFromSdk.photoURL || undefined,
+      role: UserRole.MEMBER,
       points: INITIAL_USER_POINTS,
       betsMadeCount: 0,
       winsCount: 0,
@@ -226,12 +135,13 @@ export const findOrCreateUserProfile = async (firebaseUser: FirebaseGlob.auth.Us
     await userRef.set(newUserProfile);
     return newUserProfile;
   } else {
-    const data = doc.data() as any; // data() returns any with current typings
+    console.log(`[AuthService] Found existing user profile for UID: ${uid}`);
+    const data = doc.data();
     return {
-      id: doc.id, 
-      name: data.name || firebaseUser.displayName || 'Anonymous User',
-      email: data.email || firebaseUser.email || '',
-      avatarUrl: data.avatarUrl || firebaseUser.photoURL || undefined,
+      id: uid, // Use the validated uid
+      name: data.name || firebaseUserFromSdk.displayName || 'Anonymous User',
+      email: data.email || firebaseUserFromSdk.email || '',
+      avatarUrl: data.avatarUrl || firebaseUserFromSdk.photoURL || undefined,
       role: data.role || UserRole.MEMBER,
       points: typeof data.points === 'number' ? data.points : INITIAL_USER_POINTS,
       betsMadeCount: typeof data.betsMadeCount === 'number' ? data.betsMadeCount : 0,
@@ -262,9 +172,9 @@ export const getAppUserProfile = async (userId: string): Promise<User | null> =>
     const userRef = db.collection('users').doc(userId);
     const doc = await userRef.get();
     if (doc.exists) {
-        const data = doc.data() as any; // data() returns any
+        const data = doc.data();
         return {
-            id: doc.id, 
+            id: doc.id,
             name: data.name || 'Anonymous User',
             email: data.email || '',
             avatarUrl: data.avatarUrl || undefined,
@@ -288,65 +198,43 @@ export const createFirebaseBettingRound = async (match: FootballMatch, adminUser
   }
 
   const newRoundRef = db.collection('bettingRounds').doc();
-  
-  // Construct matchDetails carefully to avoid undefined values
-  const matchDetailsForFirestore: any = {
-    id: match.id,
-    homeTeam: match.homeTeam,
-    awayTeam: match.awayTeam,
-    startTime: window.firebase.firestore.Timestamp.fromDate(new Date(match.startTime)),
-    league: match.league,
-  };
-  if (match.leagueCode !== undefined) {
-    matchDetailsForFirestore.leagueCode = match.leagueCode;
-  }
-  if (match.status !== undefined) {
-    matchDetailsForFirestore.status = match.status;
-  }
-
-  const newRoundDataToSet = { 
+  const newRoundData: BettingRound = {
     id: newRoundRef.id,
     matchId: match.id,
-    matchDetails: matchDetailsForFirestore,
+    matchDetails: { 
+        ...match,
+        startTime: window.firebase.firestore.Timestamp.fromDate(new Date(match.startTime)),
+    },
     status: BettingRoundStatus.OPEN,
     bets: [],
     bettorIds: [],
     createdBy: adminUserId,
     createdAt: window.firebase.firestore.Timestamp.now(),
   };
-  await newRoundRef.set(newRoundDataToSet);
-  
-  // Return BettingRound with Date objects
+  await newRoundRef.set(newRoundData);
   return {
-      ...newRoundDataToSet,
+      ...newRoundData,
       matchDetails: {
-          ...newRoundDataToSet.matchDetails,
-          startTime: (newRoundDataToSet.matchDetails.startTime as FirebaseGlob.firestore.Timestamp).toDate(),
+          ...newRoundData.matchDetails,
+          startTime: (newRoundData.matchDetails.startTime as any).toDate(),
       },
-      createdAt: (newRoundDataToSet.createdAt as FirebaseGlob.firestore.Timestamp).toDate(),
-  } as BettingRound;
+      createdAt: (newRoundData.createdAt as any).toDate(),
+  };
 };
 
-const mapFirestoreTimestampToDate = (roundDataInput: any): BettingRound => {
-  if (!roundDataInput) return roundDataInput; 
-  const data = typeof roundDataInput.data === 'function' ? roundDataInput.data() : roundDataInput; 
-
-  const mappedMatchDetails = {
-    ...data.matchDetails,
-    startTime: data.matchDetails.startTime?.toDate ? data.matchDetails.startTime.toDate() : new Date(data.matchDetails.startTime),
-  };
-
-  const mappedBets = (data.bets || []).map((bet: any) => ({
-    ...bet,
-    timestamp: bet.timestamp?.toDate ? bet.timestamp.toDate() : new Date(bet.timestamp),
-  }));
-
+const mapFirestoreTimestampToDate = (round: any): BettingRound => {
   return {
-    ...data,
-    matchDetails: mappedMatchDetails,
-    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-    bets: mappedBets,
-  } as BettingRound;
+    ...round,
+    matchDetails: {
+      ...round.matchDetails,
+      startTime: round.matchDetails.startTime.toDate(),
+    },
+    createdAt: round.createdAt.toDate(),
+    bets: round.bets.map((bet: any) => ({
+      ...bet,
+      timestamp: bet.timestamp.toDate(),
+    })),
+  };
 };
 
 export const getFirebaseBettingRoundById = async (roundId: string): Promise<BettingRound | null> => {
@@ -363,7 +251,7 @@ export const getFirebaseBettingRoundsByAdmin = async (adminId: string): Promise<
                               .where('createdBy', '==', adminId)
                               .orderBy('createdAt', 'desc')
                               .get();
-  return querySnapshot.docs.map((doc: FirebaseGlob.firestore.DocumentSnapshot) => mapFirestoreTimestampToDate(doc.data()));
+  return querySnapshot.docs.map((doc: any) => mapFirestoreTimestampToDate(doc.data()));
 };
 
 export const getFirebaseOpenBettingRounds = async (): Promise<BettingRound[]> => {
@@ -372,7 +260,7 @@ export const getFirebaseOpenBettingRounds = async (): Promise<BettingRound[]> =>
                               .where('status', '==', BettingRoundStatus.OPEN)
                               .orderBy('matchDetails.startTime', 'asc')
                               .get();
-  return querySnapshot.docs.map((doc: FirebaseGlob.firestore.DocumentSnapshot) => mapFirestoreTimestampToDate(doc.data()));
+  return querySnapshot.docs.map((doc: any) => mapFirestoreTimestampToDate(doc.data()));
 };
 
 export const getFirebaseClosedBettingRoundsForMember = async (userId: string): Promise<BettingRound[]> => {
@@ -382,7 +270,7 @@ export const getFirebaseClosedBettingRoundsForMember = async (userId: string): P
                               .where('status', 'in', [BettingRoundStatus.CLOSED, BettingRoundStatus.RESULT_UPDATED])
                               .orderBy('matchDetails.startTime', 'desc')
                               .get();
-  return querySnapshot.docs.map((doc: FirebaseGlob.firestore.DocumentSnapshot) => mapFirestoreTimestampToDate(doc.data()));
+  return querySnapshot.docs.map((doc: any) => mapFirestoreTimestampToDate(doc.data()));
 };
 
 export const placeFirebaseBet = async (
@@ -398,22 +286,22 @@ export const placeFirebaseBet = async (
   const roundRef = db.collection('bettingRounds').doc(roundId);
   const userRef = db.collection('users').doc(userId);
 
-  const newBetDataForFirestore = { 
+  const newBet: Bet = {
     userId,
     userName,
     roundId,
     selectedTeam,
     pointsBet,
-    timestamp: window.firebase.firestore.Timestamp.now(), 
+    timestamp: window.firebase.firestore.Timestamp.now(),
   };
 
-  await db.runTransaction(async (transaction: FirebaseGlob.firestore.Transaction) => {
+  await db.runTransaction(async (transaction: any) => {
     const roundDoc = await transaction.get(roundRef);
     if (!roundDoc.exists) throw new Error("Betting round not found.");
-    const roundData = roundDoc.data() as BettingRound; // Assuming data structure matches
+    const roundData = roundDoc.data() as BettingRound;
 
     if (roundData.status !== BettingRoundStatus.OPEN) throw new Error("This round is not open for betting.");
-    if ((roundData.bets || []).some(b => b.userId === userId)) throw new Error("You have already placed a bet on this round.");
+    if (roundData.bets.some(b => b.userId === userId)) throw new Error("You have already placed a bet on this round.");
 
     const userDoc = await transaction.get(userRef);
     if (!userDoc.exists) throw new Error("User not found.");
@@ -422,7 +310,7 @@ export const placeFirebaseBet = async (
     if (userData.points < pointsBet) throw new Error("Insufficient points.");
 
     transaction.update(roundRef, {
-      bets: window.firebase.firestore.FieldValue.arrayUnion(newBetDataForFirestore),
+      bets: window.firebase.firestore.FieldValue.arrayUnion(newBet),
       bettorIds: window.firebase.firestore.FieldValue.arrayUnion(userId),
     });
     transaction.update(userRef, {
@@ -430,21 +318,18 @@ export const placeFirebaseBet = async (
       betsMadeCount: window.firebase.firestore.FieldValue.increment(1),
     });
   });
-  
-  return { 
-    ...newBetDataForFirestore, 
-    timestamp: (newBetDataForFirestore.timestamp as FirebaseGlob.firestore.Timestamp).toDate() 
-  } as Bet;
+
+  return { ...newBet, timestamp: (newBet.timestamp as any).toDate() };
 };
 
 export const updateFirebaseMatchResult = async (roundId: string, winningTeam: MatchResultTeam): Promise<BettingRound> => {
   if (!db) throw new Error("Firestore not initialized.");
   const roundRef = db.collection('bettingRounds').doc(roundId);
 
-  await db.runTransaction(async (transaction: FirebaseGlob.firestore.Transaction) => {
+  await db.runTransaction(async (transaction: any) => {
     const roundDoc = await transaction.get(roundRef);
     if (!roundDoc.exists) throw new Error("Betting round not found.");
-    const roundData = mapFirestoreTimestampToDate(roundDoc.data()); // Get with Dates
+    const roundData = roundDoc.data() as BettingRound;
 
     if (roundData.status === BettingRoundStatus.RESULT_UPDATED) throw new Error("Result already updated for this round.");
 
@@ -453,8 +338,8 @@ export const updateFirebaseMatchResult = async (roundId: string, winningTeam: Ma
       winningTeam: winningTeam,
     });
 
-    for (const bet of (roundData.bets || [])) {
-      const userRef = db!.collection('users').doc(bet.userId); // db is checked, so ! is safe
+    for (const bet of roundData.bets) {
+      const userRef = db.collection('users').doc(bet.userId);
       let pointsToAddBack = 0;
       let incrementWins = false;
 
@@ -491,10 +376,10 @@ export const getFirebaseLeaderboardEntries = async (): Promise<LeaderboardEntry[
   try {
     const usersSnapshot = await db.collection('users').orderBy('points', 'desc').limit(100).get();
     const leaderboardEntries: LeaderboardEntry[] = [];
-    usersSnapshot.forEach((doc: FirebaseGlob.firestore.DocumentSnapshot) => {
-      const userData = doc.data() as User; 
+    usersSnapshot.forEach((doc: any) => {
+      const userData = doc.data() as User;
       leaderboardEntries.push({
-        userId: userData.id || doc.id, 
+        userId: userData.id,
         userName: userData.name,
         avatarUrl: userData.avatarUrl,
         points: userData.points,
@@ -508,3 +393,4 @@ export const getFirebaseLeaderboardEntries = async (): Promise<LeaderboardEntry[
     return [];
   }
 };
+

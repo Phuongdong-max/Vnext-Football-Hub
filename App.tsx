@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
-import { APP_TITLE, MOCK_USERS_DATA } from './constants'; 
-import { mockLogin as performMockLogin, mockLogout as performMockLogout, getCurrentUser as getCurrentMockUser, updateUserPointsInMock, SESSION_STORAGE_KEY, resetMockUsers } from './services/mockAuthService';
+import { APP_TITLE } from './constants'; 
 import { 
   initializeFirebase, 
   onFirebaseAuthStateChanged, 
@@ -11,10 +10,8 @@ import {
   firebaseSignOut as performFirebaseSignOut,
   updateUserPointsInFirestore,
   getFirebaseLeaderboardEntries, 
-  // findOrCreateUserProfile, // No longer directly called from here for auth state changes
-  getAppUserProfile
+  // findOrCreateUserProfile is handled by firebaseService now.
 } from './services/firebaseService';
-import { getLeaderboard as getMockLeaderboard, resetMockBettingData } from './services/mockBettingService'; 
 import { Header } from './components/Header';
 import { AuthComponent } from './components/Auth';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
@@ -23,10 +20,75 @@ import { LeaderboardPage } from './pages/LeaderboardPage';
 import { ToastContainer } from './components/shared/ToastContainer';
 import { SoccerBallIcon } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
+import { LandingPage } from './components/LandingPage'; // Import LandingPage
 
+// --- Theme Context ---
+type Theme = 'light' | 'dark' | 'system';
+interface ThemeContextType {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  appliedTheme: 'light' | 'dark'; // Actual theme being applied (light or dark)
+}
+
+export const ThemeContext = createContext<ThemeContextType | null>(null);
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+}
+
+const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const storedTheme = localStorage.getItem('theme') as Theme | null;
+    return storedTheme || 'system';
+  });
+  const [appliedTheme, setAppliedTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyCurrentTheme = () => {
+      let currentAppliedTheme: 'light' | 'dark';
+      if (theme === 'system') {
+        currentAppliedTheme = systemPrefersDark.matches ? 'dark' : 'light';
+      } else {
+        currentAppliedTheme = theme;
+      }
+      
+      root.classList.remove(currentAppliedTheme === 'dark' ? 'light' : 'dark');
+      root.classList.add(currentAppliedTheme);
+      setAppliedTheme(currentAppliedTheme);
+    };
+
+    applyCurrentTheme(); // Initial application
+    localStorage.setItem('theme', theme);
+
+    const handleChange = () => applyCurrentTheme();
+    systemPrefersDark.addEventListener('change', handleChange);
+    return () => {
+      systemPrefersDark.removeEventListener('change', handleChange);
+    };
+  }, [theme]);
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme, appliedTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+
+// --- App Context ---
 interface AppContextType {
   currentUser: User | null;
-  loginWithMockUser: (userId: string) => Promise<User | null>;
   signInWithGoogle: () => Promise<User | null>;
   logout: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
@@ -55,6 +117,7 @@ const App: React.FC = () => {
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isEnvironmentSupported, setIsEnvironmentSupported] = useState(true);
+  const [criticalError, setCriticalError] = useState<string | null>(null);
 
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -68,11 +131,11 @@ const App: React.FC = () => {
     isLeaderboardLoadingRef.current = true;
     setIsLeaderboardLoading(true); 
     try {
-      let data: LeaderboardEntry[];
+      let data: LeaderboardEntry[] = [];
       if (isFirebaseReady && isEnvironmentSupported) {
         data = await getFirebaseLeaderboardEntries(); 
       } else {
-        data = await getMockLeaderboard();
+        // No toast here, handled by main loading/error display
       }
       setLeaderboard(data.sort((a,b) => b.points - a.points));
     } catch (error) {
@@ -88,75 +151,44 @@ const App: React.FC = () => {
     const envCheck = checkFirebaseEnvironment();
     if (!envCheck.isSupported) {
       setIsEnvironmentSupported(false);
-      console.error("Firebase Environment Check Failed:", envCheck.message);
+      const message = envCheck.message || "Firebase environment not supported.";
+      setCriticalError(message);
+      addToast(message, "error");
+      setIsLoading(false); // Stop loading if environment is bad
+      return;
     }
 
     const firebaseInitialized = initializeFirebase();
     setIsFirebaseReady(firebaseInitialized);
     
-    if (!envCheck.isSupported && envCheck.message) {
-        addToast(envCheck.message, "error");
+    if (!firebaseInitialized) {
+        const message = "Firebase could not be initialized. App functionality will be limited.";
+        setCriticalError(message);
+        addToast(message, "error");
+        setCurrentUser(null);
+        setIsLoading(false);
+        return;
     }
 
     setIsLoading(true); 
-    if (firebaseInitialized && envCheck.isSupported) {
-      // onFirebaseAuthStateChanged's callback receives the fully processed User (or null)
-      // from firebaseService.ts, which already calls findOrCreateUserProfile.
-      const unsubscribe = onFirebaseAuthStateChanged(async (appUserFromService) => {
-        try {
-          if (appUserFromService) {
-            setCurrentUser(appUserFromService); // Directly use the user object from the service
-            sessionStorage.removeItem(SESSION_STORAGE_KEY); 
-            if(appUserFromService.name) addToast(`Logged in as ${appUserFromService.name} via Google!`, 'success');
-          } else {
-            // If Firebase logs out, check for mock user session
-            const mockUser = await getCurrentMockUser();
-            setCurrentUser(mockUser); 
-          }
-          await refreshLeaderboard(); 
-        } catch (error) {
-            console.error("Error processing auth state change:", error);
-            addToast("An error occurred during authentication processing.", "error");
-        } finally {
-            setIsLoading(false); 
+    // appUserFromService is the User object (or null) ALREADY processed by firebaseService.ts
+    const unsubscribe = onFirebaseAuthStateChanged(async (appUserFromService) => {
+      try {
+        setCurrentUser(appUserFromService); // Directly use the processed user
+        if (appUserFromService && appUserFromService.name) {
+          // Toast for login can be here or removed if LandingPage handles it
+          // addToast(`Logged in as ${appUserFromService.name}!`, 'success'); 
         }
-      });
-      return () => unsubscribe();
-    } else {
-      const initMockUserAndLeaderboard = async () => {
-        try {
-            resetMockUsers(); 
-            resetMockBettingData(); 
-            const user = await getCurrentMockUser(); 
-            setCurrentUser(user);
-            await refreshLeaderboard(); 
-        } catch (error) {
-            console.error("Error initializing mock user and leaderboard:", error);
-            addToast("An error occurred setting up mock data.", "error");
-        } finally {
-            setIsLoading(false);
-        }
-      };
-      initMockUserAndLeaderboard();
-      if (!firebaseInitialized && envCheck.isSupported) { 
-        addToast("Firebase could not be initialized. Google Sign-In will be unavailable. Using mock data.", "error");
+        await refreshLeaderboard(); 
+      } catch (error) {
+          console.error("Error processing auth state change:", error);
+          addToast("An error occurred during authentication processing.", "error");
+      } finally {
+          setIsLoading(false); 
       }
-    }
-  }, [addToast, refreshLeaderboard]); 
-
-  const handleMockLogin = useCallback(async (userId: string) => {
-    setIsLoading(true);
-    if (isFirebaseReady && currentUser && !MOCK_USERS_DATA.some(mock => mock.id === currentUser.id)) {
-        await performFirebaseSignOut(); 
-    }
-    const user = await performMockLogin(userId);
-    setCurrentUser(user); 
-    await refreshLeaderboard();
-    setIsLoading(false);
-    if (user) addToast(`Welcome ${user.name}! (Mock User)`, 'success');
-    return user; 
-  }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser]);
-
+    });
+    return () => unsubscribe();
+  }, [addToast, refreshLeaderboard]); // Removed isFirebaseReady and isEnvironmentSupported as they are handled at the start
 
   const handleSignInWithGoogle = useCallback(async (): Promise<User | null> => {
     if (!isEnvironmentSupported) {
@@ -170,8 +202,7 @@ const App: React.FC = () => {
     setIsLoading(true); 
     try {
       await performSignInWithGoogle(); 
-      // User state will be updated by onFirebaseAuthStateChanged
-      // No need to set isLoading(false) here, onFirebaseAuthStateChanged's finally block will handle it.
+      // The onFirebaseAuthStateChanged listener will handle setting the user and setIsLoading(false).
       return null; 
     } catch (error: any) {
       let errorMessage = "Google Sign-In Error: Unknown error";
@@ -184,7 +215,7 @@ const App: React.FC = () => {
         errorMessage = "Google Sign-In cancelled by user.";
       }
       addToast(errorMessage, "error");
-      setIsLoading(false); // Set loading to false here on error if onFirebaseAuthStateChanged isn't triggered
+      setIsLoading(false); 
       return null;
     }
   }, [addToast, isFirebaseReady, isEnvironmentSupported]);
@@ -192,30 +223,22 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(async () => {
     setIsLoading(true);
-    const wasFirebaseUser = currentUser && !MOCK_USERS_DATA.some(mock => mock.id === currentUser.id);
-
-    if (isFirebaseReady && wasFirebaseUser) {
+    if (isFirebaseReady && currentUser) { 
         await performFirebaseSignOut(); 
-        // onFirebaseAuthStateChanged will set currentUser to null and handle isLoading
     } else {
-      await performMockLogout(); 
       setCurrentUser(null); 
       await refreshLeaderboard(); 
-      setIsLoading(false); // Explicitly set for mock logout
+      setIsLoading(false); 
     }
-    // Common actions after logout, regardless of type
     addToast("Logged out successfully.", 'info');
   }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser]);
   
   const updateUserPoints = useCallback(async (userId: string, newPoints: number) => {
-    const isMockUser = MOCK_USERS_DATA.some(mockUser => mockUser.id === userId);
     try {
-      if (isMockUser) {
-        updateUserPointsInMock(userId, newPoints);
-      } else if (isFirebaseReady && isEnvironmentSupported) { 
+      if (isFirebaseReady && isEnvironmentSupported) { 
         await updateUserPointsInFirestore(userId, newPoints);
       } else {
-        throw new Error("Cannot update points: No suitable persistence layer available.");
+        throw new Error("Cannot update points: Firebase not available.");
       }
       
       if (currentUser && currentUser.id === userId) {
@@ -228,19 +251,8 @@ const App: React.FC = () => {
     }
   }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported]);
 
-
-  if (isLoading && !toasts.some(t => t.message.includes("Firebase Environment Check Failed"))) { 
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <SoccerBallIcon className="w-16 h-16 text-primary animate-spin" />
-        <p className="ml-4 text-xl font-semibold text-textPrimary">Loading {APP_TITLE}...</p>
-      </div>
-    );
-  }
-  
   const appContextValue: AppContextType = {
     currentUser,
-    loginWithMockUser: handleMockLogin,
     signInWithGoogle: handleSignInWithGoogle,
     logout: handleLogout,
     leaderboard,
@@ -250,33 +262,75 @@ const App: React.FC = () => {
     isFirebaseReady,
   };
 
-  return (
-    <AppContext.Provider value={appContextValue}>
-      <HashRouter>
-        <div className="flex flex-col min-h-screen bg-background text-textPrimary">
-          <Header />
-          <AuthComponent />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            <Routes>
-              <Route path="/" element={<MemberHomePage />} />
-              <Route path="/admin" element={
-                currentUser?.role === UserRole.ADMIN 
-                  ? <AdminDashboardPage /> 
-                  : <Navigate to="/" replace />
-              } />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-          <footer className="py-4 bg-surface shadow-md">
-            <div className="container mx-auto px-4 text-center text-textSecondary">
-              &copy; {new Date().getFullYear()} {APP_TITLE}. All rights reserved (for fun).
-            </div>
-          </footer>
-          <ToastContainer toasts={toasts} setToasts={setToasts} />
+  // Global loading/error state before deciding to show LandingPage or App
+  if (isLoading && !criticalError) { 
+    return (
+      <ThemeProvider> {/* ThemeProvider needed for potential theme on loading screen */}
+        <div className="flex items-center justify-center min-h-screen bg-background text-textPrimary">
+          <SoccerBallIcon className="w-16 h-16 text-primary animate-spin" />
+          <p className="ml-4 text-xl font-semibold text-textPrimary">Loading {APP_TITLE}...</p>
         </div>
-      </HashRouter>
-    </AppContext.Provider>
+      </ThemeProvider>
+    );
+  }
+
+  if (criticalError) {
+    return (
+      <ThemeProvider>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-textPrimary p-4 text-center">
+          <SoccerBallIcon className="w-16 h-16 text-danger mb-4" />
+          <h1 className="text-2xl font-bold text-danger mb-2">Application Error</h1>
+          <p className="text-textSecondary">{criticalError}</p>
+          <p className="mt-4 text-sm text-textSecondary">Please try refreshing the page or ensure you are using a supported browser environment.</p>
+        </div>
+        <ToastContainer toasts={toasts} setToasts={setToasts} />
+      </ThemeProvider>
+    );
+  }
+
+  // After initial loading and no critical errors:
+  // If not logged in, show full-screen LandingPage
+  if (!currentUser) {
+    return (
+      <ThemeProvider>
+        <AppContext.Provider value={appContextValue}> {/* Landing page might need context for isFirebaseReady */}
+          <LandingPage onSignIn={handleSignInWithGoogle} isFirebaseReady={isFirebaseReady} />
+          <ToastContainer toasts={toasts} setToasts={setToasts} />
+        </AppContext.Provider>
+      </ThemeProvider>
+    );
+  }
+  
+  // Logged-in user view
+  return (
+    <ThemeProvider>
+      <AppContext.Provider value={appContextValue}>
+        <HashRouter>
+          <div className="flex flex-col min-h-screen bg-background text-textPrimary">
+            <Header />
+            <AuthComponent />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              <Routes>
+                <Route path="/" element={<MemberHomePage />} />
+                <Route path="/admin" element={
+                  currentUser?.role === UserRole.ADMIN 
+                    ? <AdminDashboardPage /> 
+                    : <Navigate to="/" replace />
+                } />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+            <footer className="py-4 bg-surface shadow-md">
+              <div className="container mx-auto px-4 text-center text-textSecondary">
+                &copy; {new Date().getFullYear()} {APP_TITLE}. All rights reserved (for fun).
+              </div>
+            </footer>
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
+          </div>
+        </HashRouter>
+      </AppContext.Provider>
+    </ThemeProvider>
   );
 };
 

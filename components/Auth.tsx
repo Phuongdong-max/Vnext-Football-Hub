@@ -1,16 +1,10 @@
 import React from 'react';
 import { useAppContext } from '../App';
-import { MOCK_USERS_DATA } from '../constants';
-import { User } from '../types';
 import { Button } from './shared/Button';
-import { LoginIcon, LogoutIcon, UserCircleIcon, UsersIcon, GoogleIcon } from './icons'; // Added GoogleIcon
+import { LogoutIcon, UserCircleIcon, GoogleIcon } from './icons'; 
 
 export const AuthComponent: React.FC = () => {
-  const { currentUser, loginWithMockUser, signInWithGoogle, logout, isFirebaseReady } = useAppContext();
-
-  const handleLoginAsMockUser = async (userId: string) => {
-    await loginWithMockUser(userId);
-  };
+  const { currentUser, signInWithGoogle, logout, isFirebaseReady } = useAppContext();
 
   const handleGoogleLogin = async () => {
     await signInWithGoogle();
@@ -18,11 +12,11 @@ export const AuthComponent: React.FC = () => {
 
   if (currentUser) {
     return (
-      <div className="bg-primary/10 p-3 shadow-sm">
+      <div className="bg-primary/10 dark:bg-primary/30 p-3 shadow-sm">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center">
             {currentUser.avatarUrl ? (
-              <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-10 h-10 rounded-full mr-3 border-2 border-primary" />
+              <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-10 h-10 rounded-full mr-3 border-2 border-primary dark:border-orange-400" />
             ) : (
               <UserCircleIcon className="w-10 h-10 text-primary mr-3" />
             )}
@@ -41,51 +35,28 @@ export const AuthComponent: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50 p-4 shadow-sm">
-      <div className="container mx-auto">
-        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 items-start">
-          
-          {/* Google Sign-In Section */}
-          <div className="flex flex-col items-center md:items-start">
-            <h3 className="text-lg font-semibold text-textPrimary mb-3 text-center md:text-left">Sign In</h3>
-            {isFirebaseReady ? (
-              <Button 
-                onClick={handleGoogleLogin} 
-                variant="primary" 
-                size="md" 
-                className="w-full max-w-xs sm:w-auto flex items-center justify-center bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 focus:ring-blue-500"
-              >
-                <GoogleIcon className="w-5 h-5 mr-2" />
-                Sign in with Google
-              </Button>
-            ) : (
-              <p className="text-sm text-textSecondary text-center md:text-left">Google Sign-In is unavailable.</p>
-            )}
-             <p className="text-xs text-textSecondary mt-2 text-center md:text-left">Use your Google account to participate.</p>
-          </div>
-
-          {/* Mock Users Section */}
-          <div className="flex flex-col items-center md:items-start">
-            <h3 className="text-lg font-semibold text-textPrimary mb-3 text-center md:text-left">
-              <UsersIcon className="w-5 h-5 inline mr-1" />
-              Or Use a Demo Account
-            </h3>
-            <div className="space-y-2 w-full max-w-xs sm:w-auto">
-              {(MOCK_USERS_DATA as User[]).map(user => (
-                <Button 
-                  key={user.id} 
-                  onClick={() => handleLoginAsMockUser(user.id)} 
-                  variant="outline" 
-                  size="sm"
-                  className="w-full"
-                >
-                  <LoginIcon className="w-4 h-4 mr-1" />
-                  Login as {user.name} ({user.role})
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
+    <div className="bg-gray-50 dark:bg-slate-800/60 p-4 shadow-sm">
+      <div className="container mx-auto flex flex-col items-center">
+        <h3 className="text-lg font-semibold text-textPrimary mb-3 text-center">Sign In</h3>
+        {isFirebaseReady ? (
+          <Button 
+            onClick={handleGoogleLogin} 
+            variant="primary" 
+            size="md" 
+            className="w-full max-w-xs sm:w-auto flex items-center justify-center 
+                       bg-white dark:bg-slate-700 
+                       border border-gray-300 dark:border-slate-600 
+                       text-gray-700 dark:text-slate-200 
+                       hover:bg-gray-100 dark:hover:bg-slate-600 
+                       focus:ring-blue-500 dark:focus:ring-offset-slate-800" // Adjusted focus ring for dark mode
+          >
+            <GoogleIcon className="w-5 h-5 mr-2" />
+            Sign in with Google
+          </Button>
+        ) : (
+          <p className="text-sm text-textSecondary text-center">Google Sign-In is unavailable (Firebase not ready).</p>
+        )}
+          <p className="text-xs text-textSecondary mt-2 text-center">Use your Google account to participate.</p>
       </div>
     </div>
   );

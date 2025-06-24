@@ -1,20 +1,12 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, League, UserRole } from '../types';
 import { useAppContext } from '../App';
-import { 
-  createBettingRound as createMockBettingRound, 
-  getBettingRoundsByAdmin as getMockBettingRoundsByAdmin, 
-  updateMatchResult as updateMockBettingRoundResult 
-} from '../services/mockBettingService';
 import {
-  // createFirebaseBettingRound, // No longer used directly for creation here
+  createFirebaseBettingRound,
   getFirebaseBettingRoundsByAdmin,
   updateFirebaseMatchResult
 } from '../services/firebaseService';
-import { CREATE_BETTING_ROUND_PROXY_URL } from '../constants'; // Import new proxy URL
 import { fetchAvailableLeagues, fetchMatchesByDateAndLeague, checkIsFootballApiAvailable } from '../services/footballApiService';
-import { getUpcomingMatches as getMockUpcomingMatches } from '../services/mockFootballApiService';
 import { CreateBettingRoundModal } from '../components/Admin/CreateBettingRoundModal';
 import { UpdateResultModal } from '../components/Admin/UpdateResultModal';
 import { AdminMatchCard } from '../components/Admin/AdminMatchCard';
@@ -28,10 +20,9 @@ export const AdminDashboardPage: React.FC = () => {
   
   const [apiAvailable, setApiAvailable] = useState(false);
   const [leagues, setLeagues] = useState<League[]>([]);
-  const [mockMatches, setMockMatches] = useState<FootballMatch[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false); 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedRoundForUpdate, setSelectedRoundForUpdate] = useState<BettingRound | null>(null);
@@ -51,7 +42,8 @@ export const AdminDashboardPage: React.FC = () => {
       if (isFirebaseReady) {
         rounds = await getFirebaseBettingRoundsByAdmin(currentUser.id);
       } else {
-        rounds = await getMockBettingRoundsByAdmin(currentUser.id);
+        rounds = []; 
+        addToast("Admin rounds unavailable: Firebase not ready.", "error");
       }
       setBettingRounds(rounds.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ));
       
@@ -59,43 +51,23 @@ export const AdminDashboardPage: React.FC = () => {
         try {
           const fetchedLeagues = await fetchAvailableLeagues();
           setLeagues(fetchedLeagues);
-          if (fetchedLeagues.length === 0) {
-            addToast("No leagues available from API. Either none match criteria or API service is limited.", "info");
+          if (fetchedLeagues.length === 0 && initialApiCheck) { 
+            addToast("No leagues available from API. API service might be limited or no leagues match criteria.", "info");
           }
-        } catch (apiError: any) {
+        } catch (apiError) {
           console.error("API error fetching leagues:", apiError);
-          let leagueToastMessage = `Failed to fetch leagues.`;
-          if (apiError.message && (apiError.message.toLowerCase().includes('network') || apiError.message.toLowerCase().includes('failed to fetch'))) {
-            leagueToastMessage = "Could not fetch leagues due to a network issue. The API proxy might be down or an extension is blocking requests.";
-          } else if (apiError.message) {
-            leagueToastMessage = `Failed to fetch leagues: ${apiError.message}`;
-          }
-          addToast(leagueToastMessage, "error");
-          setApiAvailable(false); // Assume API is not available if leagues fetch fails this way
-          const fallbackMatches = await getMockUpcomingMatches();
-          setMockMatches(fallbackMatches);
+          addToast(`Failed to fetch leagues: ${(apiError as Error).message}. You can still create rounds manually.`, "error");
+          setApiAvailable(false); 
         }
       } else {
-        if (!isFirebaseReady) addToast("Firebase not ready. Using mock match data.", "info");
-        else addToast("Football API key not configured or proxy URL is invalid. Using mock match data.", "info");
-        const fallbackMatches = await getMockUpcomingMatches();
-        setMockMatches(fallbackMatches);
+         addToast("Football API features are not configured. Live match data will be unavailable. You can create rounds manually.", "info");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching admin data:", error);
-      let toastMessage = "Failed to load admin data.";
-      if (error.code === 'unavailable' || (typeof error.message === 'string' && (error.message.toLowerCase().includes('network error') || error.message.toLowerCase().includes('failed to fetch') || error.code === 'resource-exhausted' /* e.g. quota */))) {
-        toastMessage = "Failed to connect to data services. This might be due to a network issue, an ad blocker, or API limits. Please check your connection, extensions, and try again later.";
-      } else if (error.message) {
-        toastMessage = `Failed to load admin data: ${error.message}`;
+      addToast("Failed to load admin data.", "error");
+      if (initialApiCheck) {
+         setApiAvailable(false); 
       }
-      addToast(toastMessage, "error");
-      
-      if (initialApiCheck) { // If API was thought to be available, but admin data (Firestore) failed
-         setApiAvailable(false); // This might be too aggressive, but signals a general problem
-      }
-      const fallbackMatches = await getMockUpcomingMatches(); 
-      setMockMatches(fallbackMatches);
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
@@ -105,80 +77,42 @@ export const AdminDashboardPage: React.FC = () => {
     fetchAdminPageData();
   }, [fetchAdminPageData]);
   
-  const handleLoadMatchesFromApi = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
+  const handleLoadMatchesForModal = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
     if (!apiAvailable) {
-      addToast("API is not available to fetch matches.", "info");
-      return [];
+      addToast("Live API is not available to fetch matches.", "info");
+      return []; 
     }
     try {
       const matches = await fetchMatchesByDateAndLeague(date, leagueCode);
       if (matches.length === 0) {
         addToast(`No matches found for ${leagueCode} on ${new Date(date).toLocaleDateString()}.`, "info");
       }
-      return matches;
-    } catch (error: any) {
-      let matchFetchError = `Failed to fetch matches.`;
-      if (error.message && (error.message.toLowerCase().includes('network') || error.message.toLowerCase().includes('failed to fetch'))) {
-         matchFetchError = "Could not fetch matches due to a network issue or an extension blocking requests.";
-      } else if (error.message) {
-         matchFetchError = `Failed to fetch matches: ${error.message}`;
-      }
-      addToast(matchFetchError, "error");
-      setApiAvailable(false); // If fetching matches fails, assume API is problematic
-      return [];
+      return matches; 
+    } catch (error) {
+      addToast(`Failed to fetch matches: ${(error as Error).message}`, "error");
+      setApiAvailable(false); 
+      return []; 
     }
   }, [apiAvailable, addToast]);
 
 
   const handleCreateRound = async (matchToCreate: FootballMatch) => {
-    // Check context current user and Firebase physical current user
-    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
-        addToast("Admin user not authenticated in context.", "error");
-        return;
-    }
-    const firebaseAuthUser = window.firebase.auth().currentUser;
-    if (!firebaseAuthUser) {
-        addToast("Firebase authentication session not found.", "error");
-        return;
-    }
-
+    if (!currentUser) return;
     setIsDataLoading(true);
     try {
       if (isFirebaseReady) {
-        const idToken = await firebaseAuthUser.getIdToken(true); // Now safe to call
-        const response = await fetch(CREATE_BETTING_ROUND_PROXY_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}` // Send ID token for verification
-          },
-          body: JSON.stringify({ matchData: matchToCreate }) // Send match data
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to create round via proxy: ${response.status}`);
-        }
-        // const newRound = await response.json(); // Assuming proxy returns the created round
-        addToast("Betting round created successfully via proxy!", "success");
-
-      } else { // Fallback to mock service if Firebase isn't ready
-        await createMockBettingRound(matchToCreate, currentUser.id);
-        addToast("Betting round created successfully (mock)!", "success");
+        await createFirebaseBettingRound(matchToCreate, currentUser.id);
+      } else {
+        addToast("Cannot create round: Firebase not ready.", "error");
+        setIsDataLoading(false);
+        return;
       }
-      
-      fetchAdminPageData(true); // Refresh data on the page
-      setIsCreateModalOpen(false); // Close modal
-
-    } catch (error: any) {
+      addToast("Betting round created successfully!", "success");
+      fetchAdminPageData(true); 
+      setIsCreateModalOpen(false);
+    } catch (error) {
       console.error("Error creating betting round:", error);
-      let createErrorMsg = "Error creating betting round.";
-       if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
-        createErrorMsg = "Permission denied. Ensure you are an admin and rules/proxy are correctly set up.";
-      } else if (error.message) {
-        createErrorMsg = `Error: ${error.message}`;
-      }
-      addToast(createErrorMsg, "error");
+      addToast(`Error creating round: ${(error as Error).message}`, "error");
     } finally {
       setIsDataLoading(false);
     }
@@ -197,14 +131,16 @@ export const AdminDashboardPage: React.FC = () => {
       if (isFirebaseReady) {
          updatedRound = await updateFirebaseMatchResult(roundId, winningTeam);
       } else {
-         updatedRound = await updateMockBettingRoundResult(roundId, winningTeam, () => {}); // Dummy callback for mock
+        addToast("Cannot update result: Firebase not ready.", "error");
+        setIsDataLoading(false);
+        return;
       }
       addToast(`Result updated for round: ${updatedRound.matchDetails.homeTeam} vs ${updatedRound.matchDetails.awayTeam}`, "success");
       fetchAdminPageData(true); 
       refreshLeaderboard(); 
       setIsUpdateModalOpen(false);
       setSelectedRoundForUpdate(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating result:", error);
       addToast(`Error updating result: ${(error as Error).message}`, "error");
     } finally {
@@ -213,7 +149,7 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /> <span className="ml-2">Loading Admin Dashboard...</span></div>;
+    return <div className="flex justify-center items-center py-10 text-textPrimary"><LoadingSpinner size="lg" /> <span className="ml-2">Loading Admin Dashboard...</span></div>;
   }
 
   if (!currentUser || currentUser.role !== 'admin') {
@@ -240,9 +176,9 @@ export const AdminDashboardPage: React.FC = () => {
       </div>
       
       {!apiAvailable && (
-         <div className="p-3 bg-warning/10 border border-warning text-sm text-yellow-700 rounded-md flex items-center">
+         <div className="p-3 bg-yellow-100 dark:bg-yellow-500/20 border border-yellow-300 dark:border-yellow-500/40 text-sm text-yellow-700 dark:text-yellow-200 rounded-md flex items-center">
             <ShieldExclamationIcon className="w-5 h-5 mr-2"/>
-            Live football match API is unavailable or encountered an error. Falling back to mock match data for selection.
+            Live football match API is currently unavailable or not configured. You can still create rounds manually.
         </div>
       )}
 
@@ -252,8 +188,7 @@ export const AdminDashboardPage: React.FC = () => {
           onClose={() => setIsCreateModalOpen(false)}
           apiAvailable={apiAvailable}
           leagues={leagues}
-          mockMatches={mockMatches} 
-          fetchMatchesFunction={handleLoadMatchesFromApi}
+          fetchMatchesFunction={handleLoadMatchesForModal} 
           onCreateRound={handleCreateRound}
           isDataLoading={isDataLoading} 
         />

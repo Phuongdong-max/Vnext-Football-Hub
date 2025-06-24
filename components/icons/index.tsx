@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // Basic Icon Props
@@ -123,11 +124,47 @@ export const TrophyIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
-export const SoccerBallIcon: React.FC<IconProps> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v4h-2zm0 6h2v2h-2zm-4-3h2v2h-2zm8 0h2v2h-2zm-3-3.95.93-1.6c.15-.26.04-.58-.22-.73s-.58-.04-.73.22L12 5.05V4h-.05l-.92-1.61c-.15-.26-.47-.37-.73-.22s-.37.47-.22.73l.92 1.6V7h.05zM7.5 8.08l.93 1.6c.15.26.47.37.73.22s.37-.47.22-.73L8.45 7.55V7H7.5v1.08zm8.05-.53c.15-.26.04-.58-.22-.73s-.58-.04-.73.22L13.67 8.4V7h-.05l.92-1.61c.15-.26.04-.58-.22-.73s-.58-.04-.73.22L12 6.05V4h.05l.92 1.61c.15.26.47.37.73.22s.37-.47.22-.73L13.05 3H12v1.05l-.93-1.6c-.15-.26-.47-.37-.73-.22s-.37.47-.22.73L11.05 5H12v.05l.93 1.6c.15.26.47.37.73.22s.37-.47.22-.73L12.95 5H14v2.05l-.93-1.6c-.15-.26-.47-.37-.73-.22s-.37.47.22-.73L13.5 3.95V4h1.05l-.93 1.6c-.15.26-.04.58.22.73s.58.04.73-.22L15.55 5V7h1.05l.93-1.6c.15-.26.04-.58-.22-.73s-.58-.04-.73.22L15.67 6.05V7h.05z"/>
+export const SoccerBallIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 100 100"
+    // Removed fixed width and height to allow Tailwind classes to control size
+    {...props}
+  >
+    {/* Main ball circle - fill can be white or transparent depending on desired effect, stroke will take parent color */}
+    <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="5" />
+
+    {/* Pattern group - lines will take parent color, pentagon fill remains black for classic look */}
+    <g stroke="currentColor" strokeWidth="5" strokeLinejoin="round">
+      
+      {/* Central black pentagon */}
+      <polygon 
+        fill="black" // Keep pentagons black for traditional look
+        points="50,38  65.5,49.5  59.5,67.5  40.5,67.5  34.5,49.5"
+      />
+
+      {/* Lines forming hexagons - these will use currentColor for stroke */}
+      <g fill="none" strokeWidth="5" strokeLinecap="round"> {/* Removed stroke="black" here */}
+        <path d="M 50,38 L 50,10" />
+        <path d="M 65.5,49.5 L 85,45" />
+        <path d="M 59.5,67.5 L 69,88" />
+        <path d="M 40.5,67.5 L 31,88" />
+        <path d="M 34.5,49.5 L 15,45" />
+      </g>
+
+      {/* "V" logo inside the pentagon - kept white for contrast against black pentagon */}
+      <path
+        d="M 46 51 L 50 58 L 54 51"
+        fill="none"
+        stroke="currentColor" 
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </g>
   </svg>
 );
+
+
 
 export const ChartBarIcon: React.FC<IconProps> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -148,5 +185,41 @@ export const GoogleIcon: React.FC<IconProps> = (props) => (
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
     <path d="M1 1h22v22H1z" fill="none"/>
+  </svg>
+);
+
+export const ListBulletIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+  </svg>
+);
+
+export const SunIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+  </svg>
+);
+
+export const MoonIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 008.307-4.498.752.752 0 01-.005-1.002z" />
+  </svg>
+);
+
+export const DesktopComputerIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+  </svg>
+);
+
+export const PlusIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+);
+
+export const MinusIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
   </svg>
 );
