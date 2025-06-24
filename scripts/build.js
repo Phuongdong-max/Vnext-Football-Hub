@@ -1,3 +1,4 @@
+
 // scripts/build.js
 const fs = require('node:fs');
 const path = require('node:path');
@@ -22,7 +23,8 @@ fs.copyFileSync(
 );
 
 // esbuild build configuration
-const apiKey = process.env.FOOTBALL_DATA_API_KEY || "";
+const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
+const geminiApiKey = process.env.GEMINI_API_KEY || ""; // Added Gemini API Key
 
 esbuild.build({
   entryPoints: [path.join(projectRoot, 'index.tsx')],
@@ -35,7 +37,8 @@ esbuild.build({
   define: {
     'process.env.NODE_ENV': '"production"',
     // Crucial: JSON.stringify ensures the API key becomes a valid JavaScript string literal
-    'process.env.FOOTBALL_DATA_API_KEY': JSON.stringify(apiKey)
+    'process.env.FOOTBALL_DATA_API_KEY': JSON.stringify(footballApiKey),
+    'process.env.GEMINI_API_KEY': JSON.stringify(geminiApiKey) // Added Gemini API Key
   },
   external: ['react', 'react/*', 'react-dom/*', 'react-router-dom'],
   absWorkingDir: projectRoot // Set working directory to project root

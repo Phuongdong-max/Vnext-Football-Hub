@@ -84,3 +84,18 @@ export interface ToastMessage {
   message: string;
   type: 'success' | 'error' | 'info';
 }
+
+// New Interface for AI Match Analysis
+export interface MatchAnalysis {
+  predictedWinner: 'home' | 'away' | 'draw' | 'uncertain';
+  predictionReasoning?: string; // Brief explanation for the prediction
+  homeTeamForm?: string; // e.g., "WWLDW" or "Recent form: Won 3, Lost 1, Drew 1"
+  awayTeamForm?: string; // e.g., "LLWDL"
+  keyFactors?: string[]; // List of key factors (e.g., "Player injuries", "Head-to-head record")
+  confidence?: {
+    homeWinPercentage?: number;
+    awayWinPercentage?: number;
+    drawPercentage?: number;
+  };
+  summary?: string; // A very concise summary of the analysis
+}

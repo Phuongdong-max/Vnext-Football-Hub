@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { BettingRound, BetTeamSelection } from '../types';
+
+import React, { useState, useEffect } from 'react';
+import { BettingRound, BetTeamSelection } from '../types'; // MatchAnalysis removed
 import { Modal } from './shared/Modal';
 import { Button } from './shared/Button';
-import { CurrencyDollarIcon } from './icons';
+import { CurrencyDollarIcon } from './icons'; // LightBulbIcon, ChartBarIcon removed
+// LoadingSpinner removed if not used elsewhere, getMatchAnalysisFromAI removed
 
 interface BettingModalProps {
   isOpen: boolean;
@@ -16,6 +18,16 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
   const [selectedTeam, setSelectedTeam] = useState<BetTeamSelection | null>(null);
   const [points, setPoints] = useState<number>(10);
   const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    // Reset state when modal is closed or round changes
+    if (!isOpen) {
+      setSelectedTeam(null);
+      setPoints(10);
+      setError('');
+    }
+  }, [isOpen, round]);
+
 
   const handleSubmit = () => {
     setError('');
@@ -45,9 +57,8 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
 
   const inputBaseClasses = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500";
 
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Place Bet on: ${round.matchDetails.homeTeam} vs ${round.matchDetails.awayTeam}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Place Bet on: ${round.matchDetails.homeTeam} vs ${round.matchDetails.awayTeam}`} size="lg">
       <div className="space-y-4">
         <p className="text-sm text-textSecondary">Your available points: <span className="font-semibold text-primary">{currentUserPoints}</span></p>
         
@@ -80,13 +91,15 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
             onChange={handlePointsChange}
             min="1"
             max={currentUserPoints}
-            className={inputBaseClasses} // This class already includes dark mode styles
+            className={inputBaseClasses}
           />
         </div>
 
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && <p className="text-sm text-danger text-center py-1">{error}</p>}
 
-        <div className="flex justify-end space-x-3">
+        {/* AI Analysis Section REMOVED */}
+
+        <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
           <Button onClick={onClose} variant="secondary">Cancel</Button>
           <Button onClick={handleSubmit} disabled={!selectedTeam || points <= 0}>
             <CurrencyDollarIcon className="w-5 h-5 mr-2"/>
@@ -97,3 +110,4 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
     </Modal>
   );
 };
+    

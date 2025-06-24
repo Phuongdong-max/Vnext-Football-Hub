@@ -1,3 +1,4 @@
+
 // scripts/dev.js
 const path = require('node:path');
 const esbuild = require('esbuild');
@@ -6,7 +7,8 @@ const esbuild = require('esbuild');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const projectRoot = path.join(__dirname, '..');
-const apiKey = process.env.FOOTBALL_DATA_API_KEY || "";
+const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
+const geminiApiKey = process.env.GEMINI_API_KEY || ""; // Added Gemini API Key
 
 esbuild.serve({
   servedir: projectRoot, // Serve files from the project root
@@ -22,7 +24,8 @@ esbuild.serve({
   loader: { '.tsx': 'tsx' },
   define: {
     'process.env.NODE_ENV': '"development"',
-    'process.env.FOOTBALL_DATA_API_KEY': JSON.stringify(apiKey)
+    'process.env.FOOTBALL_DATA_API_KEY': JSON.stringify(footballApiKey),
+    'process.env.GEMINI_API_KEY': JSON.stringify(geminiApiKey) // Added Gemini API Key
   },
   external: ['react', 'react/*', 'react-dom/*', 'react-router-dom'],
   absWorkingDir: projectRoot, // Set working directory to project root
