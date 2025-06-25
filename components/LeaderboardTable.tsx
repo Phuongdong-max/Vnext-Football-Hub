@@ -1,6 +1,7 @@
 import React from 'react';
 import { LeaderboardEntry } from '../types';
 import { UserCircleIcon, StarIcon } from './icons';
+import { INITIAL_USER_POINTS } from '../constants'; // Import the constant
 
 interface LeaderboardTableProps {
   leaderboardData: LeaderboardEntry[];
@@ -15,37 +16,54 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaderboardD
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-gray-50 dark:bg-slate-700">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider w-16">Rank</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider w-16">Rank</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Player</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Bets Made</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Points</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Points</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Net Change</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Bets Made</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Wins</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Win Rate</th>
             </tr>
           </thead>
           <tbody className="bg-surface divide-y divide-border">
-            {sortedLeaderboard.map((entry, index) => (
-              <tr key={entry.userId} className={`${index < 3 ? 'bg-yellow-50 dark:bg-yellow-500/10' : ''} hover:bg-gray-100 dark:hover:bg-slate-700/70 transition-colors`}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-textPrimary">
-                  <div className="flex items-center">
-                  {index === 0 && <StarIcon className="w-5 h-5 text-yellow-400 dark:text-yellow-300 mr-1" />}
-                  {index === 1 && <StarIcon className="w-5 h-5 text-gray-400 dark:text-slate-400 mr-1" />}
-                  {index === 2 && <StarIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-500 mr-1" />}
-                  {index + 1}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    {entry.avatarUrl ? (
-                      <img className="h-10 w-10 rounded-full mr-3 border-2 border-primary/50 dark:border-primary/70" src={entry.avatarUrl} alt={entry.userName} />
-                    ) : (
-                      <UserCircleIcon className="h-10 w-10 text-gray-400 dark:text-slate-500 mr-3"/>
-                    )}
-                    <div className="text-sm font-medium text-textPrimary">{entry.userName}</div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-textSecondary">{entry.betsMade}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-primary">{entry.points}</td>
-              </tr>
-            ))}
+            {sortedLeaderboard.map((entry, index) => {
+              const netPointsChange = entry.points - INITIAL_USER_POINTS;
+              const winRate = entry.betsMade > 0 ? (entry.wins / entry.betsMade * 100) : 0;
+
+              let netChangeColor = 'text-textSecondary';
+              if (netPointsChange > 0) netChangeColor = 'text-success';
+              else if (netPointsChange < 0) netChangeColor = 'text-danger';
+
+              return (
+                <tr key={entry.userId} className={`${index < 3 ? 'bg-yellow-50 dark:bg-yellow-500/10' : ''} hover:bg-gray-100 dark:hover:bg-slate-700/70 transition-colors`}>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-textPrimary">
+                    <div className="flex items-center">
+                    {index === 0 && <StarIcon className="w-5 h-5 text-yellow-400 dark:text-yellow-300 mr-1" />}
+                    {index === 1 && <StarIcon className="w-5 h-5 text-gray-400 dark:text-slate-400 mr-1" />}
+                    {index === 2 && <StarIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-500 mr-1" />}
+                    {index + 1}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      {entry.avatarUrl ? (
+                        <img className="h-10 w-10 rounded-full mr-3 border-2 border-primary/50 dark:border-primary/70" src={entry.avatarUrl} alt={entry.userName} />
+                      ) : (
+                        <UserCircleIcon className="h-10 w-10 text-gray-400 dark:text-slate-500 mr-3"/>
+                      )}
+                      <div className="text-sm font-medium text-textPrimary">{entry.userName}</div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-primary">{entry.points}</td>
+                  <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${netChangeColor}`}>
+                    {netPointsChange > 0 ? '+' : ''}{netPointsChange}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-textSecondary">{entry.betsMade}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-textSecondary">{entry.wins}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-textSecondary">{winRate.toFixed(1)}%</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

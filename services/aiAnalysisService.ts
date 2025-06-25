@@ -23,14 +23,14 @@ export const getMatchAnalysisFromAI = async (
   }
 
   const prompt = `
-    Phân tích trận đấu bóng đá sắp tới và cung cấp thông tin chi tiết.
+    Hãy tìm thông tin trên internet, Phân tích trận đấu bóng đá dưới đây và cung cấp thông tin chi tiết.
     Chi tiết trận đấu:
     - Đội nhà: ${match.homeTeam}
     - Đội khách: ${match.awayTeam}
     - Giải đấu: ${match.league}
     - Thời gian bắt đầu: ${new Date(match.startTime).toLocaleString('vi-VN', { dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' })} (Giờ Việt Nam)
 
-    Vui lòng cung cấp phân tích của bạn dưới dạng đối tượng JSON hợp lệ với cấu trúc sau:
+    Vui lòng cung cấp thông tin tìm được và phân tích của bạn dưới dạng đối tượng JSON hợp lệ với cấu trúc sau:
     {
       "predictedWinner": "home | away | draw | uncertain",
       "predictionReasoning": " (Bằng tiếng Việt) Giải thích ngắn gọn cho dự đoán của bạn.",
@@ -45,8 +45,9 @@ export const getMatchAnalysisFromAI = async (
       "summary": " (Bằng tiếng Việt) Một bản tóm tắt tổng thể rất ngắn gọn về dự đoán trận đấu và những thông tin chi tiết chính."
     }
 
-    Tập trung vào phân tích khách quan dựa trên các yếu tố bóng đá điển hình. Tránh bịa đặt thông tin nếu không được biết đến rộng rãi.
-    Nếu bạn rất không chắc chắn về một dự đoán, hãy sử dụng "uncertain" cho predictedWinner và cung cấp giá trị null cho các tỷ lệ phần trăm.
+    Tập trung vào phân tích chủ quan dựa trên các yếu tố bóng đá điển hình. Bịa đặt thông tin vui vẻ cũng được nếu không có dữ liệu.
+    Hãy tự do đưa ra ý kiến của bạn về trận đấu.
+    Phong cách diễn đạt tự nhiên, súc tích, vui vẻ hài hước, thân mật như bạn thân, tục tĩu cũng được.
     Đảm bảo kết quả đầu ra là một đối tượng JSON hợp lệ.
   `;
 

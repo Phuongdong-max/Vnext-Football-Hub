@@ -82,11 +82,11 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
       <div className="p-1 bg-slate-50 dark:bg-slate-800/70 rounded-md space-y-2 text-sm min-h-[200px]">
         <h4 className="text-md font-semibold text-textPrimary flex items-center mb-3 p-2 border-b border-border">
             <LightBulbIcon className="w-6 h-6 mr-2 text-yellow-400" />
-            Thông tin chuyên sâu từ AI (Gemini)
+            Thông tin từ chuyên gia AI Dơ mi nai
         </h4>
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-8">
-            <LoadingSpinner size="md" />
+            <LoadingSpinner size="md" />s
             <span className="ml-2 mt-3 text-textSecondary">Đang tải phân tích AI...</span>
           </div>
         )}

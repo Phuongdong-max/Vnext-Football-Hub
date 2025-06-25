@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { BettingRound, BettingRoundStatus, MatchResultTeam } from '../../types';
 import { Button } from '../shared/Button';
 import { 
     CalendarIcon, ClockIcon, PencilAltIcon, UsersIcon, 
-    CheckCircleIcon, InformationCircleIcon 
+    CheckCircleIcon
 } from '../icons';
 import { AiAnalysisModal } from '../AiAnalysisModal'; // Import the new modal
 
@@ -22,17 +21,21 @@ export const AdminMatchCard: React.FC<AdminMatchCardProps> = ({ round, onUpdateR
     <>
       <div className="bg-surface rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col">
         <div className="p-5 flex-grow">
-          <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center justify-between items-start mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-primary">{matchDetails.league}</span>
             <div className="flex items-center space-x-2">
                 {isAiFeatureAvailable && (
-                    <button 
-                        onClick={() => setIsAiAnalysisModalOpen(true)} 
-                        className="p-0.5 text-textSecondary hover:text-primary dark:text-slate-400 dark:hover:text-primary transition-colors"
-                        title="Xem phân tích AI"
-                        aria-label="Xem phân tích AI"
+                    <button
+                      onClick={() => setIsAiAnalysisModalOpen(true)}
+                      className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-colors"
+                      title="Xem phân tích AI"
+                      aria-label="Xem phân tích AI"
                     >
-                        <InformationCircleIcon className="w-5 h-5" />
+                      <span className="font-bold text-sm bg-clip-text text-transparent 
+                                       bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-500
+                                       dark:from-fuchsia-400 dark:via-pink-400 dark:to-orange-400">
+                        AI
+                      </span>
                     </button>
                 )}
                 {status === BettingRoundStatus.OPEN && <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300 px-2 py-1 rounded-full">Open</span>}
@@ -87,4 +90,3 @@ export const AdminMatchCard: React.FC<AdminMatchCardProps> = ({ round, onUpdateR
     </>
   );
 };
-    
