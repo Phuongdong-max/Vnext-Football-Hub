@@ -90,6 +90,7 @@ interface LanguageContextType {
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
   translate: (key: string, replacements?: Record<string, string | number>) => string;
+  translationsLoading: boolean; // Added
 }
 
 export const LanguageContext = createContext<LanguageContextType | null>(null);
@@ -113,37 +114,65 @@ const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children })
     return 'en';
   });
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translationsLoading, setTranslationsLoading] = useState(true); // Added
 
   useEffect(() => {
-    const loadTranslations = async () => {
+    let active = true; // Prevent state updates if component unmounts
+    setTranslationsLoading(true); 
+
+    const loadTranslationsAsync = async () => {
       try {
         const response = await fetch(`/locales/${language}.json`);
         if (!response.ok) {
           console.error(`Failed to load translations for ${language}. Status: ${response.status}`);
-           // Attempt to load English translations as a fallback
           if (language !== 'en') {
+            console.warn(`Attempting to load English translations as fallback.`);
             const fallbackResponse = await fetch(`/locales/en.json`);
             if (fallbackResponse.ok) {
               const fallbackData = await fallbackResponse.json();
-              setTranslations(fallbackData);
-              console.warn(`Loaded English translations as fallback.`);
+              if (active) {
+                setTranslations(fallbackData);
+                document.documentElement.lang = 'en';
+                console.warn(`Loaded English translations as fallback.`);
+              }
             } else {
-              throw new Error(`Failed to load fallback English translations.`);
+              console.error(`Failed to load fallback English translations. Status: ${fallbackResponse.status}`);
+              if (active) {
+                setTranslations({}); 
+                document.documentElement.lang = 'en'; 
+              }
             }
-          } else {
-            throw new Error(`Failed to load translations for ${language}`);
+          } else { 
+             if (active) {
+                setTranslations({});
+                document.documentElement.lang = 'en';
+             }
           }
-          return;
+        } else { 
+          const data = await response.json();
+          if (active) {
+            setTranslations(data);
+            document.documentElement.lang = language;
+          }
         }
-        const data = await response.json();
-        setTranslations(data);
-        document.documentElement.lang = language;
       } catch (error) {
         console.error("Error loading translation file:", error);
-        setTranslations({}); // Clear translations or set to default empty
+        if (active) {
+          setTranslations({});
+          document.documentElement.lang = 'en';
+        }
+      } finally {
+        if (active) {
+          setTranslationsLoading(false);
+        }
       }
     };
-    loadTranslations();
+
+    loadTranslationsAsync();
+
+    return () => {
+      active = false; 
+    };
   }, [language]);
 
   const setLanguage = (lang: SupportedLanguage) => {
@@ -152,7 +181,7 @@ const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   };
 
   const translate = useCallback((key: string, replacements?: Record<string, string | number>): string => {
-    let translatedString = translations[key] || key; // Return key if translation not found
+    let translatedString = translations[key] || key; 
     if (replacements) {
       Object.keys(replacements).forEach(placeholder => {
         translatedString = translatedString.replace(new RegExp(`{{${placeholder}}}`, 'g'), String(replacements[placeholder]));
@@ -162,7 +191,7 @@ const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   }, [translations]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, translate }}>
+    <LanguageContext.Provider value={{ language, setLanguage, translate, translationsLoading }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -191,8 +220,8 @@ export function useAppContext() {
   return context;
 }
 
-const AppCore: React.FC = () => { // Renamed App to AppCore
-  const { translate } = useLanguage(); // Moved useLanguage here
+const AppCore: React.FC = () => {
+  const { translate, translationsLoading, language } = useLanguage(); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true); 
@@ -206,9 +235,9 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
 
   const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' = 'info', isTranslationKey: boolean = false, replacements?: Record<string, string | number>) => {
     const id = new Date().toISOString() + Math.random(); 
-    const message = isTranslationKey ? translate(messageOrKey, replacements) : messageOrKey;
+    const message = isTranslationKey && !translationsLoading ? translate(messageOrKey, replacements) : messageOrKey; // Only translate if not loading
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
-  }, [translate]);
+  }, [translate, translationsLoading]);
 
   const refreshLeaderboard = useCallback(async () => {
     if (isLeaderboardLoadingRef.current) return; 
@@ -223,20 +252,24 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
       setLeaderboard(data.sort((a,b) => b.points - a.points));
     } catch (error) {
       console.error("Failed to refresh leaderboard:", error);
-      addToast("error.failedToRefreshLeaderboard", "error", true);
+      // Use key directly if translations might not be ready
+      const msgKey = "error.failedToRefreshLeaderboard";
+      addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
     } finally {
       setIsLeaderboardLoading(false);
       isLeaderboardLoadingRef.current = false;
     }
-  }, [addToast, isFirebaseReady, isEnvironmentSupported]);
+  }, [addToast, isFirebaseReady, isEnvironmentSupported, translate, translationsLoading]);
 
   useEffect(() => {
     const envCheck = checkFirebaseEnvironment();
     if (!envCheck.isSupported) {
       setIsEnvironmentSupported(false);
-      const message = envCheck.message || translate("error.firebaseEnvNotSupported");
+      // Use key directly if translations might not be ready
+      const messageKey = "error.firebaseEnvNotSupported";
+      const message = translationsLoading ? messageKey : (envCheck.message || translate(messageKey));
       setCriticalError(message);
-      addToast(message, "error");
+      addToast(message, "error", translationsLoading && !envCheck.message);
       setIsLoading(false);
       return;
     }
@@ -245,9 +278,10 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
     setIsFirebaseReady(firebaseInitialized);
     
     if (!firebaseInitialized) {
-        const message = translate("error.firebaseInitFailed");
+        const messageKey = "error.firebaseInitFailed";
+        const message = translationsLoading ? messageKey : translate(messageKey);
         setCriticalError(message);
-        addToast(message, "error");
+        addToast(message, "error", translationsLoading);
         setCurrentUser(null);
         setIsLoading(false);
         return;
@@ -257,27 +291,30 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
     const unsubscribe = onFirebaseAuthStateChanged(async (appUserFromService) => {
       try {
         setCurrentUser(appUserFromService);
-        if (appUserFromService && appUserFromService.name) {
-          // addToast(translate("toast.loggedInAs", { name: appUserFromService.name }), 'success');
-        }
+        // if (appUserFromService && appUserFromService.name) {
+        //   addToast(translate("toast.loggedInAs", { name: appUserFromService.name }), 'success');
+        // }
         await refreshLeaderboard(); 
       } catch (error) {
           console.error("Error processing auth state change:", error);
-          addToast("error.authProcessingError", "error", true);
+          const msgKey = "error.authProcessingError";
+          addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
       } finally {
           setIsLoading(false); 
       }
     });
     return () => unsubscribe();
-  }, [addToast, refreshLeaderboard, translate]);
+  }, [addToast, refreshLeaderboard, translate, translationsLoading]); // Added translationsLoading dependency
 
   const handleSignInWithGoogle = useCallback(async (): Promise<User | null> => {
     if (!isEnvironmentSupported) {
-      addToast("error.googleSignInNotSupportedEnv", "error", true);
+      const msgKey = "error.googleSignInNotSupportedEnv";
+      addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
       return null;
     }
     if (!isFirebaseReady) {
-      addToast("error.firebaseNotAvailable", "error", true);
+      const msgKey = "error.firebaseNotAvailable";
+      addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
       return null;
     }
     setIsLoading(true); 
@@ -291,11 +328,11 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMessageKey = "error.googleSignInCancelled";
       }
-      addToast(errorMessageKey, "error", true, { message: error.message });
+      addToast(translationsLoading ? errorMessageKey : translate(errorMessageKey), "error", translationsLoading, { message: error.message });
       setIsLoading(false); 
       return null;
     }
-  }, [addToast, isFirebaseReady, isEnvironmentSupported, translate]);
+  }, [addToast, isFirebaseReady, isEnvironmentSupported, translate, translationsLoading]);
 
 
   const handleLogout = useCallback(async () => {
@@ -307,15 +344,17 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
       await refreshLeaderboard(); 
       setIsLoading(false); 
     }
-    addToast("toast.loggedOut", 'info', true);
-  }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser, translate]);
+    const msgKey = "toast.loggedOut";
+    addToast(translationsLoading ? msgKey : translate(msgKey), 'info', translationsLoading);
+  }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser, translate, translationsLoading]);
   
   const updateUserPoints = useCallback(async (userId: string, newPoints: number) => {
     try {
       if (isFirebaseReady && isEnvironmentSupported) { 
         await updateUserPointsInFirestore(userId, newPoints);
       } else {
-        throw new Error(translate("error.cannotUpdatePointsNoFirebase"));
+        const msgKey = "error.cannotUpdatePointsNoFirebase";
+        throw new Error(translationsLoading ? msgKey : translate(msgKey));
       }
       
       if (currentUser && currentUser.id === userId) {
@@ -324,9 +363,10 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
       await refreshLeaderboard(); 
     } catch (error) {
         console.error("Error updating user points:", error);
-        addToast("error.failedToUpdateUserPoints", "error", true);
+        const msgKey = "error.failedToUpdateUserPoints";
+        addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
     }
-  }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported, translate]);
+  }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported, translate, translationsLoading]);
 
   const appContextValue: AppContextType = {
     currentUser,
@@ -339,28 +379,45 @@ const AppCore: React.FC = () => { // Renamed App to AppCore
     isFirebaseReady,
   };
 
-  if (isLoading && !criticalError) { 
+  // Combined loading state management
+  if ((isLoading || translationsLoading) && !criticalError) {
+    let loadingMessage = "Initializing..."; // Default message
+    if (language === 'vi') loadingMessage = "Đang khởi tạo...";
+
+    if (!isLoading && translationsLoading) { // Firebase loaded, but translations still loading
+        loadingMessage = language === 'vi' ? "Đang tải ngôn ngữ..." : "Loading languages...";
+    } else if (isLoading && !translationsLoading) { // Translations loaded, but Firebase still loading
+        loadingMessage = translate("app.loadingTitle", { appTitle: translate(APP_TITLE) });
+    }
+    // If both isLoading and translationsLoading are true, "Initializing..." is fine.
+    
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-textPrimary">
         <SoccerBallIcon className="w-16 h-16 text-primary animate-spin" />
-        <p className="ml-4 text-xl font-semibold text-textPrimary">{translate("app.loadingTitle", { appTitle: translate(APP_TITLE) })}</p>
+        <p className="ml-4 text-xl font-semibold text-textPrimary">{loadingMessage}</p>
       </div>
     );
   }
 
   if (criticalError) {
+    // Critical error message itself should not depend on translations if they might have failed.
+    // However, if criticalError was set using translate and translationsLoading was false, it's already translated.
+    // For simplicity, we assume criticalError message is self-contained or a key if translations failed.
+    const errorTitleKey = "error.appErrorTitle";
+    const errorGuidanceKey = "error.appErrorGuidance";
     return (
       <>
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-textPrimary p-4 text-center">
           <SoccerBallIcon className="w-16 h-16 text-danger mb-4" />
-          <h1 className="text-2xl font-bold text-danger mb-2">{translate("error.appErrorTitle")}</h1>
+          <h1 className="text-2xl font-bold text-danger mb-2">{translationsLoading ? errorTitleKey : translate(errorTitleKey)}</h1>
           <p className="text-textSecondary">{criticalError}</p>
-          <p className="mt-4 text-sm text-textSecondary">{translate("error.appErrorGuidance")}</p>
+          <p className="mt-4 text-sm text-textSecondary">{translationsLoading ? errorGuidanceKey : translate(errorGuidanceKey)}</p>
         </div>
         <ToastContainer toasts={toasts} setToasts={setToasts} />
       </>
     );
   }
+  
 
   if (!currentUser) {
     return (

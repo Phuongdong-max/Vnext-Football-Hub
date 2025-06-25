@@ -1,21 +1,29 @@
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { FootballMatch, MatchAnalysis } from '../types';
 
-const API_KEY = process.env.GEMINI_API_KEY;
+// process.env.API_KEY is defined by esbuild directly as a string literal.
+// This key is sourced from GEMINI_API_KEY in the .env file at build time.
+// This is the ONLY way the API key should be accessed for @google/genai, as per guidelines.
+const CLIENT_SIDE_API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-  console.warn("Gemini API Key (GEMINI_API_KEY) is not defined in environment variables. AI analysis will be disabled.");
+if (!CLIENT_SIDE_API_KEY) {
+  console.warn(
+    "AI API Key (expected at process.env.API_KEY, sourced from GEMINI_API_KEY in .env at build time) " +
+    "is not defined or is empty. AI analysis will be disabled."
+  );
 }
 
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+// Initialize AI client. If CLIENT_SIDE_API_KEY is an empty string,
+// GoogleGenAI constructor might handle it, or attempts to use `ai` will fail if it's null.
+// The key check above is primarily to inform the developer.
+const ai = CLIENT_SIDE_API_KEY ? new GoogleGenAI({ apiKey: CLIENT_SIDE_API_KEY }) : null;
 const MODEL_NAME = 'gemini-2.5-flash-preview-04-17';
 
 export const getMatchAnalysisFromAI = async (
   match: FootballMatch
 ): Promise<MatchAnalysis | null> => {
   if (!ai) {
-    console.error("AI Service not initialized. Check API Key.");
+    console.error("AI Service not initialized. This may be due to a missing API key (check process.env.API_KEY).");
     throw new Error("AI Service is not available. Please check configuration.");
   }
   if (!match) {
@@ -47,7 +55,7 @@ export const getMatchAnalysisFromAI = async (
 
     Tập trung vào phân tích chủ quan dựa trên các yếu tố bóng đá điển hình. Bịa đặt thông tin vui vẻ cũng được nếu không có dữ liệu.
     Hãy tự do đưa ra ý kiến của bạn về trận đấu.
-    Phong cách diễn đạt tự nhiên, súc tích, vui vẻ hài hước, thân mật như bạn thân, tục tĩu cũng được.
+    Phong cách diễn đạt tự nhiên, súc tích, vui vẻ hài hước, thân mật như bạn thân, tục tĩu.
     Đảm bảo kết quả đầu ra là một đối tượng JSON hợp lệ.
   `;
 
@@ -83,9 +91,8 @@ export const getMatchAnalysisFromAI = async (
   } catch (error) {
     console.error("Error fetching match analysis from AI:", error);
     if (error instanceof Error && error.message.includes("API key not valid")) {
-        throw new Error("Khóa API của AI không hợp lệ. Vui lòng kiểm tra cấu hình của bạn.");
+        throw new Error("Khóa API của AI không hợp lệ. Vui lòng kiểm tra cấu hình của bạn (GEMINI_API_KEY in .env).");
     }
     throw new Error(`Không thể lấy phân tích trận đấu từ AI. ${error instanceof Error ? error.message : String(error)}`);
   }
 };
-    

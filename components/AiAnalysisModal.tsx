@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { FootballMatch, MatchAnalysis } from '../types';
 import { Modal } from './shared/Modal';
 import { LoadingSpinner } from './shared/LoadingSpinner';
 import { getMatchAnalysisFromAI } from '../services/aiAnalysisService';
-import { ChartBarIcon, LightBulbIcon } from './icons'; // Using LightBulb as main icon
+import { ChartBarIcon, LightBulbIcon } from './icons'; 
+import { useLanguage } from '../App';
 
 interface AiAnalysisModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface AiAnalysisModalProps {
 }
 
 export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClose, matchDetails }) => {
+  const { translate } = useLanguage();
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,20 +28,26 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
           const result = await getMatchAnalysisFromAI(matchDetails);
           setAnalysis(result);
         } catch (err: any) {
-          setError(err.message || "Không thể tải phân tích trận đấu.");
-          setAnalysis(null);
+            let errorMessageKey = 'error.aiCannotGetAnalysis';
+            if (err.message?.includes("AI Service is not available")) errorMessageKey = 'error.aiServiceUnavailable';
+            else if (err.message?.includes("Match details are required")) errorMessageKey = 'error.aiMatchDetailsRequired';
+            else if (err.message?.includes("Phản hồi phân tích AI thiếu")) errorMessageKey = 'error.aiResponseMissingFields';
+            else if (err.message?.includes("AI trả về định dạng phân tích không hợp lệ")) errorMessageKey = 'error.aiInvalidFormat';
+            else if (err.message?.includes("Khóa API của AI không hợp lệ")) errorMessageKey = 'error.aiInvalidApiKey';
+          
+            setError(translate(errorMessageKey, { errorMessage: err.message || translate('aiAnalysisModal.defaultError') }));
+            setAnalysis(null);
         } finally {
           setIsLoading(false);
         }
       };
       fetchAnalysis();
     } else if (!isOpen) {
-        // Reset state when modal is closed
         setAnalysis(null);
         setIsLoading(false);
         setError(null);
     }
-  }, [isOpen, matchDetails]);
+  }, [isOpen, matchDetails, translate]);
 
   const renderConfidence = (confidence?: MatchAnalysis['confidence']) => {
     if (!confidence) return null;
@@ -50,11 +57,11 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
 
     return (
       <div>
-        <strong>Tỷ lệ dự đoán:</strong>
+        <strong>{translate('aiAnalysisModal.confidence.title')}:</strong>
         <ul className="list-disc list-inside ml-4 text-xs">
-          {homeWinPercentage !== undefined && homeWinPercentage !== null && <li>{matchDetails.homeTeam} thắng: {homeWinPercentage}%</li>}
-          {awayWinPercentage !== undefined && awayWinPercentage !== null && <li>{matchDetails.awayTeam} thắng: {awayWinPercentage}%</li>}
-          {drawPercentage !== undefined && drawPercentage !== null && <li>Hòa: {drawPercentage}%</li>}
+          {homeWinPercentage !== undefined && homeWinPercentage !== null && <li>{translate('aiAnalysisModal.confidence.homeWin', { teamName: matchDetails.homeTeam, percentage: homeWinPercentage })}</li>}
+          {awayWinPercentage !== undefined && awayWinPercentage !== null && <li>{translate('aiAnalysisModal.confidence.awayWin', { teamName: matchDetails.awayTeam, percentage: awayWinPercentage })}</li>}
+          {drawPercentage !== undefined && drawPercentage !== null && <li>{translate('aiAnalysisModal.confidence.draw', { percentage: drawPercentage })}</li>}
         </ul>
       </div>
     );
@@ -64,7 +71,7 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
     if (!keyFactors || keyFactors.length === 0) return null;
     return (
       <div>
-        <strong>Yếu tố chính:</strong>
+        <strong>{translate('aiAnalysisModal.keyFactors.title')}:</strong>
         <ul className="list-disc list-inside ml-4 text-xs">
           {keyFactors.map((factor, index) => <li key={index}>{factor}</li>)}
         </ul>
@@ -76,18 +83,18 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
     <Modal 
         isOpen={isOpen} 
         onClose={onClose} 
-        title={`Phân tích AI: ${matchDetails.homeTeam} vs ${matchDetails.awayTeam}`}
+        title={translate('aiAnalysisModal.title', { homeTeam: matchDetails.homeTeam, awayTeam: matchDetails.awayTeam })}
         size="lg"
     >
       <div className="p-1 bg-slate-50 dark:bg-slate-800/70 rounded-md space-y-2 text-sm min-h-[200px]">
         <h4 className="text-md font-semibold text-textPrimary flex items-center mb-3 p-2 border-b border-border">
             <LightBulbIcon className="w-6 h-6 mr-2 text-yellow-400" />
-            Thông tin từ chuyên gia AI Dơ mi nai
+            {translate('aiAnalysisModal.subTitle')}
         </h4>
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-8">
-            <LoadingSpinner size="md" />s
-            <span className="ml-2 mt-3 text-textSecondary">Đang tải phân tích AI...</span>
+            <LoadingSpinner size="md" />
+            <span className="ml-2 mt-3 text-textSecondary">{translate('aiAnalysisModal.loading')}</span>
           </div>
         )}
         {error && !isLoading && (
@@ -96,34 +103,33 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
         {analysis && !isLoading && (
           <div className="space-y-3 px-2 pb-2 text-textSecondary">
             <p>
-              <strong>Dự đoán kết quả:</strong> 
+              <strong>{translate('aiAnalysisModal.predictedWinner.label')}:</strong> 
               <span className={`ml-1 font-semibold ${
                 analysis.predictedWinner === 'home' ? 'text-blue-500 dark:text-blue-400' : 
                 analysis.predictedWinner === 'away' ? 'text-red-500 dark:text-red-400' : 
                 analysis.predictedWinner === 'draw' ? 'text-yellow-600 dark:text-yellow-400' :
                 'text-textSecondary'
               }`}>
-                {analysis.predictedWinner === 'home' ? matchDetails.homeTeam + " thắng" : 
-                 analysis.predictedWinner === 'away' ? matchDetails.awayTeam + " thắng" : 
-                 analysis.predictedWinner === 'draw' ? "Hòa" :
-                 "Không chắc chắn"}
+                {analysis.predictedWinner === 'home' ? translate('aiAnalysisModal.predictedWinner.home', { teamName: matchDetails.homeTeam }) : 
+                 analysis.predictedWinner === 'away' ? translate('aiAnalysisModal.predictedWinner.away', { teamName: matchDetails.awayTeam }) : 
+                 analysis.predictedWinner === 'draw' ? translate('aiAnalysisModal.predictedWinner.draw') :
+                 translate('aiAnalysisModal.predictedWinner.uncertain')}
               </span>
             </p>
-            {analysis.predictionReasoning && <p><strong>Lý do dự đoán:</strong> {analysis.predictionReasoning}</p>}
+            {analysis.predictionReasoning && <p><strong>{translate('aiAnalysisModal.predictionReasoning.label')}:</strong> {analysis.predictionReasoning}</p>}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-              {analysis.homeTeamForm && <p><strong>Phong độ {matchDetails.homeTeam}:</strong> {analysis.homeTeamForm}</p>}
-              {analysis.awayTeamForm && <p><strong>Phong độ {matchDetails.awayTeam}:</strong> {analysis.awayTeamForm}</p>}
+              {analysis.homeTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.home', { teamName: matchDetails.homeTeam })}:</strong> {analysis.homeTeamForm}</p>}
+              {analysis.awayTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.away', { teamName: matchDetails.awayTeam })}:</strong> {analysis.awayTeamForm}</p>}
             </div>
 
             {renderConfidence(analysis.confidence)}
             {renderKeyFactors(analysis.keyFactors)}
             
-            {analysis.summary && <p className="italic mt-2"><strong>Tóm tắt:</strong> {analysis.summary}</p>}
+            {analysis.summary && <p className="italic mt-2"><strong>{translate('aiAnalysisModal.summary.label')}:</strong> {analysis.summary}</p>}
           </div>
         )}
       </div>
     </Modal>
   );
 };
-    

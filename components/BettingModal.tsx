@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
-import { BettingRound, BetTeamSelection } from '../types'; // MatchAnalysis removed
+import { BettingRound, BetTeamSelection } from '../types'; 
 import { Modal } from './shared/Modal';
 import { Button } from './shared/Button';
-import { CurrencyDollarIcon } from './icons'; // LightBulbIcon, ChartBarIcon removed
-// LoadingSpinner removed if not used elsewhere, getMatchAnalysisFromAI removed
+import { CurrencyDollarIcon } from './icons'; 
+import { useLanguage } from '../App';
 
 interface BettingModalProps {
   isOpen: boolean;
@@ -15,12 +14,12 @@ interface BettingModalProps {
 }
 
 export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, round, currentUserPoints, onPlaceBet }) => {
+  const { translate } = useLanguage();
   const [selectedTeam, setSelectedTeam] = useState<BetTeamSelection | null>(null);
   const [points, setPoints] = useState<number>(10);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    // Reset state when modal is closed or round changes
     if (!isOpen) {
       setSelectedTeam(null);
       setPoints(10);
@@ -32,15 +31,15 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
   const handleSubmit = () => {
     setError('');
     if (!selectedTeam) {
-      setError("Please select a team to bet on.");
+      setError(translate('bettingModal.error.selectTeam'));
       return;
     }
     if (points <= 0) {
-      setError("Points bet must be greater than zero.");
+      setError(translate('bettingModal.error.pointsGreaterThanZero'));
       return;
     }
     if (points > currentUserPoints) {
-      setError(`You cannot bet more than your available ${currentUserPoints} points.`);
+      setError(translate('bettingModal.error.insufficientPoints', { points: currentUserPoints }));
       return;
     }
     onPlaceBet(round.id, selectedTeam, points);
@@ -58,32 +57,37 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
   const inputBaseClasses = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Place Bet on: ${round.matchDetails.homeTeam} vs ${round.matchDetails.awayTeam}`} size="lg">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={translate('bettingModal.title', { homeTeam: round.matchDetails.homeTeam, awayTeam: round.matchDetails.awayTeam })} 
+      size="lg"
+    >
       <div className="space-y-4">
-        <p className="text-sm text-textSecondary">Your available points: <span className="font-semibold text-primary">{currentUserPoints}</span></p>
+        <p className="text-sm text-textSecondary">{translate('bettingModal.availablePoints')}: <span className="font-semibold text-primary">{currentUserPoints}</span></p>
         
         <div>
-          <label className="block text-sm font-medium text-textPrimary mb-1">Select Team:</label>
+          <label className="block text-sm font-medium text-textPrimary mb-1">{translate('bettingModal.selectTeamLabel')}:</label>
           <div className="grid grid-cols-2 gap-4">
             <Button
               onClick={() => setSelectedTeam(BetTeamSelection.HOME)}
               variant={selectedTeam === BetTeamSelection.HOME ? 'primary' : 'outline'}
               fullWidth
             >
-              {round.matchDetails.homeTeam} (Home)
+              {translate('bettingModal.teamHome', { teamName: round.matchDetails.homeTeam })}
             </Button>
             <Button
               onClick={() => setSelectedTeam(BetTeamSelection.AWAY)}
               variant={selectedTeam === BetTeamSelection.AWAY ? 'primary' : 'outline'}
               fullWidth
             >
-              {round.matchDetails.awayTeam} (Away)
+              {translate('bettingModal.teamAway', { teamName: round.matchDetails.awayTeam })}
             </Button>
           </div>
         </div>
 
         <div>
-          <label htmlFor="betPoints" className="block text-sm font-medium text-textPrimary mb-1">Points to Bet:</label>
+          <label htmlFor="betPoints" className="block text-sm font-medium text-textPrimary mb-1">{translate('bettingModal.pointsToBetLabel')}:</label>
           <input
             type="number"
             id="betPoints"
@@ -97,17 +101,14 @@ export const BettingModal: React.FC<BettingModalProps> = ({ isOpen, onClose, rou
 
         {error && <p className="text-sm text-danger text-center py-1">{error}</p>}
 
-        {/* AI Analysis Section REMOVED */}
-
         <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
-          <Button onClick={onClose} variant="secondary">Cancel</Button>
+          <Button onClick={onClose} variant="secondary">{translate('common.button.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={!selectedTeam || points <= 0}>
             <CurrencyDollarIcon className="w-5 h-5 mr-2"/>
-            Confirm Bet
+            {translate('bettingModal.button.confirmBet')}
           </Button>
         </div>
       </div>
     </Modal>
   );
 };
-    

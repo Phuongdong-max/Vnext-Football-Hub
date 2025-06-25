@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, League, UserRole } from '../types';
-import { useAppContext } from '../App';
+import { useAppContext, useLanguage } from '../App';
 import {
   createFirebaseBettingRound,
   getFirebaseBettingRoundsByAdmin,
@@ -16,6 +16,7 @@ import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, addToast, refreshLeaderboard, isFirebaseReady } = useAppContext();
+  const { translate } = useLanguage();
   const [bettingRounds, setBettingRounds] = useState<BettingRound[]>([]);
   
   const [apiAvailable, setApiAvailable] = useState(false);
@@ -43,7 +44,7 @@ export const AdminDashboardPage: React.FC = () => {
         rounds = await getFirebaseBettingRoundsByAdmin(currentUser.id);
       } else {
         rounds = []; 
-        addToast("Admin rounds unavailable: Firebase not ready.", "error");
+        addToast("error.adminRoundsUnavailableFirebaseNotReady", "error", true);
       }
       setBettingRounds(rounds.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ));
       
@@ -52,26 +53,26 @@ export const AdminDashboardPage: React.FC = () => {
           const fetchedLeagues = await fetchAvailableLeagues();
           setLeagues(fetchedLeagues);
           if (fetchedLeagues.length === 0 && initialApiCheck) { 
-            addToast("No leagues available from API. API service might be limited or no leagues match criteria.", "info");
+            addToast("info.noLeaguesFromApi", "info", true);
           }
         } catch (apiError) {
           console.error("API error fetching leagues:", apiError);
-          addToast(`Failed to fetch leagues: ${(apiError as Error).message}. You can still create rounds manually.`, "error");
+          addToast("error.failedToFetchLeaguesManual", "error", true, {errorMessage: (apiError as Error).message});
           setApiAvailable(false); 
         }
       } else {
-         addToast("Football API features are not configured. Live match data will be unavailable. You can create rounds manually.", "info");
+         addToast("info.footballApiNotConfiguredManual", "info", true);
       }
     } catch (error) {
       console.error("Error fetching admin data:", error);
-      addToast("Failed to load admin data.", "error");
+      addToast("error.failedToLoadAdminData", "error", true);
       if (initialApiCheck) {
          setApiAvailable(false); 
       }
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
-  }, [currentUser, addToast, isFirebaseReady]);
+  }, [currentUser, addToast, isFirebaseReady, translate]);
 
   useEffect(() => {
     fetchAdminPageData();
@@ -79,21 +80,21 @@ export const AdminDashboardPage: React.FC = () => {
   
   const handleLoadMatchesForModal = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
     if (!apiAvailable) {
-      addToast("Live API is not available to fetch matches.", "info");
+      addToast("error.liveApiUnavailable", "info", true);
       return []; 
     }
     try {
       const matches = await fetchMatchesByDateAndLeague(date, leagueCode);
       if (matches.length === 0) {
-        addToast(`No matches found for ${leagueCode} on ${new Date(date).toLocaleDateString()}.`, "info");
+        addToast("info.noMatchesFound", "info", true, { leagueCode, date: new Date(date).toLocaleDateString() });
       }
       return matches; 
     } catch (error) {
-      addToast(`Failed to fetch matches: ${(error as Error).message}`, "error");
+      addToast("error.failedToFetchMatches", "error", true, { errorMessage: (error as Error).message });
       setApiAvailable(false); 
       return []; 
     }
-  }, [apiAvailable, addToast]);
+  }, [apiAvailable, addToast, translate]);
 
 
   const handleCreateRound = async (matchToCreate: FootballMatch) => {
@@ -103,16 +104,16 @@ export const AdminDashboardPage: React.FC = () => {
       if (isFirebaseReady) {
         await createFirebaseBettingRound(matchToCreate, currentUser.id);
       } else {
-        addToast("Cannot create round: Firebase not ready.", "error");
+        addToast("error.cannotCreateRoundFirebaseNotReady", "error", true);
         setIsDataLoading(false);
         return;
       }
-      addToast("Betting round created successfully!", "success");
+      addToast("success.bettingRoundCreated", "success", true);
       fetchAdminPageData(true); 
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error("Error creating betting round:", error);
-      addToast(`Error creating round: ${(error as Error).message}`, "error");
+      addToast("error.creatingRound", "error", true, { errorMessage: (error as Error).message });
     } finally {
       setIsDataLoading(false);
     }
@@ -131,29 +132,29 @@ export const AdminDashboardPage: React.FC = () => {
       if (isFirebaseReady) {
          updatedRound = await updateFirebaseMatchResult(roundId, winningTeam);
       } else {
-        addToast("Cannot update result: Firebase not ready.", "error");
+        addToast("error.cannotUpdateResultFirebaseNotReady", "error", true);
         setIsDataLoading(false);
         return;
       }
-      addToast(`Result updated for round: ${updatedRound.matchDetails.homeTeam} vs ${updatedRound.matchDetails.awayTeam}`, "success");
+      addToast("success.resultUpdatedForRound", "success", true, { homeTeam: updatedRound.matchDetails.homeTeam, awayTeam: updatedRound.matchDetails.awayTeam });
       fetchAdminPageData(true); 
       refreshLeaderboard(); 
       setIsUpdateModalOpen(false);
       setSelectedRoundForUpdate(null);
     } catch (error) {
       console.error("Error updating result:", error);
-      addToast(`Error updating result: ${(error as Error).message}`, "error");
+      addToast("error.updatingResult", "error", true, { errorMessage: (error as Error).message });
     } finally {
       setIsDataLoading(false);
     }
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center py-10 text-textPrimary"><LoadingSpinner size="lg" /> <span className="ml-2">Loading Admin Dashboard...</span></div>;
+    return <div className="flex justify-center items-center py-10 text-textPrimary"><LoadingSpinner size="lg" /> <span className="ml-2">{translate('adminDashboard.loading')}</span></div>;
   }
 
   if (!currentUser || currentUser.role !== 'admin') {
-    return <p className="text-center text-danger">Access Denied. You must be an admin.</p>;
+    return <p className="text-center text-danger">{translate('adminDashboard.accessDenied')}</p>;
   }
   
   const openRounds = bettingRounds.filter(r => r.status === BettingRoundStatus.OPEN);
@@ -163,14 +164,14 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-textPrimary">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold text-textPrimary">{translate('adminDashboard.title')}</h1>
         <div className="space-x-2">
-           <Button onClick={() => fetchAdminPageData(true)} variant="outline" size="sm" title="Refresh Data" disabled={isDataLoading || isLoading}>
+           <Button onClick={() => fetchAdminPageData(true)} variant="outline" size="sm" title={translate('adminDashboard.button.refreshData')} disabled={isDataLoading || isLoading}>
             {(isDataLoading || isLoading) ? <LoadingSpinner size="sm" className="w-5 h-5"/> : <RefreshIcon className="w-5 h-5"/>}
           </Button>
           <Button onClick={() => setIsCreateModalOpen(true)} disabled={isDataLoading || isLoading}>
             <PlusCircleIcon className="w-5 h-5 mr-2" />
-            Create Betting Round
+            {translate('adminDashboard.button.createRound')}
           </Button>
         </div>
       </div>
@@ -178,7 +179,7 @@ export const AdminDashboardPage: React.FC = () => {
       {!apiAvailable && (
          <div className="p-3 bg-yellow-100 dark:bg-yellow-500/20 border border-yellow-300 dark:border-yellow-500/40 text-sm text-yellow-700 dark:text-yellow-200 rounded-md flex items-center">
             <ShieldExclamationIcon className="w-5 h-5 mr-2"/>
-            Live football match API is currently unavailable or not configured. You can still create rounds manually.
+            {translate('adminDashboard.apiUnavailableWarning')}
         </div>
       )}
 
@@ -204,9 +205,9 @@ export const AdminDashboardPage: React.FC = () => {
       )}
       
       <section>
-        <h2 className="text-2xl font-semibold text-textPrimary mb-4">Open Betting Rounds ({openRounds.length})</h2>
+        <h2 className="text-2xl font-semibold text-textPrimary mb-4">{translate('adminDashboard.openRoundsTitle', { count: openRounds.length })}</h2>
         {openRounds.length === 0 && !isLoading ? (
-          <p className="text-textSecondary">No open betting rounds. Create one to get started!</p>
+          <p className="text-textSecondary">{translate('adminDashboard.noOpenRounds')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {openRounds.map(round => (
@@ -217,9 +218,9 @@ export const AdminDashboardPage: React.FC = () => {
       </section>
 
       <section>
-        <h2 className="text-2xl font-semibold text-textPrimary mb-4">Closed/Result Updated Rounds ({closedRounds.length})</h2>
+        <h2 className="text-2xl font-semibold text-textPrimary mb-4">{translate('adminDashboard.closedRoundsTitle', { count: closedRounds.length })}</h2>
          {closedRounds.length === 0 && !isLoading ? (
-          <p className="text-textSecondary">No closed rounds yet.</p>
+          <p className="text-textSecondary">{translate('adminDashboard.noClosedRounds')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {closedRounds.map(round => (

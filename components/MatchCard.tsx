@@ -6,6 +6,7 @@ import {
     XCircleIcon, MinusCircleIcon
 } from './icons';
 import { AiAnalysisModal } from './AiAnalysisModal'; // Import the new modal
+import { useLanguage } from '../App';
 
 interface MatchCardProps {
   round: BettingRound;
@@ -14,11 +15,12 @@ interface MatchCardProps {
 }
 
 export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser }) => {
+  const { translate } = useLanguage();
   const { matchDetails, status, winningTeam } = round;
   const userBet = currentUser ? round.bets.find(b => b.userId === currentUser.id) : null;
 
   const [isAiAnalysisModalOpen, setIsAiAnalysisModalOpen] = useState(false);
-  const isAiFeatureAvailable = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "";
+  const isAiFeatureAvailable = !!process.env.API_KEY && process.env.API_KEY !== "";
 
   const getBetStatusDisplay = (bet: Bet | null | undefined, roundStatus: BettingRoundStatus, result?: MatchResultTeam | null) => {
     if (!bet || roundStatus === BettingRoundStatus.OPEN) return null;
@@ -28,12 +30,12 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
                      (bet.selectedTeam === BetTeamSelection.AWAY && result === MatchResultTeam.AWAY_WIN);
       
       if (result === MatchResultTeam.DRAW) {
-         return <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-700/30 px-2 py-1 rounded-full flex items-center"><MinusCircleIcon className="w-4 h-4 mr-1"/> Draw (Returned: {bet.pointsBet} pts)</span>;
+         return <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-700/30 px-2 py-1 rounded-full flex items-center"><MinusCircleIcon className="w-4 h-4 mr-1"/> {translate('matchCard.betStatus.draw', { points: bet.pointsBet })}</span>;
       }
       if (betWon) {
-        return <span className="text-sm font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-700/30 px-2 py-1 rounded-full flex items-center"><CheckCircleIcon className="w-4 h-4 mr-1"/> Bet Won! (+{bet.pointsBet * 2} pts)</span>;
+        return <span className="text-sm font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-700/30 px-2 py-1 rounded-full flex items-center"><CheckCircleIcon className="w-4 h-4 mr-1"/> {translate('matchCard.betStatus.won', { points: bet.pointsBet * 2 })}</span>;
       } else {
-        return <span className="text-sm font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-700/30 px-2 py-1 rounded-full flex items-center"><XCircleIcon className="w-4 h-4 mr-1"/> Bet Lost (-{bet.pointsBet} pts)</span>;
+        return <span className="text-sm font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-700/30 px-2 py-1 rounded-full flex items-center"><XCircleIcon className="w-4 h-4 mr-1"/> {translate('matchCard.betStatus.lost', { points: bet.pointsBet })}</span>;
       }
     }
     return null;
@@ -43,6 +45,19 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
 
   const homeBets = round.bets.filter(b => b.selectedTeam === BetTeamSelection.HOME);
   const awayBets = round.bets.filter(b => b.selectedTeam === BetTeamSelection.AWAY);
+
+  const getStatusBadge = () => {
+    switch (status) {
+      case BettingRoundStatus.OPEN:
+        return <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300 px-2 py-1 rounded-full">{translate('bettingRoundStatus.open')}</span>;
+      case BettingRoundStatus.CLOSED:
+        return <span className="text-xs font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-800/40 dark:text-yellow-300 px-2 py-1 rounded-full">{translate('bettingRoundStatus.closedAwaitingResult')}</span>;
+      case BettingRoundStatus.RESULT_UPDATED:
+        return <span className="text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-300 px-2 py-1 rounded-full">{translate('bettingRoundStatus.finished')}</span>;
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
@@ -55,8 +70,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
                 <button
                   onClick={() => setIsAiAnalysisModalOpen(true)}
                   className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-colors"
-                  title="Xem phân tích AI"
-                  aria-label="Xem phân tích AI"
+                  title={translate('button.viewAiAnalysis')}
+                  aria-label={translate('button.viewAiAnalysis')}
                 >
                   <span className="font-bold text-sm bg-clip-text text-transparent 
                                    bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-500
@@ -65,15 +80,13 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
                   </span>
                 </button>
               )}
-              {status === BettingRoundStatus.OPEN && <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300 px-2 py-1 rounded-full">Open</span>}
-              {status === BettingRoundStatus.CLOSED && <span className="text-xs font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-800/40 dark:text-yellow-300 px-2 py-1 rounded-full">Closed (Awaiting Result)</span>}
-              {status === BettingRoundStatus.RESULT_UPDATED && <span className="text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-300 px-2 py-1 rounded-full">Finished</span>}
+              {getStatusBadge()}
             </div>
           </div>
 
           <div className="text-center my-4">
             <p className="text-lg font-bold text-textPrimary">{matchDetails.homeTeam}</p>
-            <p className="text-sm text-textSecondary my-1">vs</p>
+            <p className="text-sm text-textSecondary my-1">{translate('matchCard.versus')}</p>
             <p className="text-lg font-bold text-textPrimary">{matchDetails.awayTeam}</p>
           </div>
 
@@ -85,50 +98,50 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
           {status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
             <div className="my-3 p-2 bg-primary/10 dark:bg-primary/30 rounded-md text-center">
               <p className="text-sm font-semibold text-primary">
-                Result: {winningTeam === MatchResultTeam.DRAW ? "Draw" : `${winningTeam === MatchResultTeam.HOME_WIN ? matchDetails.homeTeam : matchDetails.awayTeam} Won`}
+                {translate('matchCard.resultLabel')} {winningTeam === MatchResultTeam.DRAW ? translate('matchResult.draw') : `${winningTeam === MatchResultTeam.HOME_WIN ? matchDetails.homeTeam : matchDetails.awayTeam} ${translate('matchResult.won')}`}
               </p>
             </div>
           )}
           
           {userBet && (
             <div className="my-3 p-2 bg-gray-100 dark:bg-slate-700 rounded-md text-sm text-textPrimary">
-              <p>Your bet: <span className="font-semibold">{userBet.pointsBet} points</span> on <span className="font-semibold">{userBet.selectedTeam === BetTeamSelection.HOME ? matchDetails.homeTeam : matchDetails.awayTeam}</span></p>
+              <p>{translate('matchCard.yourBet')} <span className="font-semibold">{translate('matchCard.pointsBetValue', { points: userBet.pointsBet })}</span> {translate('matchCard.onTeam')} <span className="font-semibold">{userBet.selectedTeam === BetTeamSelection.HOME ? matchDetails.homeTeam : matchDetails.awayTeam}</span></p>
               {betStatusDisplay && <div className="mt-1">{betStatusDisplay}</div>}
             </div>
           )}
 
           {status === BettingRoundStatus.OPEN && round.bets.length > 0 && (
             <div className="mt-4 pt-3 border-t border-border">
-              <h4 className="text-base font-semibold text-textPrimary mb-3 text-center">Current Bets ({round.bets.length})</h4>
+              <h4 className="text-base font-semibold text-textPrimary mb-3 text-center">{translate('matchCard.currentBets', { count: round.bets.length })}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{matchDetails.homeTeam} Bettors:</p>
+                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{translate('matchCard.teamBettors', { teamName: matchDetails.homeTeam })}</p>
                   {homeBets.length > 0 ? (
                     <ul className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar-thin">
                       {homeBets.map(bet => (
                         <li key={`${bet.roundId}-${bet.userId}-home-open`} className="flex justify-between items-center p-1.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded text-textPrimary">
                           <span className="truncate mr-2" title={bet.userName}>{bet.userName}</span>
-                          <span className="font-semibold text-primary whitespace-nowrap">{bet.pointsBet} pts</span>
+                          <span className="font-semibold text-primary whitespace-nowrap">{translate('matchCard.pointsBetValue', { points: bet.pointsBet })}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-gray-400 dark:text-slate-500 italic text-center py-2">No bets yet.</p>
+                    <p className="text-gray-400 dark:text-slate-500 italic text-center py-2">{translate('matchCard.noBetsYet')}</p>
                   )}
                 </div>
                 <div>
-                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{matchDetails.awayTeam} Bettors:</p>
+                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{translate('matchCard.teamBettors', { teamName: matchDetails.awayTeam })}</p>
                   {awayBets.length > 0 ? (
                     <ul className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar-thin">
                       {awayBets.map(bet => (
                         <li key={`${bet.roundId}-${bet.userId}-away-open`} className="flex justify-between items-center p-1.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded text-textPrimary">
                           <span className="truncate mr-2" title={bet.userName}>{bet.userName}</span>
-                          <span className="font-semibold text-primary whitespace-nowrap">{bet.pointsBet} pts</span>
+                          <span className="font-semibold text-primary whitespace-nowrap">{translate('matchCard.pointsBetValue', { points: bet.pointsBet })}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-gray-400 dark:text-slate-500 italic text-center py-2">No bets yet.</p>
+                    <p className="text-gray-400 dark:text-slate-500 italic text-center py-2">{translate('matchCard.noBetsYet')}</p>
                   )}
                 </div>
               </div>
@@ -137,35 +150,35 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
 
           {status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
             <div className="mt-4 pt-3 border-t border-border">
-              <h4 className="text-base font-semibold text-textPrimary mb-3 text-center">All Bet Outcomes</h4>
+              <h4 className="text-base font-semibold text-textPrimary mb-3 text-center">{translate('matchCard.allBetOutcomes')}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{matchDetails.homeTeam} Bettors:</p>
+                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{translate('matchCard.teamBettors', { teamName: matchDetails.homeTeam })}</p>
                   {homeBets.length > 0 ? (
                     <ul className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar-thin">
                       {homeBets.map(bet => {
                           let outcomeClass = ''; let outcomeText = '';
-                          if (winningTeam === MatchResultTeam.DRAW) { outcomeClass = 'text-yellow-700 dark:text-yellow-400'; outcomeText = `(Returned ${bet.pointsBet} pts)`;
-                          } else if (winningTeam === MatchResultTeam.HOME_WIN) { outcomeClass = 'text-green-600 dark:text-green-400'; outcomeText = `(+${bet.pointsBet * 2} pts)`;
-                          } else { outcomeClass = 'text-red-600 dark:text-red-400'; outcomeText = `(-${bet.pointsBet} pts)`; }
+                          if (winningTeam === MatchResultTeam.DRAW) { outcomeClass = 'text-yellow-700 dark:text-yellow-400'; outcomeText = translate('matchCard.outcome.returned', { points: bet.pointsBet });
+                          } else if (winningTeam === MatchResultTeam.HOME_WIN) { outcomeClass = 'text-green-600 dark:text-green-400'; outcomeText = translate('matchCard.outcome.won', { points: bet.pointsBet * 2 });
+                          } else { outcomeClass = 'text-red-600 dark:text-red-400'; outcomeText = translate('matchCard.outcome.lost', { points: bet.pointsBet }); }
                           return ( <li key={`${bet.roundId}-${bet.userId}-home`} className="flex justify-between items-center p-1.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded text-textPrimary"> <span className="truncate mr-2" title={bet.userName}>{bet.userName}: {bet.pointsBet}</span> <span className={`font-semibold ${outcomeClass} ml-1 whitespace-nowrap`}>{outcomeText}</span> </li> );
                         })}
                     </ul>
-                  ) : (<p className="text-gray-400 dark:text-slate-500 italic text-center py-2">No bets placed.</p>)}
+                  ) : (<p className="text-gray-400 dark:text-slate-500 italic text-center py-2">{translate('matchCard.noBetsPlaced')}</p>)}
                 </div>
                 <div>
-                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{matchDetails.awayTeam} Bettors:</p>
+                  <p className="font-medium text-textSecondary mb-1 pb-1 border-b border-border">{translate('matchCard.teamBettors', { teamName: matchDetails.awayTeam })}</p>
                   {awayBets.length > 0 ? (
                     <ul className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar-thin">
                       {awayBets.map(bet => {
                           let outcomeClass = ''; let outcomeText = '';
-                          if (winningTeam === MatchResultTeam.DRAW) { outcomeClass = 'text-yellow-700 dark:text-yellow-400'; outcomeText = `(Returned ${bet.pointsBet} pts)`;
-                          } else if (winningTeam === MatchResultTeam.AWAY_WIN) { outcomeClass = 'text-green-600 dark:text-green-400'; outcomeText = `(+${bet.pointsBet * 2} pts)`;
-                          } else { outcomeClass = 'text-red-600 dark:text-red-400'; outcomeText = `(-${bet.pointsBet} pts)`;}
+                          if (winningTeam === MatchResultTeam.DRAW) { outcomeClass = 'text-yellow-700 dark:text-yellow-400'; outcomeText = translate('matchCard.outcome.returned', { points: bet.pointsBet });
+                          } else if (winningTeam === MatchResultTeam.AWAY_WIN) { outcomeClass = 'text-green-600 dark:text-green-400'; outcomeText = translate('matchCard.outcome.won', { points: bet.pointsBet * 2 });
+                          } else { outcomeClass = 'text-red-600 dark:text-red-400'; outcomeText = translate('matchCard.outcome.lost', { points: bet.pointsBet });}
                           return (<li key={`${bet.roundId}-${bet.userId}-away`} className="flex justify-between items-center p-1.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded text-textPrimary"> <span className="truncate mr-2" title={bet.userName}>{bet.userName}: {bet.pointsBet}</span> <span className={`font-semibold ${outcomeClass} ml-1 whitespace-nowrap`}>{outcomeText}</span> </li>);
                         })}
                     </ul>
-                  ) : (<p className="text-gray-400 dark:text-slate-500 italic text-center py-2">No bets placed.</p>)}
+                  ) : (<p className="text-gray-400 dark:text-slate-500 italic text-center py-2">{translate('matchCard.noBetsPlaced')}</p>)}
                 </div>
               </div>
             </div>
@@ -175,18 +188,18 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
         {status === BettingRoundStatus.OPEN && onBet && currentUser && !userBet && (
           <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border-t border-border">
             <Button onClick={() => onBet(round.id)} fullWidth>
-              <CurrencyDollarIcon className="w-5 h-5 mr-2"/> Place Bet
+              <CurrencyDollarIcon className="w-5 h-5 mr-2"/> {translate('matchCard.button.placeBet')}
             </Button>
           </div>
         )}
         {status === BettingRoundStatus.OPEN && currentUser && userBet && (
            <div className="p-4 bg-green-50 dark:bg-green-700/30 text-center text-sm text-green-700 dark:text-green-300 font-medium border-t border-green-200 dark:border-green-600/50">
-              You have already placed a bet on this match.
+              {translate('matchCard.alreadyBet')}
           </div>
         )}
          {!currentUser && status === BettingRoundStatus.OPEN && (
            <div className="p-4 bg-gray-50 dark:bg-slate-800/60 text-center text-sm text-textSecondary font-medium border-t border-border">
-              Login to place a bet.
+              {translate('matchCard.loginToBet')}
           </div>
         )}
         <style>{`

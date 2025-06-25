@@ -1,13 +1,15 @@
 import React from 'react';
 import { LeaderboardEntry } from '../types';
 import { UserCircleIcon, StarIcon } from './icons';
-import { INITIAL_USER_POINTS } from '../constants'; // Import the constant
+import { INITIAL_USER_POINTS } from '../constants'; 
+import { useLanguage } from '../App';
 
 interface LeaderboardTableProps {
   leaderboardData: LeaderboardEntry[];
 }
 
 export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaderboardData }) => {
+  const { translate } = useLanguage();
   const sortedLeaderboard = [...leaderboardData].sort((a, b) => b.points - a.points);
 
   return (
@@ -16,13 +18,13 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaderboardD
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-gray-50 dark:bg-slate-700">
             <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider w-16">Rank</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Player</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Points</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Net Change</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Bets Made</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Wins</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">Win Rate</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider w-16">{translate('leaderboardTable.header.rank')}</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('leaderboardTable.header.player')}</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('leaderboardTable.header.points')}</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('leaderboardTable.header.netChange')}</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('leaderboardTable.header.betsMade')}</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('leaderboardTable.header.wins')}</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('leaderboardTable.header.winRate')}</th>
             </tr>
           </thead>
           <tbody className="bg-surface divide-y divide-border">

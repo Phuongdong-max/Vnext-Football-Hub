@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, BetTeamSelection, BettingRoundStatus } from '../types';
-import { useAppContext } from '../App';
+import { useAppContext, useLanguage } from '../App';
 import {
   getFirebaseOpenBettingRounds,
   getFirebaseClosedBettingRoundsForMember,
@@ -12,12 +11,10 @@ import { BettingModal } from '../components/BettingModal';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { RefreshIcon } from '../components/icons';
 import { Button } from '../components/shared/Button';
-// LandingPage import is no longer needed here as App.tsx handles it.
-// import { LandingPage } from '../components/LandingPage'; 
 
 export const MemberHomePage: React.FC = () => {
-  // signInWithGoogle and isFirebaseReady are not needed here anymore for LandingPage
   const { currentUser, addToast, refreshLeaderboard, isFirebaseReady } = useAppContext(); 
+  const { translate } = useLanguage();
   const [openRounds, setOpenRounds] = useState<BettingRound[]>([]);
   const [closedRounds, setClosedRounds] = useState<BettingRound[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +23,7 @@ export const MemberHomePage: React.FC = () => {
   const [selectedRoundForBet, setSelectedRoundForBet] = useState<BettingRound | null>(null);
 
   const fetchMemberData = useCallback(async (isManualRefresh = false) => {
-    if (!currentUser) { // Should not happen if this component is rendered due to App.tsx logic
+    if (!currentUser) { 
         setIsLoading(false);
         return;
     }
@@ -36,27 +33,24 @@ export const MemberHomePage: React.FC = () => {
       let open: BettingRound[] = [], closed: BettingRound[] = [];
       if (isFirebaseReady) {
         open = await getFirebaseOpenBettingRounds();
-        closed = await getFirebaseClosedBettingRoundsForMember(currentUser.id); // currentUser is guaranteed here
+        closed = await getFirebaseClosedBettingRoundsForMember(currentUser.id); 
       } else {
-        addToast("Betting rounds unavailable: Firebase not ready.", "info");
+        addToast("info.bettingRoundsUnavailableFirebaseNotReady", "info", true);
       }
       setOpenRounds(open.sort((a,b) => new Date(a.matchDetails.startTime).getTime() - new Date(b.matchDetails.startTime).getTime() ));
       setClosedRounds(closed.sort((a,b) => new Date(b.matchDetails.startTime).getTime() - new Date(a.matchDetails.startTime).getTime() ));
     } catch (error) {
       console.error("Error fetching member data:", error);
-      addToast("Failed to load betting rounds.", "error");
+      addToast("error.failedToLoadBettingRounds", "error", true);
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
-  }, [currentUser, addToast, isFirebaseReady]);
+  }, [currentUser, addToast, isFirebaseReady, translate]);
 
   useEffect(() => {
-    // This component now only renders if currentUser exists,
-    // so we can directly fetch data.
-    if (currentUser && isFirebaseReady) { // Ensure Firebase is ready too
+    if (currentUser && isFirebaseReady) { 
       fetchMemberData();
     } else if (!currentUser) {
-      // This case should ideally not be hit if App.tsx handles LandingPage correctly
       setIsLoading(false); 
       setOpenRounds([]);
       setClosedRounds([]);
@@ -65,11 +59,11 @@ export const MemberHomePage: React.FC = () => {
 
   const handleOpenBettingModal = (round: BettingRound) => {
     if (!currentUser) {
-      addToast("Please log in to place a bet.", "info"); // Should not happen
+      addToast("info.loginToPlaceBet", "info", true); 
       return;
     }
     if (currentUser.points <= 0) {
-      addToast("You have no points to bet.", "info");
+      addToast("info.noPointsToBet", "info", true);
       return;
     }
     setSelectedRoundForBet(round);
@@ -79,7 +73,7 @@ export const MemberHomePage: React.FC = () => {
   const handlePlaceBet = async (roundId: string, team: BetTeamSelection, points: number) => {
     if (!currentUser) return;
     if (points > currentUser.points) {
-        addToast("You cannot bet more points than you have.", "error");
+        addToast("error.betExceedsPoints", "error", true);
         return;
     }
     setIsDataLoading(true);
@@ -87,11 +81,11 @@ export const MemberHomePage: React.FC = () => {
       if (isFirebaseReady) {
         await placeFirebaseBet(roundId, currentUser.id, currentUser.name, team, points);
       } else {
-        addToast("Cannot place bet: Firebase not ready.", "error");
+        addToast("error.cannotPlaceBetFirebaseNotReady", "error", true);
         setIsDataLoading(false);
         return;
       }
-      addToast(`Successfully placed a bet of ${points} points!`, "success");
+      addToast("success.betPlaced", "success", true, { points });
       
       fetchMemberData(true); 
       refreshLeaderboard();
@@ -99,23 +93,21 @@ export const MemberHomePage: React.FC = () => {
       setSelectedRoundForBet(null);
     } catch (error) {
       console.error("Error placing bet:", error);
-      addToast(`Error placing bet: ${(error as Error).message}`, "error");
+      addToast("error.placingBet", "error", true, { errorMessage: (error as Error).message });
     } finally {
       setIsDataLoading(false);
     }
   };
   
-  // currentUser is guaranteed here because App.tsx would show LandingPage otherwise.
   if (isLoading) { 
-    return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /> <span className="ml-2">Loading Betting Rounds...</span></div>;
+    return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /> <span className="ml-2">{translate('memberHomePage.loadingRounds')}</span></div>;
   }
 
-  // Logged-in user view - LandingPage logic is removed from here.
   return (
     <div className="space-y-8">
        <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-textPrimary">Available Betting Rounds</h1>
-         <Button onClick={() => fetchMemberData(true)} variant="outline" size="sm" title="Refresh Data" disabled={isDataLoading}> {/* isLoading removed from disabled */}
+        <h1 className="text-3xl font-bold text-textPrimary">{translate('memberHomePage.availableRoundsTitle')}</h1>
+         <Button onClick={() => fetchMemberData(true)} variant="outline" size="sm" title={translate('memberHomePage.button.refreshData')} disabled={isDataLoading}>
            {isDataLoading ? <LoadingSpinner size="sm" className="w-5 h-5"/> : <RefreshIcon className="w-5 h-5"/>}
           </Button>
       </div>
@@ -131,9 +123,9 @@ export const MemberHomePage: React.FC = () => {
       )}
 
       <section>
-        <h2 className="text-2xl font-semibold text-textPrimary mb-4">Open for Betting ({openRounds.length})</h2>
+        <h2 className="text-2xl font-semibold text-textPrimary mb-4">{translate('memberHomePage.openForBettingTitle', { count: openRounds.length })}</h2>
         {openRounds.length === 0 && !isDataLoading ? (
-          <p className="text-textSecondary">No betting rounds currently open. Check back later!</p>
+          <p className="text-textSecondary">{translate('memberHomePage.noOpenRounds')}</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {openRounds.map(round => (
@@ -150,9 +142,9 @@ export const MemberHomePage: React.FC = () => {
 
       {currentUser && (
         <section>
-          <h2 className="text-2xl font-semibold text-textPrimary mb-4">Your Past Bets / Results ({closedRounds.length})</h2>
+          <h2 className="text-2xl font-semibold text-textPrimary mb-4">{translate('memberHomePage.pastBetsTitle', { count: closedRounds.length })}</h2>
           {closedRounds.length === 0 && !isDataLoading ? ( 
-            <p className="text-textSecondary">You haven't participated in any rounds that are now closed, or no rounds are closed yet.</p>
+            <p className="text-textSecondary">{translate('memberHomePage.noPastRounds')}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {closedRounds.map(round => (
