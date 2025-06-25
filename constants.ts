@@ -1,7 +1,7 @@
 
 import { UserRole } from './types';
 
-export const APP_TITLE = "Vnext FootballHub";
+export const APP_TITLE = "app.title"; // Changed to a translation key
 
 // REPLACE WITH YOUR ACTUAL DEPLOYED FUNCTION URL
 // Example after deployment: https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/footballApiProxy

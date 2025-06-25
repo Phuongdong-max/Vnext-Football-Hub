@@ -1,10 +1,12 @@
+
 import React from 'react';
-import { useAppContext } from '../App';
+import { useAppContext, useLanguage } from '../App'; // Added useLanguage
 import { Button } from './shared/Button';
 import { LogoutIcon, UserCircleIcon, GoogleIcon } from './icons'; 
 
 export const AuthComponent: React.FC = () => {
   const { currentUser, signInWithGoogle, logout, isFirebaseReady } = useAppContext();
+  const { translate } = useLanguage(); // Added useLanguage
 
   const handleGoogleLogin = async () => {
     await signInWithGoogle();
@@ -21,13 +23,13 @@ export const AuthComponent: React.FC = () => {
               <UserCircleIcon className="w-10 h-10 text-primary mr-3" />
             )}
             <div>
-              <p className="text-sm font-semibold text-textPrimary">Logged in as: {currentUser.name}</p>
-              <p className="text-xs text-textSecondary">Role: {currentUser.role} | Points: {currentUser.points}</p>
+              <p className="text-sm font-semibold text-textPrimary">{translate('auth.loggedInAs', { name: currentUser.name })}</p>
+              <p className="text-xs text-textSecondary">{translate('auth.role', {role: currentUser.role})} | {translate('auth.points', {points: currentUser.points})}</p>
             </div>
           </div>
           <Button onClick={logout} variant="secondary" size="sm">
             <LogoutIcon className="w-4 h-4 mr-1" />
-            Logout
+            {translate('auth.logout')}
           </Button>
         </div>
       </div>
@@ -37,7 +39,7 @@ export const AuthComponent: React.FC = () => {
   return (
     <div className="bg-gray-50 dark:bg-slate-800/60 p-4 shadow-sm">
       <div className="container mx-auto flex flex-col items-center">
-        <h3 className="text-lg font-semibold text-textPrimary mb-3 text-center">Sign In</h3>
+        <h3 className="text-lg font-semibold text-textPrimary mb-3 text-center">{translate('auth.signIn')}</h3>
         {isFirebaseReady ? (
           <Button 
             onClick={handleGoogleLogin} 
@@ -48,15 +50,15 @@ export const AuthComponent: React.FC = () => {
                        border border-gray-300 dark:border-slate-600 
                        text-gray-700 dark:text-slate-200 
                        hover:bg-gray-100 dark:hover:bg-slate-600 
-                       focus:ring-blue-500 dark:focus:ring-offset-slate-800" // Adjusted focus ring for dark mode
+                       focus:ring-blue-500 dark:focus:ring-offset-slate-800"
           >
             <GoogleIcon className="w-5 h-5 mr-2" />
-            Sign in with Google
+            {translate('auth.signInWithGoogle')}
           </Button>
         ) : (
-          <p className="text-sm text-textSecondary text-center">Google Sign-In is unavailable (Firebase not ready).</p>
+          <p className="text-sm text-textSecondary text-center">{translate('auth.googleSignInUnavailable')}</p>
         )}
-          <p className="text-xs text-textSecondary mt-2 text-center">Use your Google account to participate.</p>
+          <p className="text-xs text-textSecondary mt-2 text-center">{translate('auth.signInGuidance')}</p>
       </div>
     </div>
   );

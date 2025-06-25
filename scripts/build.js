@@ -10,6 +10,9 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 // Ensure dist directory exists and is clean
 const projectRoot = path.join(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
+const localesDir = path.join(projectRoot, 'locales');
+const distLocalesDir = path.join(distDir, 'locales');
+
 
 try {
   fs.rmSync(distDir, { recursive: true, force: true });
@@ -21,6 +24,19 @@ fs.copyFileSync(
   path.join(projectRoot, 'index.html'),
   path.join(distDir, 'index.html')
 );
+
+// Copy locales directory
+if (fs.existsSync(localesDir)) {
+  fs.mkdirSync(distLocalesDir, { recursive: true });
+  fs.readdirSync(localesDir).forEach(file => {
+    fs.copyFileSync(
+      path.join(localesDir, file),
+      path.join(distLocalesDir, file)
+    );
+  });
+  console.log('Locales copied to dist/locales');
+}
+
 
 // esbuild build configuration
 const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";

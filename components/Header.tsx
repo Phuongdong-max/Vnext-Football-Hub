@@ -1,11 +1,12 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
-import { useAppContext } from '../App';
+import { useAppContext, useLanguage } from '../App'; // Added useLanguage
 import { UserRole } from '../types';
 import { SoccerBallIcon, HomeIcon, ShieldCheckIcon, UserGroupIcon } from './icons';
 import { ThemeToggleButton } from './ThemeToggleButton';
-
+import { LanguageToggleButton } from './LanguageToggleButton'; // Added LanguageToggleButton
 
 const NavLink: React.FC<{ to: string; children: React.ReactNode; icon: React.ReactNode }> = ({ to, children, icon }) => {
   const location = useLocation();
@@ -15,8 +16,8 @@ const NavLink: React.FC<{ to: string; children: React.ReactNode; icon: React.Rea
       to={to}
       className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out
                   ${isActive 
-                    ? 'bg-primary text-white dark:text-white' // Ensure white text on primary in dark mode too
-                    : 'text-textPrimary hover:bg-primary/10 hover:text-primary dark:text-slate-200 dark:hover:text-primary dark:hover:bg-primary/20' // Slightly more distinct hover for dark
+                    ? 'bg-primary text-white dark:text-white'
+                    : 'text-textPrimary hover:bg-primary/10 hover:text-primary dark:text-slate-200 dark:hover:text-primary dark:hover:bg-primary/20'
                   }`}
     >
       <span className="mr-2">{icon}</span>
@@ -27,6 +28,7 @@ const NavLink: React.FC<{ to: string; children: React.ReactNode; icon: React.Rea
 
 export const Header: React.FC = () => {
   const { currentUser } = useAppContext();
+  const { translate } = useLanguage();
 
   return (
     <header className="bg-surface shadow-lg sticky top-0 z-50">
@@ -34,18 +36,19 @@ export const Header: React.FC = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center text-2xl font-bold text-primary mb-2 sm:mb-0">
             <SoccerBallIcon className="w-8 h-8 mr-2"/>
-            {APP_TITLE}
+            {translate(APP_TITLE)}
           </Link>
         </div>
         <div className="flex items-center space-x-2 sm:space-x-4">
           <nav className="flex space-x-2 sm:space-x-4">
-            <NavLink to="/" icon={<HomeIcon className="w-5 h-5" />}>Home</NavLink>
+            <NavLink to="/" icon={<HomeIcon className="w-5 h-5" />}>{translate('header.home')}</NavLink>
             {currentUser?.role === UserRole.ADMIN && (
-              <NavLink to="/admin" icon={<ShieldCheckIcon className="w-5 h-5" />}>Admin Dashboard</NavLink>
+              <NavLink to="/admin" icon={<ShieldCheckIcon className="w-5 h-5" />}>{translate('header.adminDashboard')}</NavLink>
             )}
-            <NavLink to="/leaderboard" icon={<UserGroupIcon className="w-5 h-5" />}>Leaderboard</NavLink>
+            <NavLink to="/leaderboard" icon={<UserGroupIcon className="w-5 h-5" />}>{translate('header.leaderboard')}</NavLink>
           </nav>
           <ThemeToggleButton />
+          <LanguageToggleButton />
         </div>
       </div>
     </header>
