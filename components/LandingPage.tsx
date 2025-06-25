@@ -85,7 +85,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseRe
             {APP_TITLE}
           </h1>
           <p className="mt-4 text-lg sm:text-xl text-slate-200/90" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.5)' }}>
-            Your ultimate hub for friendly football betting!
+            Your ultimate hub for friendly football !
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 
 import { UserRole } from './types';
 
-export const APP_TITLE = "app.title"; 
+export const APP_TITLE = "VNext FootballHub"; 
 
 // URL for football-data.org proxy
 export const FOOTBALL_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/footballApiProxy'; 
