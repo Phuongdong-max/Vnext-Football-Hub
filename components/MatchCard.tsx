@@ -1,12 +1,15 @@
+
 import React, { useState } from 'react';
-import { BettingRound, User, BetTeamSelection, MatchResultTeam, BettingRoundStatus, Bet } from '../types';
+import { BettingRound, User, BetTeamSelection, MatchResultTeam, BettingRoundStatus, Bet, OddsData, BookmakerOdds, OutcomeOdds } from '../types';
 import { Button } from './shared/Button';
 import { 
     CalendarIcon, ClockIcon, CurrencyDollarIcon, CheckCircleIcon, 
-    XCircleIcon, MinusCircleIcon
+    XCircleIcon, MinusCircleIcon, ChartBarIcon
 } from './icons';
-import { AiAnalysisModal } from './AiAnalysisModal'; // Import the new modal
-import { useLanguage } from '../App';
+import { AiAnalysisModal } from './AiAnalysisModal'; 
+import { useLanguage, useAppContext } from '../App';
+import { fetchCombinedOddsForFootballMatch, checkIsTheOddsApiAvailable } from '../services/footballApiService';
+import { LoadingSpinner } from './shared/LoadingSpinner';
 
 interface MatchCardProps {
   round: BettingRound;
@@ -14,13 +17,92 @@ interface MatchCardProps {
   currentUser: User | null;
 }
 
+const OddsDisplay: React.FC<{ oddsData: OddsData, match: BettingRound['matchDetails'] }> = ({ oddsData, match }) => {
+  const { translate } = useLanguage();
+  // Find a couple of bookmakers or the first one with H2H odds
+  const h2hMarketKey = 'h2h';
+  const displayedBookmakers: BookmakerOdds[] = [];
+
+  for (const bookmaker of oddsData.bookmakers) {
+    const h2hMarket = bookmaker.markets.find(m => m.key === h2hMarketKey);
+    if (h2hMarket && h2hMarket.outcomes.length >= 2) { // Need at least home/away, draw is optional
+      displayedBookmakers.push({
+        ...bookmaker,
+        markets: [h2hMarket] // Only keep the H2H market for this display
+      });
+    }
+    if (displayedBookmakers.length >= 2) break; // Display max 2 bookies for brevity
+  }
+
+  if (displayedBookmakers.length === 0) {
+    return <p className="text-xs text-textSecondary italic">{translate('matchCard.odds.noH2HOdds')}</p>;
+  }
+  
+  const getOutcomeName = (outcomeName: string, homeTeam: string, awayTeam: string): string => {
+    if (outcomeName.toLowerCase() === homeTeam.toLowerCase()) return translate('matchCard.odds.homeTeamWinShort');
+    if (outcomeName.toLowerCase() === awayTeam.toLowerCase()) return translate('matchCard.odds.awayTeamWinShort');
+    if (outcomeName.toLowerCase() === 'draw') return translate('matchCard.odds.drawShort');
+    return outcomeName;
+  }
+
+  return (
+    <div className="space-y-2 mt-2">
+      {displayedBookmakers.map(bookie => (
+        <div key={bookie.key} className="p-2 bg-gray-100 dark:bg-slate-700/80 rounded">
+          <p className="text-xs font-semibold text-primary">{bookie.title}</p>
+          <div className="flex justify-around items-center text-center mt-1">
+            {bookie.markets[0].outcomes.map(outcome => (
+              <div key={outcome.name} className="flex-1 px-1">
+                <p className="text-[10px] sm:text-xs text-textSecondary truncate" title={outcome.name}>{getOutcomeName(outcome.name, match.homeTeam, match.awayTeam)}</p>
+                <p className="text-xs sm:text-sm font-bold text-textPrimary">{outcome.price.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+
 export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser }) => {
   const { translate } = useLanguage();
+  const { addToast } = useAppContext();
   const { matchDetails, status, winningTeam } = round;
   const userBet = currentUser ? round.bets.find(b => b.userId === currentUser.id) : null;
 
   const [isAiAnalysisModalOpen, setIsAiAnalysisModalOpen] = useState(false);
   const isAiFeatureAvailable = !!process.env.API_KEY && process.env.API_KEY !== "";
+
+  const [oddsData, setOddsData] = useState<OddsData | null | undefined>(undefined); // undefined: not fetched, null: fetch failed or no data
+  const [isLoadingOdds, setIsLoadingOdds] = useState(false);
+  const isOddsApiConfigured = checkIsTheOddsApiAvailable();
+
+
+  const handleFetchOdds = async () => {
+    if (!isOddsApiConfigured) {
+      addToast(translate('matchCard.odds.apiNotConfigured'), 'error');
+      setOddsData(null); // Mark as failed due to config
+      return;
+    }
+    setIsLoadingOdds(true);
+    setOddsData(undefined); // Reset before fetching
+    try {
+      const fetchedOdds = await fetchCombinedOddsForFootballMatch(matchDetails);
+      if (fetchedOdds && fetchedOdds.bookmakers && fetchedOdds.bookmakers.length > 0) {
+        setOddsData(fetchedOdds);
+      } else {
+        setOddsData(null); // No odds found or empty response
+        addToast(translate('matchCard.odds.notFound'), 'info');
+      }
+    } catch (error) {
+      console.error("Error fetching odds:", error);
+      addToast(translate('matchCard.odds.fetchError'), 'error');
+      setOddsData(null); // Mark as failed
+    } finally {
+      setIsLoadingOdds(false);
+    }
+  };
 
   const getBetStatusDisplay = (bet: Bet | null | undefined, roundStatus: BettingRoundStatus, result?: MatchResultTeam | null) => {
     if (!bet || roundStatus === BettingRoundStatus.OPEN) return null;
@@ -94,6 +176,33 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
             <p className="flex items-center"><CalendarIcon className="w-4 h-4 mr-2 text-primary" /> {new Date(matchDetails.startTime).toLocaleDateString()}</p>
             <p className="flex items-center"><ClockIcon className="w-4 h-4 mr-2 text-primary" /> {new Date(matchDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
+          
+          {/* Odds Display Section */}
+          {isOddsApiConfigured && status === BettingRoundStatus.OPEN && (
+            <div className="my-3">
+              {isLoadingOdds && (
+                <div className="text-center py-2">
+                  <LoadingSpinner size="sm" />
+                  <p className="text-xs text-textSecondary mt-1">{translate('matchCard.odds.loading')}</p>
+                </div>
+              )}
+              {!isLoadingOdds && oddsData === undefined && ( // Not yet fetched
+                <Button onClick={handleFetchOdds} variant="outline" size="sm" fullWidth>
+                  <ChartBarIcon className="w-4 h-4 mr-1"/> {translate('matchCard.odds.viewButton')}
+                </Button>
+              )}
+              {!isLoadingOdds && oddsData === null && ( // Fetch failed or no data
+                 <p className="text-xs text-center text-textSecondary italic py-1">{translate('matchCard.odds.unavailable')}</p>
+              )}
+              {!isLoadingOdds && oddsData && (
+                <>
+                  <p className="text-sm font-semibold text-textPrimary mb-1">{translate('matchCard.odds.titleH2H')}</p>
+                  <OddsDisplay oddsData={oddsData} match={matchDetails} />
+                </>
+              )}
+            </div>
+          )}
+
 
           {status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
             <div className="my-3 p-2 bg-primary/10 dark:bg-primary/30 rounded-md text-center">

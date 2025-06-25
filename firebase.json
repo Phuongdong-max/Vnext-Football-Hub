@@ -1,3 +1,4 @@
+
 {
   "hosting": {
     "public": "dist",
@@ -24,7 +25,25 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local"
-      ]
+      ],
+      "environment": {
+        "THE_ODDS_API_KEY": "${param:THE_ODDS_API_KEY}",
+        "FOOTBALL_DATA_API_KEY": "${param:FOOTBALL_DATA_API_KEY}"
+      }
+    }
+  ],
+  "params": [
+    {
+      "param": "THE_ODDS_API_KEY",
+      "label": "The Odds API Key",
+      "type": "secret",
+      "description": "API key for accessing the-odds-api.com"
+    },
+    {
+      "param": "FOOTBALL_DATA_API_KEY",
+      "label": "Football Data API Key",
+      "type": "secret",
+      "description": "API key for accessing football-data.org"
     }
   ]
 }

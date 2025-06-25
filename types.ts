@@ -11,30 +11,67 @@ export interface User {
   role: UserRole;
   avatarUrl?: string;
   points: number;
-  betsMadeCount: number; // New field
-  winsCount: number;     // New field
+  betsMadeCount: number; 
+  winsCount: number;     
 }
 
+// --- The Odds API Types ---
+export interface OutcomeOdds {
+  name: string; // e.g., Home team name, Away team name, "Draw"
+  price: number;
+  point?: number; // For spread/total markets
+}
+
+export interface MarketOdds {
+  key: string; // e.g., "h2h", "spreads", "totals"
+  last_update?: string; // ISO8601 string timestamp
+  outcomes: OutcomeOdds[];
+}
+
+export interface BookmakerOdds {
+  key: string; // e.g., "pinnacle", "betfair"
+  title: string; // e.g., "Pinnacle", "Betfair"
+  last_update: string; // ISO8601 string timestamp
+  markets: MarketOdds[];
+}
+
+// This type represents an event from The Odds API, often including bookmaker odds
+export interface OddsData {
+  id: string; // Event ID from The Odds API
+  sport_key: string;
+  sport_title: string;
+  commence_time: string; // ISO8601 string timestamp
+  home_team?: string; 
+  away_team?: string; 
+  bookmakers: BookmakerOdds[];
+}
+// --- End The Odds API Types ---
+
+
 export interface FootballMatch {
-  id: string; // Will be the API's match ID
+  id: string; 
   homeTeam: string;
   awayTeam: string;
-  startTime: Date; // Stored as Timestamp in Firestore
-  league: string; // League Name
-  leagueCode?: string; // Optional: API's code for the league
-  status?: string; // Optional: Match status from API (e.g., SCHEDULED, TIMED, IN_PLAY, FINISHED)
+  startTime: Date; 
+  league: string; 
+  leagueCode?: string; // Used by football-data.org (e.g., PL) or sport_key from The Odds API
+  status?: string; 
+  apiSource: 'football-data.org' | 'the-odds-api' | 'manual'; // Explicitly track origin
+  oddsData?: OddsData | null; // Optional: To store fetched odds, especially if source is the-odds-api
 }
 
 export interface League {
-  id: string; // API's ID or code for the league
+  id: string; // For football-data.org, this is leagueCode (e.g., 'PL'). For The Odds API, this is sport_key (e.g., 'soccer_epl')
   name: string;
-  areaName?: string; // e.g., "England" for Premier League
+  areaName?: string; // Primarily from football-data.org
+  apiSource: 'football-data.org' | 'the-odds-api';
+  // sportKeyOddsApi?: string; // Redundant if id stores sport_key for odds-api source
 }
 
 export enum BettingRoundStatus {
   OPEN = 'open',
-  CLOSED = 'closed', // Betting closed, results pending or final
-  CANCELLED = 'cancelled', // If a match gets cancelled
+  CLOSED = 'closed', 
+  CANCELLED = 'cancelled', 
   RESULT_UPDATED = 'result_updated',
 }
 
@@ -51,23 +88,23 @@ export enum MatchResultTeam {
 
 export interface Bet {
   userId: string;
-  userName: string; // denormalized for easier display
+  userName: string; 
   roundId: string;
   selectedTeam: BetTeamSelection;
   pointsBet: number;
-  timestamp: Date; // Stored as Timestamp in Firestore
+  timestamp: Date; 
 }
 
 export interface BettingRound {
   id: string;
-  matchId: string; // Reference to FootballMatch (could be API's match ID)
-  matchDetails: FootballMatch; // Consider if all details need to be duplicated or just key ones
+  matchId: string; 
+  matchDetails: FootballMatch; 
   status: BettingRoundStatus;
-  bets: Bet[]; // Array of Bet objects
-  bettorIds?: string[]; // Array of user IDs who have bet on this round
-  winningTeam?: MatchResultTeam | null; // null if not yet decided, or 'draw'
-  createdBy: string; // Admin User ID
-  createdAt: Date; // Stored as Timestamp in Firestore
+  bets: Bet[]; 
+  bettorIds?: string[]; 
+  winningTeam?: MatchResultTeam | null; 
+  createdBy: string; 
+  createdAt: Date; 
 }
 
 export interface LeaderboardEntry {
@@ -75,8 +112,8 @@ export interface LeaderboardEntry {
   userName:string;
   avatarUrl?: string;
   points: number;
-  betsMade: number; // Will come from User.betsMadeCount
-  wins: number;     // Will come from User.winsCount
+  betsMade: number; 
+  wins: number;     
 }
 
 export interface ToastMessage {
@@ -85,17 +122,16 @@ export interface ToastMessage {
   type: 'success' | 'error' | 'info';
 }
 
-// New Interface for AI Match Analysis
 export interface MatchAnalysis {
   predictedWinner: 'home' | 'away' | 'draw' | 'uncertain';
-  predictionReasoning?: string; // Brief explanation for the prediction
-  homeTeamForm?: string; // e.g., "WWLDW" or "Recent form: Won 3, Lost 1, Drew 1"
-  awayTeamForm?: string; // e.g., "LLWDL"
-  keyFactors?: string[]; // List of key factors (e.g., "Player injuries", "Head-to-head record")
+  predictionReasoning?: string; 
+  homeTeamForm?: string; 
+  awayTeamForm?: string; 
+  keyFactors?: string[]; 
   confidence?: {
     homeWinPercentage?: number;
     awayWinPercentage?: number;
     drawPercentage?: number;
   };
-  summary?: string; // A very concise summary of the analysis
+  summary?: string; 
 }

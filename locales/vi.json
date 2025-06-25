@@ -78,6 +78,18 @@
   "error.cannotPlaceBetFirebaseNotReady": "Không thể đặt cược: Firebase chưa sẵn sàng.",
 
   "createBettingRoundModal.title": "Tạo Vòng Cược Mới",
+  "createBettingRoundModal.api.selectSourceLabel": "Chọn Nguồn API:",
+  "createBettingRoundModal.warning.noApisConfigured": "Không có API nào được cấu hình. Vui lòng thiết lập ít nhất một API (Football-Data.org hoặc The Odds API) để tải trận đấu.",
+  "createBettingRoundModal.api.titleFootballData": "Tải từ Football-Data.org",
+  "createBettingRoundModal.api.titleTheOddsApi": "Tải từ The Odds API",
+  "createBettingRoundModal.error.selectLeague": "Vui lòng chọn một giải đấu.",
+  "createBettingRoundModal.error.selectDate": "Vui lòng chọn một ngày.",
+  "createBettingRoundModal.error.selectDateOddsApi": "Vui lòng chọn ngày 'tải trận đến' cho The Odds API.",
+  "createBettingRoundModal.api.selectDateOddsApiLabel": "Tải trận đến ngày:",
+  "createBettingRoundModal.info.noLeaguesForSource": "Không có giải đấu nào cho {{sourceName}}.",
+  "createBettingRoundModal.error.fetchLeaguesFailed": "Không thể tải giải đấu cho {{sourceName}}: {{errorMessage}}",
+  "createBettingRoundModal.error.fetchMatchesGeneric": "Không thể tải trận đấu: {{errorMessage}}",
+  "createBettingRoundModal.info.noMatchesFoundForLeague": "Không tìm thấy trận đấu nào cho {{leagueName}}.",
   "createBettingRoundModal.error.selectLeagueAndDate": "Vui lòng chọn giải đấu và ngày.",
   "createBettingRoundModal.error.fetchMatchesFailed": "Không thể tải trận đấu. Vui lòng thử lại hoặc nhập thủ công.",
   "createBettingRoundModal.error.selectMatchFromApi": "Vui lòng chọn một trận đấu từ kết quả API.",
@@ -86,12 +98,15 @@
   "createBettingRoundModal.api.selectLeagueLabel": "Chọn Giải Đấu:",
   "createBettingRoundModal.api.selectLeagueDefault": "-- Chọn Giải Đấu --",
   "createBettingRoundModal.api.selectDateLabel": "Chọn Ngày:",
-  "createBettingRoundModal.api.button.loadMatches": "Tải Trận Đấu từ API",
+  "createBettingRoundModal.api.button.loadMatches": "Tải Trận Đấu",
   "createBettingRoundModal.api.unavailableWarning": "Lựa chọn API trực tiếp không khả dụng. Vui lòng sử dụng \"Nhập Thủ Công\" hoặc đảm bảo API được cấu hình.",
   "createBettingRoundModal.api.searchMatchesLabel": "Tìm Trận Đấu Đã Tải:",
   "createBettingRoundModal.api.searchMatchesPlaceholder": "VD: Manchester United, Premier League",
   "createBettingRoundModal.api.selectMatchLabel": "Chọn Trận Đấu (từ kết quả API):",
   "createBettingRoundModal.api.loadingMatches": "Đang tải trận đấu từ API...",
+  "createBettingRoundModal.api.loadingLeagues": "Đang tải giải đấu...",
+  "createBettingRoundModal.api.selectLeagueFirst": "Chọn giải đấu và ngày/tùy chọn rồi tải trận đấu.",
+  "createBettingRoundModal.api.noMatchesLoadedOrFound": "Không có trận đấu nào được tải hoặc tìm thấy cho lựa chọn hiện tại.",
   "createBettingRoundModal.api.noMatchesLoaded": "Chưa có trận đấu nào được tải. Sử dụng bộ lọc ở trên để tải trận đấu từ API.",
   "createBettingRoundModal.api.noMatchesFoundForSearch": "Không tìm thấy trận đấu nào cho \"{{searchTerm}}\". Thử một cụm từ tìm kiếm khác.",
   "createBettingRoundModal.api.selectMatchDefault": "-- Chọn một Trận Đấu --",
@@ -110,14 +125,14 @@
   "createBettingRoundModal.button.selectFromListTitle": "Chọn từ danh sách",
   "createBettingRoundModal.button.enterManually": "Nhập Thủ Công",
   "createBettingRoundModal.button.createRound": "Tạo Vòng",
-  
+
   "updateResultModal.title": "Cập Nhật Kết Quả: {{homeTeam}} vs {{awayTeam}}",
   "updateResultModal.instruction": "Chọn đội thắng hoặc nếu trận đấu hòa.",
   "updateResultModal.button.homeWin": "{{teamName}} (Nhà) Thắng",
   "updateResultModal.button.awayWin": "{{teamName}} (Khách) Thắng",
   "updateResultModal.button.draw": "Trận Đấu Hòa",
   "updateResultModal.button.confirmResult": "Xác Nhận Kết Quả",
-
+  
   "common.button.cancel": "Hủy",
   "button.viewAiAnalysis": "Xem phân tích AI",
 
@@ -147,7 +162,7 @@
   "matchCard.loginToBet": "Đăng nhập để đặt cược.",
   "matchResult.draw": "Hòa",
   "matchResult.won": "Thắng",
-
+  
   "adminMatchCard.betsPlaced": "{{count}} Cược Đã Đặt",
   "adminMatchCard.button.updateResult": "Cập Nhật Kết Quả",
   "adminMatchCard.resultsRecorded": "Kết quả đã được ghi nhận cho trận này.",
@@ -194,5 +209,17 @@
   "error.aiResponseMissingFields": "Phản hồi phân tích AI thiếu các trường quan trọng.",
   "error.aiInvalidFormat": "AI trả về định dạng phân tích không hợp lệ.",
   "error.aiInvalidApiKey": "Khóa API của AI không hợp lệ. Vui lòng kiểm tra cấu hình của bạn.",
-  "error.aiCannotGetAnalysis": "Không thể lấy phân tích trận đấu từ AI. {{errorMessage}}"
+  "error.aiCannotGetAnalysis": "Không thể lấy phân tích trận đấu từ AI. {{errorMessage}}",
+
+  "matchCard.odds.viewButton": "Xem Kèo",
+  "matchCard.odds.loading": "Đang tải kèo...",
+  "matchCard.odds.unavailable": "Kèo không có sẵn cho trận này.",
+  "matchCard.odds.notFound": "Không tìm thấy kèo cho trận này.",
+  "matchCard.odds.fetchError": "Lỗi khi tải kèo.",
+  "matchCard.odds.apiNotConfigured": "API kèo chưa được cấu hình.",
+  "matchCard.odds.titleH2H": "Tỷ Lệ Kèo (1X2)",
+  "matchCard.odds.noH2HOdds": "Kèo 1X2 hiện không có từ các nhà cái được hiển thị.",
+  "matchCard.odds.homeTeamWinShort": "Chủ Nhà",
+  "matchCard.odds.awayTeamWinShort": "Khách",
+  "matchCard.odds.drawShort": "Hòa"
 }

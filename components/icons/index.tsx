@@ -229,3 +229,20 @@ export const LightBulbIcon: React.FC<IconProps> = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.311V21m-3.75-2.311V21m0 0H1.5M5.636 5.636l1.06-1.06a1.5 1.5 0 012.12 0l1.06 1.06M16.97 5.636l1.06-1.06a1.5 1.5 0 00-2.12 0l-1.06 1.06M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
+
+export const CloudIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5h10.5a4.5 4.5 0 004.5-4.5V12a4.5 4.5 0 00-4.5-4.5h-1.372c.03-.122.05-.246.05-.372a4.5 4.5 0 10-9 0c0 .126.02.25.05.372H6.75a4.5 4.5 0 00-4.5 4.5v3z" />
+  </svg>
+);
+
+export const DatabaseIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5h16.5M3.75 7.5h16.5M3.75 10.5h16.5M5.25 19.5V4.5m13.5 15V4.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 19.5c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5c0-1.243 4.03-2.25 9-2.25s9 1.007 9 2.25" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 7.5c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 16.5c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
+  </svg>
+);
