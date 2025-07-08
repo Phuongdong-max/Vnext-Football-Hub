@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { FootballMatch, MatchAnalysis } from '../types';
 import { Modal } from './shared/Modal';
 import { LoadingSpinner } from './shared/LoadingSpinner';
 import { getMatchAnalysisFromAI } from '../services/aiAnalysisService';
-import { ChartBarIcon, LightBulbIcon } from './icons'; 
+import { LightBulbIcon } from './icons'; 
 import { useLanguage } from '../App';
 
 interface AiAnalysisModalProps {
@@ -79,6 +80,20 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
     );
   };
 
+  const getPredictedWinnerText = () => {
+    if (!analysis) return '';
+    switch (analysis.predictedWinner) {
+      case 'home':
+        return translate('aiAnalysisModal.predictedWinner.home', { teamName: matchDetails.homeTeam });
+      case 'away':
+        return translate('aiAnalysisModal.predictedWinner.away', { teamName: matchDetails.awayTeam });
+      case 'draw':
+        return translate('aiAnalysisModal.predictedWinner.draw');
+      default:
+        return translate('aiAnalysisModal.predictedWinner.uncertain');
+    }
+  };
+
   return (
     <Modal 
         isOpen={isOpen} 
@@ -110,17 +125,14 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
                 analysis.predictedWinner === 'draw' ? 'text-yellow-600 dark:text-yellow-400' :
                 'text-textSecondary'
               }`}>
-                {analysis.predictedWinner === 'home' ? translate('aiAnalysisModal.predictedWinner.home', { teamName: matchDetails.homeTeam }) : 
-                 analysis.predictedWinner === 'away' ? translate('aiAnalysisModal.predictedWinner.away', { teamName: matchDetails.awayTeam }) : 
-                 analysis.predictedWinner === 'draw' ? translate('aiAnalysisModal.predictedWinner.draw') :
-                 translate('aiAnalysisModal.predictedWinner.uncertain')}
+                {getPredictedWinnerText()}
               </span>
             </p>
             {analysis.predictionReasoning && <p><strong>{translate('aiAnalysisModal.predictionReasoning.label')}:</strong> {analysis.predictionReasoning}</p>}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-              {analysis.homeTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.home', { teamName: matchDetails.homeTeam })}:</strong> {analysis.homeTeamForm}</p>}
-              {analysis.awayTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.away', { teamName: matchDetails.awayTeam })}:</strong> {analysis.awayTeamForm}</p>}
+              {analysis.homeTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.specificTeam', { teamName: matchDetails.homeTeam })}:</strong> {analysis.homeTeamForm}</p>}
+              {analysis.awayTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.specificTeam', { teamName: matchDetails.awayTeam })}:</strong> {analysis.awayTeamForm}</p>}
             </div>
 
             {renderConfidence(analysis.confidence)}

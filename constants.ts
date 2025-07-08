@@ -1,15 +1,16 @@
 
 import { UserRole } from './types';
 
-export const APP_TITLE = "VNext FootballHub"; 
+export const APP_TITLE = "app.title"; 
 
 // URL for football-data.org proxy
 export const FOOTBALL_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/footballApiProxy'; 
 
-// TODO: Replace with your actual deployed THE_ODDS_API_PROXY_URL
 // This will be the URL of the new Cloud Function we create for The Odds API.
-// Example: 'https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/theOddsApiProxy'
-export const THE_ODDS_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/theOddsApiProxy'; // REPLACE IF NECESSARY
+export const THE_ODDS_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/theOddsApiProxy';
+
+// URL for the new lock screen verification function
+export const VERIFY_LOCK_SCREEN_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/verifyLockScreenAnswer';
 
 export const INITIAL_USER_POINTS = 1000;
 

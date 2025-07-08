@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { APP_TITLE } from '../constants';
 import { SoccerBallIcon, GoogleIcon, PlusIcon, MinusIcon } from './icons'; // Added PlusIcon, MinusIcon
 import { Button } from './shared/Button';
 import { LoadingSpinner } from './shared/LoadingSpinner';
+import { useLanguage } from '../App';
 
 interface LandingPageProps {
   onSignIn: () => Promise<any | null>; 
@@ -22,6 +22,7 @@ interface DecorativeElement {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseReady }) => {
+  const { translate } = useLanguage();
   const decorativeElements: DecorativeElement[] = [
     // Soccer Balls
     { id: 1, type: 'ball', left: '10%', top: '15%', sizeClass: 'w-20 h-20 sm:w-28 sm:h-28', opacityClass: 'opacity-20 dark:opacity-10', animationDelay: '0s', animationDuration: '12s' },
@@ -64,7 +65,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseRe
         }
         const Icon = el.type === 'plus' ? PlusIcon : MinusIcon;
         const colorClass = el.type === 'plus' ? 'text-green-400' : 'text-red-400';
-        const text = el.type === 'plus' ? '1000' : '500'; // Example points
+        const text = el.type === 'plus' ? '+100' : '-50'; // Example points
         return (
           <div 
             key={el.id} 
@@ -82,10 +83,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseRe
         <div className="mb-10 sm:mb-12">
           <SoccerBallIcon className="w-28 h-28 sm:w-36 sm:h-36 text-white/95 mx-auto shadow-2xl rounded-full" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))' }}/>
           <h1 className="mt-6 text-5xl sm:text-6xl md:text-7xl font-bold text-white tracking-tight" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.6)' }}>
-            {APP_TITLE}
+            {translate(APP_TITLE)}
           </h1>
           <p className="mt-4 text-lg sm:text-xl text-slate-200/90" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.5)' }}>
-            Your ultimate hub for friendly football !
+            {translate('landing.subtitle')}
           </p>
         </div>
 
@@ -110,7 +111,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseRe
           )}
         </div>
         <p className="mt-10 text-sm sm:text-base text-slate-300/80" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.4)' }}>
-          Join the fun, place your bets, and climb the leaderboard!
+          {translate('landing.join')}
         </p>
       </div>
       <style>{`

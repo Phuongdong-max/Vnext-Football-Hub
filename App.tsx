@@ -16,10 +16,12 @@ import { AuthComponent } from './components/Auth';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MemberHomePage } from './pages/MemberHomePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
+import { TeamDividerPage } from './pages/TeamDividerPage';
 import { ToastContainer } from './components/shared/ToastContainer';
 import { SoccerBallIcon } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
 import { LandingPage } from './components/LandingPage';
+import { LockScreen } from './components/LockScreen';
 
 // --- Theme Context ---
 type Theme = 'light' | 'dark' | 'system';
@@ -205,7 +207,7 @@ interface AppContextType {
   logout: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
   refreshLeaderboard: () => void;
-  addToast: (message: string, type: 'success' | 'error' | 'info', isTranslationKey?: boolean, replacements?: Record<string, string | number>) => void;
+  addToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', isTranslationKey?: boolean, replacements?: Record<string, string | number>) => void;
   updateUserPoints: (userId: string, points: number) => Promise<void>; 
   isFirebaseReady: boolean;
 }
@@ -220,6 +222,39 @@ export function useAppContext() {
   return context;
 }
 
+// FIX: Define MainApp component outside of AppCore to prevent it from being
+// recreated on every render, which was causing an infinite loop.
+const MainApp: React.FC = () => {
+  const { currentUser } = useAppContext();
+  const { translate } = useLanguage();
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background text-textPrimary">
+      <Header />
+      <AuthComponent />
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/" element={<MemberHomePage />} />
+          <Route path="/admin" element={
+            currentUser?.role === UserRole.ADMIN 
+              ? <AdminDashboardPage /> 
+              : <Navigate to="/" replace />
+          } />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/team-divider" element={<TeamDividerPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      <footer className="py-4 bg-surface shadow-md">
+        <div className="container mx-auto px-4 text-center text-textSecondary">
+          {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+
 const AppCore: React.FC = () => {
   const { translate, translationsLoading, language } = useLanguage(); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -231,13 +266,37 @@ const AppCore: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isEnvironmentSupported, setIsEnvironmentSupported] = useState(true);
   const [criticalError, setCriticalError] = useState<string | null>(null);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
+  useEffect(() => {
+    try {
+      const unlockedStatus = localStorage.getItem('isAppUnlocked');
+      if (unlockedStatus === 'true') {
+        setIsUnlocked(true);
+      }
+    } catch (e) {
+      console.error("Could not access localStorage to check unlock status", e);
+      setIsUnlocked(false);
+    }
+  }, []);
 
 
-  const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' = 'info', isTranslationKey: boolean = false, replacements?: Record<string, string | number>) => {
+  const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', isTranslationKey: boolean = false, replacements?: Record<string, string | number>) => {
     const id = new Date().toISOString() + Math.random(); 
     const message = isTranslationKey && !translationsLoading ? translate(messageOrKey, replacements) : messageOrKey; // Only translate if not loading
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
   }, [translate, translationsLoading]);
+
+  const handleUnlock = () => {
+    try {
+      localStorage.setItem('isAppUnlocked', 'true');
+      setIsUnlocked(true);
+    } catch (e) {
+      console.error("Could not set unlock status in localStorage", e);
+      setIsUnlocked(true);
+      addToast('Could not save unlock status for future visits.', 'warning');
+    }
+  };
 
   const refreshLeaderboard = useCallback(async () => {
     if (isLeaderboardLoadingRef.current) return; 
@@ -379,6 +438,10 @@ const AppCore: React.FC = () => {
     isFirebaseReady,
   };
 
+  if (!isUnlocked) {
+    return <LockScreen onUnlock={handleUnlock} />;
+  }
+
   // Combined loading state management
   if ((isLoading || translationsLoading) && !criticalError) {
     let loadingMessage = "Initializing..."; // Default message
@@ -418,8 +481,12 @@ const AppCore: React.FC = () => {
     );
   }
   
-
-  if (!currentUser) {
+  const location = useLocation();
+  
+  // Show landing page only on root path when logged out.
+  // Otherwise, show the main app layout for all other pages (including TeamDivider)
+  // which will correctly show login prompts etc. for logged out users.
+  if (!currentUser && location.pathname === '/') {
     return (
       <AppContext.Provider value={appContextValue}>
         <LandingPage onSignIn={handleSignInWithGoogle} isFirebaseReady={isFirebaseReady} />
@@ -430,30 +497,8 @@ const AppCore: React.FC = () => {
   
   return (
     <AppContext.Provider value={appContextValue}>
-      <HashRouter>
-        <div className="flex flex-col min-h-screen bg-background text-textPrimary">
-          <Header />
-          <AuthComponent />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            <Routes>
-              <Route path="/" element={<MemberHomePage />} />
-              <Route path="/admin" element={
-                currentUser?.role === UserRole.ADMIN 
-                  ? <AdminDashboardPage /> 
-                  : <Navigate to="/" replace />
-              } />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-          <footer className="py-4 bg-surface shadow-md">
-            <div className="container mx-auto px-4 text-center text-textSecondary">
-              {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
-            </div>
-          </footer>
-          <ToastContainer toasts={toasts} setToasts={setToasts} />
-        </div>
-      </HashRouter>
+        <MainApp />
+        <ToastContainer toasts={toasts} setToasts={setToasts} />
     </AppContext.Provider>
   );
 };
@@ -462,7 +507,9 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AppCore />
+        <HashRouter> {/* HashRouter now wraps the AppCore to provide location context */}
+          <AppCore />
+        </HashRouter>
       </LanguageProvider>
     </ThemeProvider>
   );

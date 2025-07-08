@@ -32,6 +32,9 @@
       }
     }
   ],
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "params": [
     {
       "param": "THE_ODDS_API_KEY",

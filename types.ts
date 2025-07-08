@@ -1,4 +1,3 @@
-
 export enum UserRole {
   ADMIN = 'admin',
   MEMBER = 'member',
@@ -119,7 +118,7 @@ export interface LeaderboardEntry {
 export interface ToastMessage {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 export interface MatchAnalysis {
@@ -134,4 +133,35 @@ export interface MatchAnalysis {
     drawPercentage?: number;
   };
   summary?: string; 
+}
+
+// --- Team Divider Types ---
+export type PlayerSeed = 'A' | 'B' | 'C' | 'D';
+
+export interface Player {
+  name: string;
+  seed: PlayerSeed;
+}
+
+export interface DividedTeam {
+  id: number;
+  players: Player[];
+  totalSeedValue: number;
+  playerCount: number;
+}
+
+export interface TeamDivisionData {
+  id: 'latest';
+  seedPlayers: {
+    A: string; // Storing as a block of text, same as textarea
+    B: string;
+    C: string;
+    D: string;
+  };
+  dividedTeams: DividedTeam[];
+  lastUpdated?: any; // Firestore Timestamp
+  updatedBy?: {
+    id: string;
+    name: string;
+  };
 }

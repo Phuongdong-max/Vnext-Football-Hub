@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
 import { useAppContext, useLanguage } from '../App'; // Added useLanguage
 import { UserRole } from '../types';
-import { SoccerBallIcon, HomeIcon, ShieldCheckIcon, UserGroupIcon } from './icons';
+import { SoccerBallIcon, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon } from './icons';
 import { ThemeToggleButton } from './ThemeToggleButton';
 import { LanguageToggleButton } from './LanguageToggleButton'; // Added LanguageToggleButton
 
@@ -42,6 +41,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center space-x-2 sm:space-x-4">
           <nav className="flex space-x-2 sm:space-x-4">
             <NavLink to="/" icon={<HomeIcon className="w-5 h-5" />}>{translate('header.home')}</NavLink>
+            <NavLink to="/team-divider" icon={<ArrowsRightLeftIcon className="w-5 h-5" />}>{translate('header.teamDivider')}</NavLink>
             {currentUser?.role === UserRole.ADMIN && (
               <NavLink to="/admin" icon={<ShieldCheckIcon className="w-5 h-5" />}>{translate('header.adminDashboard')}</NavLink>
             )}

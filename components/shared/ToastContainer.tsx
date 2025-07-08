@@ -1,7 +1,6 @@
-
 import React, { useEffect } from 'react';
 import { ToastMessage } from '../../types';
-import { CheckCircleIcon, XCircleIcon, InformationCircleIcon, XIcon } from '../icons';
+import { CheckCircleIcon, XCircleIcon, InformationCircleIcon, XIcon, ShieldExclamationIcon } from '../icons';
 
 interface ToastProps {
   toast: ToastMessage;
@@ -24,12 +23,14 @@ const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
     success: "bg-green-500 text-white",
     error: "bg-danger text-white",
     info: "bg-blue-500 text-white",
+    warning: "bg-yellow-500 text-white",
   };
 
   const IconComponent = {
     success: CheckCircleIcon,
     error: XCircleIcon,
     info: InformationCircleIcon,
+    warning: ShieldExclamationIcon,
   }[toast.type];
 
   return (
@@ -78,4 +79,3 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, setToast
     </div>
   );
 };
-    

@@ -1,6 +1,5 @@
-
 import { firebaseConfig } from '../firebaseConfig';
-import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus } from '../types';
+import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -394,3 +393,60 @@ export const getFirebaseLeaderboardEntries = async (): Promise<LeaderboardEntry[
   }
 };
 
+
+// --- Team Divider Functions ---
+
+const TEAM_DIVIDER_COLLECTION = 'teamDivision';
+const LATEST_DIVISION_DOC_ID = 'latest';
+
+// Sets up a real-time listener for the team division data.
+export const onTeamDivisionUpdate = (callback: (data: TeamDivisionData | null) => void): (() => void) => {
+  if (!db) {
+    console.error("Firestore not initialized for onTeamDivisionUpdate.");
+    return () => {}; // Return an empty unsubscribe function
+  }
+  
+  const docRef = db.collection(TEAM_DIVIDER_COLLECTION).doc(LATEST_DIVISION_DOC_ID);
+
+  const unsubscribe = docRef.onSnapshot((doc: any) => {
+    if (doc.exists) {
+      const data = doc.data() as TeamDivisionData;
+      // Convert timestamp if it exists
+      if (data.lastUpdated && typeof data.lastUpdated.toDate === 'function') {
+        data.lastUpdated = data.lastUpdated.toDate();
+      }
+      callback(data);
+    } else {
+      // If the document doesn't exist, provide a null or default state.
+      callback(null);
+    }
+  }, (error: Error) => {
+    console.error("Error listening to team division updates:", error);
+    callback(null); // Propagate error as null state
+  });
+
+  return unsubscribe;
+};
+
+// Updates the team division document in Firestore.
+export const updateTeamDivision = async (dataToSave: Omit<TeamDivisionData, 'id' | 'lastUpdated' | 'updatedBy'>, user: User | null): Promise<void> => {
+  if (!db) {
+    throw new Error("Firestore not initialized.");
+  }
+
+  const docRef = db.collection(TEAM_DIVIDER_COLLECTION).doc(LATEST_DIVISION_DOC_ID);
+  
+  const payload: Partial<TeamDivisionData> = {
+    ...dataToSave,
+    lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: user ? { id: user.id, name: user.name } : { id: 'anonymous', name: 'Anonymous' },
+  };
+
+  try {
+    // .set with merge: true will create the document if it doesn't exist, or update it if it does.
+    await docRef.set(payload, { merge: true });
+  } catch (error) {
+    console.error("Error updating team division data:", error);
+    throw new Error("Failed to save team division data.");
+  }
+};

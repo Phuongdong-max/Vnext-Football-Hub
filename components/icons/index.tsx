@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 // Basic Icon Props
@@ -124,7 +123,6 @@ export const TrophyIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
-
 export const SoccerBallIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -164,6 +162,7 @@ export const SoccerBallIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =
     </g>
   </svg>
 );
+
 
 
 export const ChartBarIcon: React.FC<IconProps> = (props) => (
@@ -244,5 +243,11 @@ export const DatabaseIcon: React.FC<IconProps> = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 7.5c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 16.5c0 1.243 4.03 2.25 9 2.25s9-1.007 9-2.25" />
+  </svg>
+);
+
+export const ArrowsRightLeftIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h18m-7.5-12L21 7.5m0 0L16.5 12M21 7.5H3" />
   </svg>
 );

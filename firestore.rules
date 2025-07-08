@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Team Divider: Publicly readable and writable by anyone (as requested)
+    // This allows real-time collaboration on the team divider page for all users.
+    match /teamDivision/{docId} {
+      allow read, write: if true;
+    }
+
+    // Users:
+    // - Anyone can create their own user document upon signing up.
+    // - Users can only read/update their OWN document.
+    // - No one can delete user documents.
+    // - Leaderboard reads all user data, so public read is needed for that.
+    match /users/{userId} {
+      allow read: if true; // Needed for leaderboard functionality for all users
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Prevent users from deleting their accounts directly
+    }
+
+    // Betting Rounds:
+    // - Admins can create, read, and update any betting round.
+    // - Authenticated members can read open rounds.
+    // - Authenticated members can read rounds they have bet on (closed or result_updated).
+    // - Bets are placed via a transaction, so top-level writes are restricted.
+    match /bettingRounds/{roundId} {
+      // Admins can do anything
+      allow read, update, create, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // All authenticated users can read open rounds
+      allow read: if request.auth != null && resource.data.status == 'open';
+
+      // Authenticated users can read rounds they are part of (after they close)
+      allow read: if request.auth != null && request.auth.uid in resource.data.bettorIds;
+
+      // Prevent non-admins from writing directly to the round.
+      // Updates (like placing a bet) must happen through secure Cloud Functions/transactions.
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
