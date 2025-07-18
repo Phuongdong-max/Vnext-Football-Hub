@@ -136,7 +136,7 @@ export interface MatchAnalysis {
 }
 
 // --- Team Divider Types ---
-export type PlayerSeed = 'A' | 'B' | 'C' | 'D';
+export type PlayerSeed = 'GK' | 'A' | 'B' | 'C' | 'D' | 'E';
 
 export interface Player {
   name: string;
@@ -153,10 +153,12 @@ export interface DividedTeam {
 export interface TeamDivisionData {
   id: 'latest';
   seedPlayers: {
-    A: string; // Storing as a block of text, same as textarea
+    GK: string;
+    A: string;
     B: string;
     C: string;
     D: string;
+    E: string;
   };
   dividedTeams: DividedTeam[];
   lastUpdated?: any; // Firestore Timestamp

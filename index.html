@@ -115,6 +115,31 @@
         border-radius: 8px;
         background-color: rgba(0, 0, 0, 0.2); /* Slight background for visibility */
       }
+       /* Animation for the selected player flying to their team box */
+      @keyframes flyToTeam {
+        0% {
+          transform: translate(var(--start-x, 0), var(--start-y, 0)) scale(1.2);
+          opacity: 1;
+          color: var(--color-primary);
+          text-shadow: 0 0 10px var(--color-primary);
+        }
+        100% {
+          transform: translate(var(--end-x, 0), var(--end-y, 0)) scale(0.5);
+          opacity: 0;
+        }
+      }
+      .player-fly-animation {
+        position: fixed;
+        z-index: 1000;
+        font-size: 1.5rem;
+        font-weight: bold;
+        animation: flyToTeam 1s ease-in forwards;
+        pointer-events: none;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background-color: var(--color-surface);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

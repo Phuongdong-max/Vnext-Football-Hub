@@ -17,7 +17,7 @@ if (!CLIENT_SIDE_API_KEY) {
 // GoogleGenAI constructor might handle it, or attempts to use `ai` will fail if it's null.
 // The key check above is primarily to inform the developer.
 const ai = CLIENT_SIDE_API_KEY ? new GoogleGenAI({ apiKey: CLIENT_SIDE_API_KEY }) : null;
-const MODEL_NAME = 'gemini-2.5-flash-preview-04-17';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 export const getMatchAnalysisFromAI = async (
   match: FootballMatch
