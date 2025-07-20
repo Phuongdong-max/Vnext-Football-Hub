@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { BettingRound, User, BetTeamSelection, MatchResultTeam, BettingRoundStatus, Bet, OddsData, BookmakerOdds, OutcomeOdds } from '../types';
 import { Button } from './shared/Button';
@@ -7,7 +8,8 @@ import {
     XCircleIcon, MinusCircleIcon, ChartBarIcon
 } from './icons';
 import { AiAnalysisModal } from './AiAnalysisModal'; 
-import { useLanguage, useAppContext } from '../App';
+import { useLanguage } from '../App';
+import { useAppContext } from '../contexts/AppContext';
 import { fetchCombinedOddsForFootballMatch, checkIsTheOddsApiAvailable } from '../services/footballApiService';
 import { LoadingSpinner } from './shared/LoadingSpinner';
 

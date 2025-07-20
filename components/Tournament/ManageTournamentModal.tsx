@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
-import { useLanguage, useAppContext } from '../../App';
-import { Tournament, TournamentTeam, User, UserRole, TournamentMember, TournamentMatch } from '../../types';
-import { updateTournament, getAllAppUsers } from '../../services/firebaseService';
+import { useLanguage } from '../../App';
+import { useAppContext } from '../../contexts/AppContext';
+import { Tournament, TournamentTeam, TournamentMember, TournamentMatch, PlayerSeed } from '../../types';
+import { updateTournament, onTeamDivisionUpdate } from '../../services/firebaseService';
 import { TOURNAMENT_DOC_ID } from '../../constants';
 import { PlusIcon, XIcon, UsersIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
@@ -22,7 +24,8 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
 
     const [activeTab, setActiveTab] = useState<Tab>('teams');
     const [tournamentData, setTournamentData] = useState<Partial<Tournament>>({});
-    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [teamDividerNames, setTeamDividerNames] = useState<string[]>([]);
+    const [memberInputs, setMemberInputs] = useState<Record<string, string>>({});
     const [newTeamName, setNewTeamName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -30,15 +33,20 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         if (isOpen) {
             setTournamentData(initialTournament ? JSON.parse(JSON.stringify(initialTournament)) : { name: 'V-League Season 1', teams: [], schedule: [], standings: [] });
             
-            const fetchUsers = async () => {
-                if (currentUser?.role === UserRole.ADMIN) {
-                    const users = await getAllAppUsers();
-                    setAllUsers(users);
+            const unsubscribe = onTeamDivisionUpdate((data) => {
+                if (data && data.seedPlayers) {
+                    const allNames = Object.values(data.seedPlayers)
+                        .flatMap(namesStr => namesStr.split('\n'))
+                        .map(name => name.trim())
+                        .filter(name => name);
+                    const uniqueNames = [...new Set(allNames)];
+                    setTeamDividerNames(uniqueNames);
                 }
-            };
-            fetchUsers();
+            });
+            
+            return () => unsubscribe();
         }
-    }, [isOpen, initialTournament, currentUser]);
+    }, [isOpen, initialTournament]);
 
     const handleAddTeam = () => {
         if (!newTeamName.trim()) {
@@ -62,37 +70,49 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         setTournamentData(prev => ({ ...prev, teams: prev.teams?.filter(t => t.id !== teamId) }));
     };
 
-    const handleAddMember = (teamId: string, userId: string) => {
-        const userToAdd = allUsers.find(u => u.id === userId);
-        if (!userToAdd) return;
+    const handleAddMember = (teamId: string) => {
+        const name = memberInputs[teamId]?.trim();
+        if (!name) return;
 
+        const team = tournamentData.teams?.find(t => t.id === teamId);
+        if (team && team.members.some(m => m.name.toLowerCase() === name.toLowerCase())) {
+            addToast(translate('manageTournament.error.memberNameExists'), 'error', true);
+            return;
+        }
+        
         const newMember: TournamentMember = {
-            userId: userToAdd.id,
-            name: userToAdd.name,
-            avatarUrl: userToAdd.avatarUrl,
+            id: `member_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+            name: name,
         };
         
         setTournamentData(prev => ({
             ...prev,
             teams: prev.teams?.map(t => {
-                if (t.id === teamId && !t.members.some(m => m.userId === userId)) {
+                if (t.id === teamId) {
                     return { ...t, members: [...t.members, newMember] };
+                }
+                return t;
+            })
+        }));
+        
+        // Clear input for this team
+        setMemberInputs(prev => ({...prev, [teamId]: ''}));
+    };
+    
+    const handleRemoveMember = (teamId: string, memberId: string) => {
+        setTournamentData(prev => ({
+            ...prev,
+            teams: prev.teams?.map(t => {
+                if (t.id === teamId) {
+                    return { ...t, members: t.members.filter(m => m.id !== memberId) };
                 }
                 return t;
             })
         }));
     };
     
-    const handleRemoveMember = (teamId: string, userId: string) => {
-        setTournamentData(prev => ({
-            ...prev,
-            teams: prev.teams?.map(t => {
-                if (t.id === teamId) {
-                    return { ...t, members: t.members.filter(m => m.userId !== userId) };
-                }
-                return t;
-            })
-        }));
+    const handleMemberInputChange = (teamId: string, value: string) => {
+        setMemberInputs(prev => ({...prev, [teamId]: value}));
     };
 
     const handleGenerateSchedule = () => {
@@ -153,10 +173,14 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         }
     };
 
+    const modalTitle = initialTournament ? translate('manageTournament.title') : translate('manageTournament.createTitle');
     const inputClasses = "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400";
     
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={translate('manageTournament.title')} size="xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="xl">
+             <datalist id="player-suggestions">
+                {teamDividerNames.map(name => <option key={name} value={name} />)}
+            </datalist>
             <div className="flex flex-col space-y-4">
                 <div className="border-b border-border flex">
                     <button onClick={() => setActiveTab('teams')} className={`px-4 py-2 text-sm font-medium ${activeTab === 'teams' ? 'border-b-2 border-primary text-primary' : 'text-textSecondary hover:bg-primary/10'}`}>{translate('manageTournament.tab.teams')}</button>
@@ -178,19 +202,23 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                                     </div>
                                     <div className="space-y-2">
                                         {team.members.map(member => (
-                                            <div key={member.userId} className="flex items-center justify-between text-sm bg-surface dark:bg-slate-700 p-2 rounded">
+                                            <div key={member.id} className="flex items-center justify-between text-sm bg-surface dark:bg-slate-700 p-2 rounded">
                                                 <span>{member.name}</span>
-                                                <Button onClick={() => handleRemoveMember(team.id, member.userId)} variant="ghost" size="sm" className="!p-1"><XIcon className="w-4 h-4 text-danger"/></Button>
+                                                <Button onClick={() => handleRemoveMember(team.id, member.id)} variant="ghost" size="sm" className="!p-1"><XIcon className="w-4 h-4 text-danger"/></Button>
                                             </div>
                                         ))}
                                     </div>
                                     <div className="flex items-center space-x-2 mt-2">
-                                        <select onChange={(e) => handleAddMember(team.id, e.target.value)} value="" className={`${inputClasses} text-sm`}>
-                                            <option value="" disabled>{translate('manageTournament.selectMember')}</option>
-                                            {allUsers.filter(u => !team.members.some(m => m.userId === u.id)).map(user => (
-                                                <option key={user.id} value={user.id}>{user.name}</option>
-                                            ))}
-                                        </select>
+                                        <input
+                                            type="text"
+                                            list="player-suggestions"
+                                            value={memberInputs[team.id] || ''}
+                                            onChange={(e) => handleMemberInputChange(team.id, e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') handleAddMember(team.id); }}
+                                            placeholder={translate('manageTournament.addMemberPlaceholder')}
+                                            className={`${inputClasses} text-sm`}
+                                        />
+                                        <Button onClick={() => handleAddMember(team.id)} size="sm">{translate('manageTournament.button.addMember')}</Button>
                                     </div>
                                 </div>
                             ))}

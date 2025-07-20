@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, BetTeamSelection, BettingRoundStatus } from '../types';
-import { useAppContext, useLanguage } from '../App';
+import { useLanguage } from '../App';
+import { useAppContext } from '../contexts/AppContext';
 import {
   getFirebaseOpenBettingRounds,
   getFirebaseClosedBettingRoundsForMember,

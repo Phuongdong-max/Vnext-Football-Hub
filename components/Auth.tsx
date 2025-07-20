@@ -1,12 +1,14 @@
 
+
 import React from 'react';
-import { useAppContext, useLanguage } from '../App'; // Added useLanguage
+import { useLanguage } from '../App';
+import { useAppContext } from '../contexts/AppContext';
 import { Button } from './shared/Button';
 import { LogoutIcon, UserCircleIcon, GoogleIcon } from './icons'; 
 
 export const AuthComponent: React.FC = () => {
   const { currentUser, signInWithGoogle, logout, isFirebaseReady } = useAppContext();
-  const { translate } = useLanguage(); // Added useLanguage
+  const { translate } = useLanguage();
 
   const handleGoogleLogin = async () => {
     await signInWithGoogle();

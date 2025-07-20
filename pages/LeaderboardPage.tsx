@@ -1,7 +1,9 @@
 
 
+
 import React, { useEffect } from 'react';
-import { useAppContext, useLanguage } from '../App';
+import { useLanguage } from '../App';
+import { useAppContext } from '../contexts/AppContext';
 import { LeaderboardTable } from '../components/LeaderboardTable';
 import { RefreshIcon, TrophyIcon } from '../components/icons';
 import { Button } from '../components/shared/Button';
@@ -11,8 +13,8 @@ export const LeaderboardPage: React.FC = () => {
   const { translate } = useLanguage();
 
   useEffect(() => {
-    // This effect MUST only run once when the component mounts.
-    // The empty dependency array `[]` is critical to prevent a re-render loop that freezes the UI.
+    // This effect should only run once when the component mounts.
+    // The empty dependency array `[]` ensures this, preventing re-render loops.
     refreshLeaderboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
@@ -24,7 +26,7 @@ export const LeaderboardPage: React.FC = () => {
           <TrophyIcon className="w-8 h-8 mr-3 text-primary" /> {/* Changed from text-amber-400 */}
           {translate('page.leaderboard.title')}
         </h1>
-        <Button onClick={() => refreshLeaderboard()} variant="outline" size="sm" title={translate('page.leaderboard.button.refresh')}>
+        <Button onClick={refreshLeaderboard} variant="outline" size="sm" title={translate('page.leaderboard.button.refresh')}>
           <RefreshIcon className="w-5 h-5" />
         </Button>
       </div>

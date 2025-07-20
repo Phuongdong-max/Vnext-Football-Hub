@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLanguage, useAppContext } from '../App';
+import { useLanguage } from '../App';
+import { useAppContext } from '../contexts/AppContext';
 import { TeamDivisionData, DividedTeam, PlayerSeed, Player } from '../types';
 import { onTeamDivisionUpdate, updateTeamDivision } from '../services/firebaseService';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';

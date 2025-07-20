@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
@@ -22,6 +23,7 @@ import { SoccerBallIcon } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
 import { LandingPage } from './components/LandingPage';
 import { LockScreen } from './components/LockScreen';
+import { AppContext, AppContextType } from './contexts/AppContext';
 
 // --- Theme Context ---
 type Theme = 'light' | 'dark' | 'system';
@@ -200,29 +202,7 @@ const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children })
 };
 
 
-// --- App Context ---
-interface AppContextType {
-  currentUser: User | null;
-  signInWithGoogle: () => Promise<User | null>;
-  logout: () => Promise<void>;
-  leaderboard: LeaderboardEntry[];
-  refreshLeaderboard: () => void;
-  addToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', isTranslationKey?: boolean, replacements?: Record<string, string | number>) => void;
-  updateUserPoints: (userId: string, points: number) => Promise<void>; 
-  isFirebaseReady: boolean;
-  allUsers: User[]; // Add this to provide a list of all users for features like team assignment
-  refreshAllUsers: () => void; // Add this
-}
-
-export const AppContext = createContext<AppContextType | null>(null);
-
-export function useAppContext() {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useAppContext must be used within an AppProvider');
-  }
-  return context;
-}
+// --- App Context Provider ---
 
 const AppCore: React.FC = () => {
   const { translate, translationsLoading, language } = useLanguage(); 

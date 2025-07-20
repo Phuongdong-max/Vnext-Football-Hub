@@ -171,9 +171,10 @@ export interface TeamDivisionData {
 
 // --- Tournament Types ---
 export interface TournamentMember {
-  userId: string;
+  id: string; // Unique ID for the member entry
   name: string;
-  avatarUrl?: string;
+  userId?: string; // Optional: for linking to a registered user
+  avatarUrl?: string; // Optional
 }
 
 export interface TournamentTeam {

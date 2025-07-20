@@ -1,11 +1,13 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
-import { useAppContext, useLanguage } from '../App'; // Added useLanguage
+import { useLanguage } from '../App';
+import { useAppContext } from '../contexts/AppContext';
 import { UserRole } from '../types';
 import { SoccerBallIcon, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon, TrophyIcon } from './icons';
 import { ThemeToggleButton } from './ThemeToggleButton';
-import { LanguageToggleButton } from './LanguageToggleButton'; // Added LanguageToggleButton
+import { LanguageToggleButton } from './LanguageToggleButton';
 
 const NavLink: React.FC<{ to: string; children: React.ReactNode; icon: React.ReactNode }> = ({ to, children, icon }) => {
   const location = useLocation();
