@@ -1,3 +1,5 @@
+
+
 {
   "app.title": "VNEXT JAPAN - Football Club",
   "landing.subtitle": "Your ultimate hub for friendly football betting!",
@@ -264,13 +266,18 @@
   "tournament.title": "League Tournament",
   "tournament.loading": "Loading tournament data...",
   "tournament.noData": "No tournament data found. An admin needs to set one up.",
-  "tournament.manageButton": "Manage Tournament",
+  "tournament.manageButton": "Manage Teams",
   "tournament.createButton": "Set Up Tournament",
   "tournament.standings": "Standings",
   "tournament.schedule": "Schedule",
   "tournament.teams": "Teams",
   "tournament.lastUpdated": "Last Updated by {{name}} on {{date}}",
   "tournament.notUpdated": "Not yet updated.",
+  "tournament.generateScheduleSectionTitle": "Schedule Management",
+  "tournament.button.generateSchedule": "Generate New Round-Robin Schedule",
+  "tournament.saveScheduleButton": "Save New Schedule",
+  "tournament.schedulePreviewTitle": "New Schedule Preview",
+  "tournament.scheduleOverwriteWarning": "Warning: Saving will overwrite the existing schedule.",
 
   "standingsTable.team": "Team",
   "standingsTable.played": "P",
@@ -292,10 +299,9 @@
   "teamList.members": "Members",
   "teamList.noMembers": "No members yet",
 
-  "manageTournament.title": "Manage Tournament",
+  "manageTournament.title": "Manage Tournament Teams",
   "manageTournament.createTitle": "Set Up New Tournament",
   "manageTournament.tab.teams": "Teams",
-  "manageTournament.tab.schedule": "Schedule",
   "manageTournament.teamName.label": "Team Name",
   "manageTournament.teamName.placeholder": "Enter team name",
   "manageTournament.button.addTeam": "Add Team",
@@ -308,8 +314,6 @@
   "manageTournament.selectMember": "-- Select Member --",
   "manageTournament.button.removeMember": "Remove",
   "manageTournament.button.removeTeam": "Remove Team",
-  "manageTournament.button.generateSchedule": "Generate Round-Robin Schedule",
-  "manageTournament.scheduleInfo": "This will generate a double round-robin schedule (each team plays each other twice, home and away). Existing schedule will be overwritten.",
   "manageTournament.error.minTeamsForSchedule": "You need at least 2 teams to generate a schedule.",
   "manageTournament.button.saveChanges": "Save Changes",
   "manageTournament.saving": "Saving...",
