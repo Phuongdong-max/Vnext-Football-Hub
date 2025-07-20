@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { FootballMatch, MatchAnalysis } from '../types';
 import { Modal } from './shared/Modal';
 import { LoadingSpinner } from './shared/LoadingSpinner';
 import { getMatchAnalysisFromAI } from '../services/aiAnalysisService';
 import { LightBulbIcon } from './icons'; 
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface AiAnalysisModalProps {
   isOpen: boolean;

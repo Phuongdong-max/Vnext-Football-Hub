@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { TeamDivisionData, DividedTeam, PlayerSeed, Player } from '../types';
 import { onTeamDivisionUpdate, updateTeamDivision } from '../services/firebaseService';

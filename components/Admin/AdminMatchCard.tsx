@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { BettingRound, BettingRoundStatus, MatchResultTeam } from '../../types';
 import { Button } from '../shared/Button';
@@ -6,7 +7,7 @@ import {
     CheckCircleIcon
 } from '../icons';
 import { AiAnalysisModal } from '../AiAnalysisModal'; // Import the new modal
-import { useLanguage } from '../../App';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface AdminMatchCardProps {
   round: BettingRound;

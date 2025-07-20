@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { APP_TITLE } from '../constants';
 import { SoccerBallIcon, GoogleIcon, PlusIcon, MinusIcon } from './icons'; // Added PlusIcon, MinusIcon
 import { Button } from './shared/Button';
 import { LoadingSpinner } from './shared/LoadingSpinner';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LandingPageProps {
   onSignIn: () => Promise<any | null>; 

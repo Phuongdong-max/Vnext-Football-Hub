@@ -1,7 +1,8 @@
 
 
+
 import React from 'react';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { Button } from './shared/Button';
 import { LogoutIcon, UserCircleIcon, GoogleIcon } from './icons'; 

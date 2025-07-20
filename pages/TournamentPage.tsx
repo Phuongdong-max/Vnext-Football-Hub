@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { onTournamentUpdate, updateTournament } from '../services/firebaseService';
 import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole } from '../types';

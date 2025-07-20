@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, DividedTeam, PlayerSeed } from '../types';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { Button } from './shared/Button';
 import { PlayIcon } from './icons';

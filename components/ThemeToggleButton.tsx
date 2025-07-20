@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { useTheme } from '../App'; // Assuming ThemeContext is exported from App.tsx
+import { useTheme } from '../contexts/ThemeContext'; // Assuming ThemeContext is exported from App.tsx
 import { SunIcon, MoonIcon, DesktopComputerIcon } from './icons';
 import { Button } from './shared/Button';
 

@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { BettingRound, BetTeamSelection } from '../types'; 
 import { Modal } from './shared/Modal';
 import { Button } from './shared/Button';
 import { CurrencyDollarIcon } from './icons'; 
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BettingModalProps {
   isOpen: boolean;

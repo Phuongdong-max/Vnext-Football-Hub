@@ -1,8 +1,9 @@
 
 
 
+
 import React, { useEffect } from 'react';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { LeaderboardTable } from '../components/LeaderboardTable';
 import { RefreshIcon, TrophyIcon } from '../components/icons';

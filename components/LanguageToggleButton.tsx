@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { useLanguage, SupportedLanguage } from '../App';
+import { useLanguage, SupportedLanguage } from '../contexts/LanguageContext';
 import { Button } from './shared/Button';
 // No specific icons for EN/VI, will use text. Globe icon could be an option.
 // For simplicity, using text labels like "EN", "VI" on the button.

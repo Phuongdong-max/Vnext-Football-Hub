@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, League, UserRole } from '../types';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import {
   createFirebaseBettingRound,
@@ -64,8 +65,6 @@ export const AdminDashboardPage: React.FC = () => {
           addToast("error.failedToFetchLeaguesManual", "error", true, {errorMessage: (apiError as Error).message});
           // Potentially setApiAvailable(false) if this source is critical, but modal handles its own sources.
         }
-      } else {
-         addToast("info.footballApiNotConfiguredManual", "info", true);
       }
     } catch (error) {
       console.error("Error fetching admin data:", error);
@@ -73,7 +72,7 @@ export const AdminDashboardPage: React.FC = () => {
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
-  }, [currentUser, addToast, isFirebaseReady, translate]);
+  }, [currentUser, addToast, isFirebaseReady]);
 
   useEffect(() => {
     fetchAdminPageData();
@@ -97,7 +96,7 @@ export const AdminDashboardPage: React.FC = () => {
       // Consider if setApiAvailable(false) specific to football-data.org is needed here.
       return []; 
     }
-  }, [addToast, translate]);
+  }, [addToast]);
 
 
   const handleCreateRound = async (matchToCreate: FootballMatch) => {

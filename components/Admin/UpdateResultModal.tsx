@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { BettingRound, MatchResultTeam } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { PencilAltIcon } from '../icons';
-import { useLanguage } from '../../App';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface UpdateResultModalProps {
   isOpen: boolean;

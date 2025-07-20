@@ -1,8 +1,9 @@
 
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { UserRole } from '../types';
 import { SoccerBallIcon, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon, TrophyIcon } from './icons';

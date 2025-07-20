@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, BetTeamSelection, BettingRoundStatus } from '../types';
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import {
   getFirebaseOpenBettingRounds,
@@ -47,7 +48,7 @@ export const MemberHomePage: React.FC = () => {
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
-  }, [currentUser, addToast, isFirebaseReady, translate]);
+  }, [currentUser, addToast, isFirebaseReady]);
 
   useEffect(() => {
     if (currentUser && isFirebaseReady) { 

@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { LeaderboardEntry } from '../types';
 import { UserCircleIcon, StarIcon } from './icons';
 import { INITIAL_USER_POINTS } from '../constants'; 
-import { useLanguage } from '../App';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LeaderboardTableProps {
   leaderboardData: LeaderboardEntry[];

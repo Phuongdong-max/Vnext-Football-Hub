@@ -1,12 +1,13 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { FootballMatch, League, OddsData } from '../../types';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { PlusCircleIcon, RefreshIcon, PencilAltIcon, ListBulletIcon, CloudIcon, DatabaseIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
-import { useLanguage } from '../../App';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useAppContext } from '../../contexts/AppContext';
 import { 
   fetchAvailableLeaguesFootballData, 
