@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -8,7 +7,7 @@ import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole } f
 import { TOURNAMENT_DOC_ID } from '../constants';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
-import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon } from '../components/icons';
+import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon } from '../components/icons';
 import { ManageTournamentModal } from '../components/Tournament/ManageTournamentModal';
 
 export const TournamentPage: React.FC = () => {
@@ -17,12 +16,15 @@ export const TournamentPage: React.FC = () => {
     const [tournament, setTournament] = useState<Tournament | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+    const [newlyGeneratedSchedule, setNewlyGeneratedSchedule] = useState<TournamentMatch[] | null>(null);
+    const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
     useEffect(() => {
         if (!isFirebaseReady) return;
 
         const unsubscribe = onTournamentUpdate(TOURNAMENT_DOC_ID, (data) => {
             setTournament(data);
+            setNewlyGeneratedSchedule(null); // Reset preview on data refresh
             setIsLoading(false);
         });
 
@@ -78,7 +80,7 @@ export const TournamentPage: React.FC = () => {
         });
 
         schedule.forEach(match => {
-            if (match.status !== 'finished' || match.homeTeamScore === undefined || match.awayTeamScore === undefined) return;
+            if (match.status !== 'finished' || typeof match.homeTeamScore !== 'number' || typeof match.awayTeamScore !== 'number') return;
 
             const home = standingsMap[match.homeTeamId];
             const away = standingsMap[match.awayTeamId];
@@ -119,10 +121,105 @@ export const TournamentPage: React.FC = () => {
 
         return standingsArray;
     };
+    
+    const handleGenerateSchedule = () => {
+        if (!tournament || !tournament.teams || tournament.teams.length < 2) {
+            addToast(translate('manageTournament.error.minTeamsForSchedule'), 'error', true);
+            return;
+        }
+
+        const teams = [...tournament.teams];
+        if (teams.length % 2 !== 0) {
+            teams.push({ id: 'bye', name: 'BYE', members: [] });
+        }
+        
+        const numRounds = (teams.length - 1) * 2; // Double round-robin
+        const matchesPerRound = teams.length / 2;
+        const schedule: TournamentMatch[] = [];
+
+        for (let round = 0; round < numRounds; round++) {
+            for (let i = 0; i < matchesPerRound; i++) {
+                const home = teams[i];
+                const away = teams[teams.length - 1 - i];
+
+                if (home.id === 'bye' || away.id === 'bye') continue;
+                
+                const isSecondHalf = round >= (numRounds / 2);
+                const homeTeamId = (isSecondHalf) ? away.id : home.id;
+                const awayTeamId = (isSecondHalf) ? home.id : away.id;
+
+                schedule.push({
+                    id: `match_${Date.now()}_${round}_${i}`,
+                    round: round + 1,
+                    homeTeamId,
+                    awayTeamId,
+                    status: 'scheduled',
+                });
+            }
+            const lastTeam = teams.pop()!;
+            teams.splice(1, 0, lastTeam);
+        }
+        setNewlyGeneratedSchedule(schedule);
+        addToast('Schedule generated for preview!', 'success');
+    };
+
+    const handleSaveSchedule = async () => {
+        if (!newlyGeneratedSchedule || !tournament || !currentUser) return;
+        setIsSavingSchedule(true);
+        try {
+            const newStandings = calculateStandings(tournament.teams, newlyGeneratedSchedule);
+            await updateTournament(TOURNAMENT_DOC_ID, { schedule: newlyGeneratedSchedule, standings: newStandings }, currentUser);
+            addToast('New schedule saved successfully!', 'success');
+            setNewlyGeneratedSchedule(null);
+        } catch(error) {
+            addToast(`Error saving schedule: ${(error as Error).message}`, 'error');
+        } finally {
+            setIsSavingSchedule(false);
+        }
+    };
 
     if (isLoading) {
         return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4">{translate('tournament.loading')}</p></div>;
     }
+    
+    const getTeamName = (teamId: string) => tournament?.teams.find(t => t.id === teamId)?.name || 'Unknown Team';
+
+    const renderAdminScheduleGenerator = () => {
+        if (currentUser?.role !== UserRole.ADMIN || !tournament) return null;
+
+        return (
+            <section className="p-4 bg-surface rounded-lg shadow-md border-t-4 border-primary">
+                <h2 className="text-xl font-semibold mb-3">{translate('tournament.generateScheduleSectionTitle')}</h2>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                     <Button onClick={handleGenerateSchedule} variant="secondary" disabled={isSavingSchedule}>
+                        <ArrowPathIcon className="w-5 h-5 mr-2" />
+                        {translate('tournament.button.generateSchedule')}
+                    </Button>
+                    {newlyGeneratedSchedule && (
+                        <Button onClick={handleSaveSchedule} variant="primary" disabled={isSavingSchedule}>
+                            {isSavingSchedule ? <LoadingSpinner size="sm" /> : translate('tournament.saveScheduleButton')}
+                        </Button>
+                    )}
+                </div>
+                {newlyGeneratedSchedule && (
+                    <div className="mt-4">
+                        <h3 className="font-semibold text-textPrimary">{translate('tournament.schedulePreviewTitle')}</h3>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-2">{translate('tournament.scheduleOverwriteWarning')}</p>
+                        <div className="space-y-3 max-h-60 overflow-y-auto p-2 bg-background rounded-md">
+                             {[...new Set(newlyGeneratedSchedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
+                                <div key={`preview-${roundNum}`}>
+                                    <h4 className="text-sm font-semibold text-textSecondary mb-1">{translate('schedule.round', { round: roundNum })}</h4>
+                                    {newlyGeneratedSchedule.filter(m => m.round === roundNum).map(m => (
+                                        <p key={m.id} className="text-xs text-textPrimary pl-2">{getTeamName(m.homeTeamId)} vs {getTeamName(m.awayTeamId)}</p>
+                                    ))}
+                                </div>
+                             ))}
+                        </div>
+                    </div>
+                )}
+            </section>
+        );
+    };
 
     if (!tournament) {
         return (
@@ -146,8 +243,6 @@ export const TournamentPage: React.FC = () => {
     }
     
     const { name, teams, schedule, standings, lastUpdated, updatedBy } = tournament;
-
-    const getTeamName = (teamId: string) => teams.find(t => t.id === teamId)?.name || 'Unknown Team';
     
     return (
         <div className="space-y-12">
@@ -174,6 +269,8 @@ export const TournamentPage: React.FC = () => {
                 )}
             </header>
             
+            {renderAdminScheduleGenerator()}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     {/* Standings */}

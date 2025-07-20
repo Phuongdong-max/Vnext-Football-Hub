@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, League, UserRole } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -31,15 +30,17 @@ export const AdminDashboardPage: React.FC = () => {
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedRoundForUpdate, setSelectedRoundForUpdate] = useState<BettingRound | null>(null);
 
+  // This effect runs ONCE on mount to determine API availability, preventing re-render loops.
+  useEffect(() => {
+    setApiAvailable(checkIsFootballDataApiAvailable());
+  }, []);
+
   const fetchAdminPageData = useCallback(async (isManualRefresh = false) => {
     if (!currentUser || currentUser.role !== UserRole.ADMIN) {
         setIsLoading(false);
         return;
     }
     if(isManualRefresh) setIsDataLoading(true); else setIsLoading(true);
-
-    const initialFootballDataApiCheck = checkIsFootballDataApiAvailable();
-    setApiAvailable(initialFootballDataApiCheck); // This state mainly informs UI elements related to football-data.org
 
     try {
       let rounds: BettingRound[];
@@ -51,19 +52,16 @@ export const AdminDashboardPage: React.FC = () => {
       }
       setBettingRounds(rounds.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ));
       
-      // Fetch leagues primarily for football-data.org if it's configured.
-      // The CreateBettingRoundModal will fetch its own leagues based on the selected API source.
-      if (initialFootballDataApiCheck) {
+      // Fetch leagues only if the API is available.
+      // This state is now stable and won't cause loops.
+      if (apiAvailable) {
         try {
           const fetchedLeagues = await fetchAvailableLeaguesFootballData();
-          setLeagues(fetchedLeagues); // Keep this for potential direct use or legacy reasons
-          if (fetchedLeagues.length === 0) { 
-            addToast("info.noLeaguesFromApi", "info", true);
-          }
+          setLeagues(fetchedLeagues);
         } catch (apiError) {
           console.error("API error fetching football-data.org leagues:", apiError);
+          // Toasting on explicit error is fine, the loop was caused by success/info toasts.
           addToast("error.failedToFetchLeaguesManual", "error", true, {errorMessage: (apiError as Error).message});
-          // Potentially setApiAvailable(false) if this source is critical, but modal handles its own sources.
         }
       }
     } catch (error) {
@@ -72,17 +70,15 @@ export const AdminDashboardPage: React.FC = () => {
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
-  }, [currentUser, addToast, isFirebaseReady]);
+  }, [currentUser, addToast, isFirebaseReady, apiAvailable]);
 
   useEffect(() => {
     fetchAdminPageData();
   }, [fetchAdminPageData]);
   
-  // This function is passed to CreateBettingRoundModal specifically for 'football-data.org' source.
-  // The modal might internally use other fetchers for 'the-odds-api'.
   const handleLoadMatchesForFootballDataModal = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
-    if (!checkIsFootballDataApiAvailable()) { 
-      addToast("error.liveApiUnavailable", "info", true); // Or a more specific message about football-data.org
+    if (!apiAvailable) { 
+      addToast("error.liveApiUnavailable", "info", true);
       return []; 
     }
     try {
@@ -93,10 +89,9 @@ export const AdminDashboardPage: React.FC = () => {
       return matches; 
     } catch (error) {
       addToast("error.failedToFetchMatches", "error", true, { errorMessage: (error as Error).message });
-      // Consider if setApiAvailable(false) specific to football-data.org is needed here.
       return []; 
     }
-  }, [addToast]);
+  }, [addToast, apiAvailable]);
 
 
   const handleCreateRound = async (matchToCreate: FootballMatch) => {
@@ -178,10 +173,10 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </div>
       
-      {!apiAvailable && ( // This refers to football-data.org availability
+      {!apiAvailable && (
          <div className="p-3 bg-yellow-100 dark:bg-yellow-500/20 border border-yellow-300 dark:border-yellow-500/40 text-sm text-yellow-700 dark:text-yellow-200 rounded-md flex items-center">
             <ShieldExclamationIcon className="w-5 h-5 mr-2"/>
-            {translate('adminDashboard.apiUnavailableWarning')} {/* This message might need to be more specific if it only refers to football-data.org */}
+            {translate('adminDashboard.apiUnavailableWarning')}
         </div>
       )}
 
@@ -189,11 +184,8 @@ export const AdminDashboardPage: React.FC = () => {
         <CreateBettingRoundModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          // leagues prop is deprecated as modal fetches its own leagues. Pass empty array or remove.
-          // For now, passing the potentially football-data.org specific leagues.
-          // The modal itself will decide which leagues to show based on selected API source.
           leagues={leagues} 
-          fetchMatchesFunction={handleLoadMatchesForFootballDataModal} // This is specifically for football-data.org
+          fetchMatchesFunction={handleLoadMatchesForFootballDataModal}
           onCreateRound={handleCreateRound}
           isDataLoading={isDataLoading} 
         />
