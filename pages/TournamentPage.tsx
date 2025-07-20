@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { onTournamentUpdate, updateTournament } from '../services/firebaseService';
@@ -33,11 +33,16 @@ export const TournamentPage: React.FC = () => {
 
     useEffect(() => {
         if (!isFirebaseReady) return;
+        console.log("[TournamentPage] Subscribing to tournament updates...");
         const unsubscribe = onTournamentUpdate(TOURNAMENT_DOC_ID, (data) => {
+            console.log("[TournamentPage] Received data from Firestore listener:", data);
             setTournament(data);
             setIsLoading(false);
         });
-        return () => unsubscribe();
+        return () => {
+            console.log("[TournamentPage] Unsubscribing from tournament updates.");
+            unsubscribe();
+        };
     }, [isFirebaseReady]);
     
     useEffect(() => {
@@ -54,7 +59,7 @@ export const TournamentPage: React.FC = () => {
             setScoreInputs(initialScores);
             setDateInputs(initialDates);
         }
-    }, [tournament?.schedule]);
+    }, [tournament]);
 
     const handleScoreInputChange = (matchId: string, team: 'home' | 'away', value: string) => {
         setScoreInputs(prev => ({
@@ -70,51 +75,8 @@ export const TournamentPage: React.FC = () => {
         setDateInputs(prev => ({ ...prev, [matchId]: value }));
     };
 
-    const handleUpdateMatch = async (matchId: string) => {
-        if (!tournament || !currentUser) return;
-        setUpdatingMatchId(matchId);
-    
-        const scores = scoreInputs[matchId];
-        const dateStr = dateInputs[matchId];
-        
-        const homeScore = scores.home.trim() === '' ? null : parseInt(scores.home, 10);
-        const awayScore = scores.away.trim() === '' ? null : parseInt(scores.away, 10);
-    
-        if ((scores.home.trim() !== '' && (isNaN(homeScore!) || homeScore! < 0)) || (scores.away.trim() !== '' && (isNaN(awayScore!) || awayScore! < 0))) {
-            addToast('schedule.error.invalidScore', 'error');
-            setUpdatingMatchId(null);
-            return;
-        }
-        
-        const newDate = dateStr ? new Date(dateStr) : null;
-    
-        const newSchedule = tournament.schedule.map(match => {
-            if (match.id === matchId) {
-                return {
-                    ...match,
-                    homeTeamScore: homeScore,
-                    awayTeamScore: awayScore,
-                    date: newDate,
-                    status: (homeScore !== null && awayScore !== null) ? 'finished' : 'scheduled'
-                } as TournamentMatch;
-            }
-            return match;
-        });
-    
-        const newStandings = calculateStandings(tournament.teams, newSchedule);
-        
-        try {
-            await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
-            addToast('tournament.success.updateMatch', 'success');
-        } catch (error) {
-            addToast('tournament.error.updateMatchGeneric', 'error', { message: (error as Error).message });
-            console.error(error);
-        } finally {
-            setUpdatingMatchId(null);
-        }
-    };
-    
     const calculateStandings = (teams: TournamentTeam[], schedule: TournamentMatch[]): TeamStanding[] => {
+        console.log("[TournamentPage] Starting standings calculation...");
         const standingsMap: { [teamId: string]: TeamStanding } = {};
 
         teams.forEach(team => {
@@ -134,12 +96,18 @@ export const TournamentPage: React.FC = () => {
         });
 
         schedule.forEach(match => {
-            if (match.status !== 'finished' || typeof match.homeTeamScore !== 'number' || typeof match.awayTeamScore !== 'number') return;
+            if (match.status !== 'finished' || typeof match.homeTeamScore !== 'number' || typeof match.awayTeamScore !== 'number') {
+                 console.log(`[TournamentPage] Skipping match ${match.id} from standings (not finished).`);
+                return;
+            }
 
             const home = standingsMap[match.homeTeamId];
             const away = standingsMap[match.awayTeamId];
 
-            if (!home || !away) return;
+            if (!home || !away) {
+                console.warn(`[TournamentPage] Skipping match ${match.id}: could not find one or both teams in standings map.`);
+                return;
+            }
 
             home.played++;
             away.played++;
@@ -172,9 +140,74 @@ export const TournamentPage: React.FC = () => {
             if (a.goalsFor !== b.goalsFor) return b.goalsFor - a.goalsFor;
             return a.teamName.localeCompare(b.teamName);
         });
-
+        
+        console.log("[TournamentPage] Standings calculation finished.", standingsArray);
         return standingsArray;
     };
+    
+    // Using useCallback and a functional update for `setTournament` to prevent stale state issues
+    // when multiple updates happen quickly.
+    const handleUpdateMatch = useCallback(async (matchId: string) => {
+        if (!currentUser) return;
+        setUpdatingMatchId(matchId);
+
+        const scores = scoreInputs[matchId];
+        const dateStr = dateInputs[matchId];
+        
+        const homeScore = scores.home.trim() === '' ? null : parseInt(scores.home, 10);
+        const awayScore = scores.away.trim() === '' ? null : parseInt(scores.away, 10);
+    
+        if ((scores.home.trim() !== '' && (isNaN(homeScore!) || homeScore! < 0)) || (scores.away.trim() !== '' && (isNaN(awayScore!) || awayScore! < 0))) {
+            addToast('schedule.error.invalidScore', 'error');
+            setUpdatingMatchId(null);
+            return;
+        }
+        
+        const newDate = dateStr ? new Date(dateStr) : null;
+        
+        // Use a functional update to ensure we're working with the latest state
+        setTournament(prevTournament => {
+            console.log(`[TournamentPage] Starting functional update for match: ${matchId}`);
+            if (!prevTournament) {
+                console.error("[TournamentPage] Cannot update match, previous tournament state is null.");
+                addToast('tournament.error.updateMatchGeneric', 'error', { message: 'Tournament data not loaded.' });
+                setUpdatingMatchId(null);
+                return null;
+            }
+
+            const newSchedule = prevTournament.schedule.map(match => {
+                if (match.id === matchId) {
+                    return {
+                        ...match,
+                        homeTeamScore: homeScore,
+                        awayTeamScore: awayScore,
+                        date: newDate,
+                        status: (homeScore !== null && awayScore !== null) ? 'finished' : 'scheduled'
+                    } as TournamentMatch;
+                }
+                return match;
+            });
+        
+            const newStandings = calculateStandings(prevTournament.teams, newSchedule);
+            const updatedTournamentData = { ...prevTournament, schedule: newSchedule, standings: newStandings };
+
+            // Perform the async Firestore update as a side effect after calculating the new state.
+            (async () => {
+                try {
+                    await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
+                    addToast('tournament.success.updateMatch', 'success');
+                } catch (error) {
+                    addToast('tournament.error.updateMatchGeneric', 'error', { message: (error as Error).message });
+                    console.error("Error in async update part of handleUpdateMatch:", error);
+                } finally {
+                    setUpdatingMatchId(null);
+                }
+            })();
+
+            // Return the new state for an optimistic UI update. The listener will then sync it from Firestore.
+            return updatedTournamentData;
+        });
+    }, [currentUser, addToast, scoreInputs, dateInputs]);
     
     const handleGenerateSchedule = (event: React.MouseEvent<HTMLButtonElement>) => {
         event.preventDefault();

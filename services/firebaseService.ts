@@ -492,6 +492,7 @@ export const onTournamentUpdate = (
 
     const unsubscribe = docRef.onSnapshot((doc: any) => {
         if (doc.exists) {
+            console.log("[FirebaseService] Received tournament update from Firestore listener.");
             const data = doc.data() as Tournament;
             // Convert timestamps
             if (data.lastUpdated && typeof data.lastUpdated.toDate === 'function') {
@@ -505,12 +506,14 @@ export const onTournamentUpdate = (
                     awayTeamScore: match.awayTeamScore ?? null,
                 }));
             }
+            console.log("[FirebaseService] Processed tournament data:", data);
             callback(data);
         } else {
+            console.log("[FirebaseService] Tournament document does not exist.");
             callback(null);
         }
     }, (error: Error) => {
-        console.error(`Error listening to tournament ${tournamentId}:`, error);
+        console.error(`[FirebaseService] Error listening to tournament ${tournamentId}:`, error);
         callback(null);
     });
 
@@ -536,11 +539,14 @@ export const updateTournament = async (tournamentId: string, data: Partial<Tourn
             date: match.date && match.date instanceof Date ? window.firebase.firestore.Timestamp.fromDate(match.date) : match.date,
         }));
     }
+    
+    console.log("[FirebaseService] Attempting to update tournament with payload:", payload);
 
     try {
         await docRef.set(payload, { merge: true });
+        console.log("[FirebaseService] Tournament updated successfully in Firestore.");
     } catch (error) {
-        console.error("Error updating tournament data:", error);
+        console.error("[FirebaseService] Error updating tournament data in Firestore:", error);
         throw error;
     }
 };
