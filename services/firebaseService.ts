@@ -1,5 +1,5 @@
 import { firebaseConfig } from '../firebaseConfig';
-import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData } from '../types';
+import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -184,6 +184,32 @@ export const getAppUserProfile = async (userId: string): Promise<User | null> =>
         } as User;
     }
     return null;
+};
+
+export const getAllAppUsers = async (): Promise<User[]> => {
+    if (!db) {
+        console.warn("Firestore not initialized.");
+        return [];
+    }
+    try {
+        const usersSnapshot = await db.collection('users').orderBy('name', 'asc').get();
+        return usersSnapshot.docs.map((doc: any) => {
+          const data = doc.data();
+          return {
+             id: doc.id,
+            name: data.name || 'Anonymous User',
+            email: data.email || '',
+            avatarUrl: data.avatarUrl || undefined,
+            role: data.role || UserRole.MEMBER,
+            points: typeof data.points === 'number' ? data.points : INITIAL_USER_POINTS,
+            betsMadeCount: typeof data.betsMadeCount === 'number' ? data.betsMadeCount : 0,
+            winsCount: typeof data.winsCount === 'number' ? data.winsCount : 0,
+          } as User
+        });
+    } catch (error) {
+        console.error("Error fetching all users:", error);
+        return [];
+    }
 };
 
 // --- Betting Round Functions ---
@@ -449,4 +475,70 @@ export const updateTeamDivision = async (dataToSave: Omit<TeamDivisionData, 'id'
     console.error("Error updating team division data:", error);
     throw new Error("Failed to save team division data.");
   }
+};
+
+// --- Tournament Functions ---
+
+export const onTournamentUpdate = (
+    tournamentId: string,
+    callback: (data: Tournament | null) => void
+): (() => void) => {
+    if (!db) {
+        console.error("Firestore not initialized for onTournamentUpdate.");
+        return () => {};
+    }
+
+    const docRef = db.collection('tournaments').doc(tournamentId);
+
+    const unsubscribe = docRef.onSnapshot((doc: any) => {
+        if (doc.exists) {
+            const data = doc.data() as Tournament;
+            // Convert timestamps
+            if (data.lastUpdated && typeof data.lastUpdated.toDate === 'function') {
+                data.lastUpdated = data.lastUpdated.toDate();
+            }
+            if (data.schedule) {
+                data.schedule = data.schedule.map(match => ({
+                    ...match,
+                    date: match.date && (match.date as any).toDate ? (match.date as any).toDate() : undefined,
+                }));
+            }
+            callback(data);
+        } else {
+            callback(null);
+        }
+    }, (error: Error) => {
+        console.error(`Error listening to tournament ${tournamentId}:`, error);
+        callback(null);
+    });
+
+    return unsubscribe;
+};
+
+export const updateTournament = async (tournamentId: string, data: Partial<Tournament>, user: User | null): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const docRef = db.collection('tournaments').doc(tournamentId);
+
+    const payload: Partial<Tournament> = {
+        ...data,
+        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: user ? { id: user.id, name: user.name } : { id: 'anonymous', name: 'Anonymous' },
+    };
+    
+    // Convert Dates back to Timestamps for schedule
+    if (payload.schedule) {
+        payload.schedule = payload.schedule.map(match => ({
+            ...match,
+            // Only convert if it's a Date object, not already a timestamp
+            date: match.date && match.date instanceof Date ? window.firebase.firestore.Timestamp.fromDate(match.date) : match.date,
+        }));
+    }
+
+    try {
+        await docRef.set(payload, { merge: true });
+    } catch (error) {
+        console.error("Error updating tournament data:", error);
+        throw new Error("Failed to save tournament data.");
+    }
 };

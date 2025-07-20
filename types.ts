@@ -167,3 +167,57 @@ export interface TeamDivisionData {
     name: string;
   };
 }
+
+
+// --- Tournament Types ---
+export interface TournamentMember {
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+export interface TournamentTeam {
+  id: string;
+  name:string;
+  logoUrl?: string;
+  captainId?: string;
+  members: TournamentMember[];
+}
+
+export interface TournamentMatch {
+  id: string;
+  round: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamScore?: number;
+  awayTeamScore?: number;
+  date?: Date; // Firestore timestamp will be converted to Date
+  status: 'scheduled' | 'finished' | 'postponed';
+}
+
+export interface TeamStanding {
+  teamId: string;
+  teamName: string;
+  logoUrl?: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}
+
+export interface Tournament {
+  id: string; // Document ID in Firestore
+  name: string;
+  teams: TournamentTeam[];
+  schedule: TournamentMatch[];
+  standings: TeamStanding[]; // This will be calculated and stored
+  lastUpdated?: any; // Firestore Timestamp
+  updatedBy?: {
+    id: string;
+    name: string;
+  };
+}

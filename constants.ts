@@ -1,4 +1,3 @@
-
 import { UserRole } from './types';
 
 export const APP_TITLE = "app.title"; 
@@ -38,3 +37,6 @@ export const LEAGUE_CODE_TO_ODDS_API_SPORT_KEY: Record<string, string> = {
 // Default regions and markets for The Odds API
 export const ODDS_API_DEFAULT_REGIONS = 'eu'; // eu, us, uk, au
 export const ODDS_API_DEFAULT_MARKETS = 'h2h'; // h2h (head-to-head/moneyline), spreads, totals
+
+// Main tournament document ID
+export const TOURNAMENT_DOC_ID = 'vleague_season_1';

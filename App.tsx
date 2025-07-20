@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
@@ -17,6 +16,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MemberHomePage } from './pages/MemberHomePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { TeamDividerPage } from './pages/TeamDividerPage';
+import { TournamentPage } from './pages/TournamentPage';
 import { ToastContainer } from './components/shared/ToastContainer';
 import { SoccerBallIcon } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
@@ -210,6 +210,8 @@ interface AppContextType {
   addToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', isTranslationKey?: boolean, replacements?: Record<string, string | number>) => void;
   updateUserPoints: (userId: string, points: number) => Promise<void>; 
   isFirebaseReady: boolean;
+  allUsers: User[]; // Add this to provide a list of all users for features like team assignment
+  refreshAllUsers: () => void; // Add this
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -222,42 +224,10 @@ export function useAppContext() {
   return context;
 }
 
-// FIX: Define MainApp component outside of AppCore to prevent it from being
-// recreated on every render, which was causing an infinite loop.
-const MainApp: React.FC = () => {
-  const { currentUser } = useAppContext();
-  const { translate } = useLanguage();
-
-  return (
-    <div className="flex flex-col min-h-screen bg-background text-textPrimary">
-      <Header />
-      <AuthComponent />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/" element={<MemberHomePage />} />
-          <Route path="/admin" element={
-            currentUser?.role === UserRole.ADMIN 
-              ? <AdminDashboardPage /> 
-              : <Navigate to="/" replace />
-          } />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/team-divider" element={<TeamDividerPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <footer className="py-4 bg-surface shadow-md">
-        <div className="container mx-auto px-4 text-center text-textSecondary">
-          {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-
 const AppCore: React.FC = () => {
   const { translate, translationsLoading, language } = useLanguage(); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true); 
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
@@ -436,6 +406,8 @@ const AppCore: React.FC = () => {
     addToast,
     updateUserPoints,
     isFirebaseReady,
+    allUsers: [], // This will be filled by a provider-level fetch
+    refreshAllUsers: () => {}, // Placeholder
   };
 
   if (!isUnlocked) {
@@ -481,6 +453,32 @@ const AppCore: React.FC = () => {
     );
   }
   
+  const MainApp = () => (
+    <div className="flex flex-col min-h-screen bg-background text-textPrimary">
+      <Header />
+      <AuthComponent />
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/" element={<MemberHomePage />} />
+          <Route path="/admin" element={
+            currentUser?.role === UserRole.ADMIN 
+              ? <AdminDashboardPage /> 
+              : <Navigate to="/" replace />
+          } />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/team-divider" element={<TeamDividerPage />} />
+          <Route path="/tournament" element={<TournamentPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      <footer className="py-4 bg-surface shadow-md">
+        <div className="container mx-auto px-4 text-center text-textSecondary">
+          {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
+        </div>
+      </footer>
+    </div>
+  );
+
   const location = useLocation();
   
   // Show landing page only on root path when logged out.
