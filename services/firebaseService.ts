@@ -140,7 +140,7 @@ export const findOrCreateUserProfile = async (firebaseUserFromSdk: any): Promise
       id: uid, // Use the validated uid
       name: data.name || firebaseUserFromSdk.displayName || 'Anonymous User',
       email: data.email || firebaseUserFromSdk.email || '',
-      avatarUrl: data.avatarUrl || firebaseUserFromSdk.photoURL || null,
+      avatarUrl: data.avatarUrl ?? null,
       role: data.role || UserRole.MEMBER,
       points: typeof data.points === 'number' ? data.points : INITIAL_USER_POINTS,
       betsMadeCount: typeof data.betsMadeCount === 'number' ? data.betsMadeCount : 0,
@@ -176,7 +176,7 @@ export const getAppUserProfile = async (userId: string): Promise<User | null> =>
             id: doc.id,
             name: data.name || 'Anonymous User',
             email: data.email || '',
-            avatarUrl: data.avatarUrl || null,
+            avatarUrl: data.avatarUrl ?? null,
             role: data.role || UserRole.MEMBER,
             points: typeof data.points === 'number' ? data.points : INITIAL_USER_POINTS,
             betsMadeCount: typeof data.betsMadeCount === 'number' ? data.betsMadeCount : 0,
@@ -199,7 +199,7 @@ export const getAllAppUsers = async (): Promise<User[]> => {
              id: doc.id,
             name: data.name || 'Anonymous User',
             email: data.email || '',
-            avatarUrl: data.avatarUrl || null,
+            avatarUrl: data.avatarUrl ?? null,
             role: data.role || UserRole.MEMBER,
             points: typeof data.points === 'number' ? data.points : INITIAL_USER_POINTS,
             betsMadeCount: typeof data.betsMadeCount === 'number' ? data.betsMadeCount : 0,
@@ -501,6 +501,8 @@ export const onTournamentUpdate = (
                 data.schedule = data.schedule.map(match => ({
                     ...match,
                     date: match.date && (match.date as any).toDate ? (match.date as any).toDate() : null,
+                    homeTeamScore: match.homeTeamScore ?? null,
+                    awayTeamScore: match.awayTeamScore ?? null,
                 }));
             }
             callback(data);

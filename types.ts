@@ -8,7 +8,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  avatarUrl?: string | null;
+  avatarUrl: string | null;
   points: number;
   betsMadeCount: number; 
   winsCount: number;     
@@ -190,9 +190,9 @@ export interface TournamentMatch {
   round: number;
   homeTeamId: string;
   awayTeamId: string;
-  homeTeamScore?: number | null;
-  awayTeamScore?: number | null;
-  date?: Date | null;
+  homeTeamScore: number | null;
+  awayTeamScore: number | null;
+  date: Date | null;
   status: 'scheduled' | 'finished' | 'postponed';
 }
 
