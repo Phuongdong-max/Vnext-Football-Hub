@@ -1,5 +1,6 @@
-
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import enTranslations from '../locales/en.json';
+import viTranslations from '../locales/vi.json';
 
 export type SupportedLanguage = 'en' | 'vi';
 
@@ -30,66 +31,24 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (browserLang === 'vi') return 'vi';
     return 'en';
   });
-  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translations, setTranslations] = useState<Record<string, any>>({});
   const [translationsLoading, setTranslationsLoading] = useState(true);
 
   useEffect(() => {
-    let active = true; // Prevent state updates if component unmounts
-    setTranslationsLoading(true); 
-
-    const loadTranslationsAsync = async () => {
-      try {
-        const response = await fetch(`/locales/${language}.json`);
-        if (!response.ok) {
-          console.error(`Failed to load translations for ${language}. Status: ${response.status}`);
-          if (language !== 'en') {
-            console.warn(`Attempting to load English translations as fallback.`);
-            const fallbackResponse = await fetch(`/locales/en.json`);
-            if (fallbackResponse.ok) {
-              const fallbackData = await fallbackResponse.json();
-              if (active) {
-                setTranslations(fallbackData);
-                document.documentElement.lang = 'en';
-                console.warn(`Loaded English translations as fallback.`);
-              }
-            } else {
-              console.error(`Failed to load fallback English translations. Status: ${fallbackResponse.status}`);
-              if (active) {
-                setTranslations({}); 
-                document.documentElement.lang = 'en'; 
-              }
-            }
-          } else { 
-             if (active) {
-                setTranslations({});
-                document.documentElement.lang = 'en';
-             }
-          }
-        } else { 
-          const data = await response.json();
-          if (active) {
-            setTranslations(data);
-            document.documentElement.lang = language;
-          }
-        }
-      } catch (error) {
-        console.error("Error loading translation file:", error);
-        if (active) {
-          setTranslations({});
-          document.documentElement.lang = 'en';
-        }
-      } finally {
-        if (active) {
-          setTranslationsLoading(false);
-        }
-      }
-    };
-
-    loadTranslationsAsync();
-
-    return () => {
-      active = false; 
-    };
+    console.log(`[LanguageContext] Loading translations for language: ${language}`);
+    setTranslationsLoading(true);
+    const translationsToLoad = language === 'vi' ? viTranslations : enTranslations;
+    
+    if (translationsToLoad && typeof translationsToLoad === 'object' && Object.keys(translationsToLoad).length > 0) {
+        setTranslations(translationsToLoad);
+        console.log(`[LanguageContext] Successfully loaded ${Object.keys(translationsToLoad).length} translation keys.`);
+    } else {
+        console.error(`[LanguageContext] Failed to load translations for ${language}. The imported JSON might be empty or invalid.`);
+        setTranslations({});
+    }
+    
+    document.documentElement.lang = language;
+    setTranslationsLoading(false);
   }, [language]);
 
   const setLanguage = (lang: SupportedLanguage) => {
@@ -98,7 +57,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const translate = useCallback((key: string, replacements?: Record<string, string | number>): string => {
-    let translatedString = translations[key] || key; 
+    let translatedString = translations[key];
+    
+    if (translatedString === undefined) {
+      console.warn(`[LanguageContext] Translation key not found: "${key}"`);
+      return key;
+    }
+    
     if (replacements) {
       Object.keys(replacements).forEach(placeholder => {
         translatedString = translatedString.replace(new RegExp(`{{${placeholder}}}`, 'g'), String(replacements[placeholder]));

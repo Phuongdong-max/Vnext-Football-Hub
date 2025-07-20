@@ -277,6 +277,13 @@
   "tournament.saveScheduleButton": "Lưu Lịch thi đấu Mới",
   "tournament.schedulePreviewTitle": "Xem trước Lịch thi đấu Mới",
   "tournament.scheduleOverwriteWarning": "Lưu ý: Hành động này sẽ ghi đè lên lịch thi đấu hiện tại.",
+  "tournament.toast.scheduleGenerated": "Đã tạo lịch thi đấu để xem trước!",
+  "tournament.error.saveSchedule": "Lỗi khi lưu lịch thi đấu: {{message}}",
+  "tournament.success.saveSchedule": "Đã lưu lịch thi đấu mới thành công!",
+  "tournament.error.updateMatch": "Lỗi khi cập nhật chi tiết trận đấu: {{message}}",
+  "tournament.success.updateMatch": "Cập nhật chi tiết trận đấu thành công!",
+  "tournament.error.saveScheduleGeneric": "Không thể lưu lịch thi đấu. Lỗi: {{message}}",
+  "tournament.error.updateMatchGeneric": "Không thể cập nhật trận đấu. Lỗi: {{message}}",
 
   "standingsTable.team": "Đội",
   "standingsTable.played": "ST",
@@ -292,7 +299,9 @@
   "schedule.status.finished": "Kết thúc",
   "schedule.status.scheduled": "Chưa đá",
   "schedule.updateScore": "Cập nhật",
+  "schedule.matchDate": "Ngày",
   "schedule.noMatches": "Chưa có lịch thi đấu cho giải này.",
+  "schedule.error.invalidScore": "Tỷ số không hợp lệ. Vui lòng nhập số hợp lệ.",
 
   "teamList.captain": "Đội trưởng",
   "teamList.members": "Thành viên",

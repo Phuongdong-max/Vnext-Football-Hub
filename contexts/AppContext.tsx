@@ -1,4 +1,3 @@
-
 import { createContext, useContext } from 'react';
 import { User, LeaderboardEntry, UserRole } from '../types';
 
@@ -8,7 +7,7 @@ export interface AppContextType {
   logout: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
   refreshLeaderboard: () => void;
-  addToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', isTranslationKey?: boolean, replacements?: Record<string, string | number>) => void;
+  addToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', replacements?: Record<string, string | number>) => void;
   updateUserPoints: (userId: string, points: number) => Promise<void>; 
   isFirebaseReady: boolean;
   allUsers: User[]; 

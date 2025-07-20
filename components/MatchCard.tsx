@@ -43,7 +43,7 @@ const OddsDisplay: React.FC<{ oddsData: OddsData, match: BettingRound['matchDeta
   
   const getOutcomeName = (outcomeName: string, homeTeam: string, awayTeam: string): string => {
     if (outcomeName.toLowerCase() === homeTeam.toLowerCase()) return translate('matchCard.odds.homeTeamWinShort');
-    if (outcomeName.toLowerCase() === awayTeam.toLowerCase()) return translate('matchCard.odds.awayTeamWinShort');
+    if (outcomeName.toLowerCase() === awayTeam.toLowerCase()) return translate('matchCard.odds.drawShort');
     if (outcomeName.toLowerCase() === 'draw') return translate('matchCard.odds.drawShort');
     return outcomeName;
   }
@@ -84,7 +84,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
 
   const handleFetchOdds = async () => {
     if (!isOddsApiConfigured) {
-      addToast(translate('matchCard.odds.apiNotConfigured'), 'error');
+      addToast('matchCard.odds.apiNotConfigured', 'error');
       setOddsData(null); // Mark as failed due to config
       return;
     }
@@ -96,11 +96,11 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
         setOddsData(fetchedOdds);
       } else {
         setOddsData(null); // No odds found or empty response
-        addToast(translate('matchCard.odds.notFound'), 'info');
+        addToast('matchCard.odds.notFound', 'info');
       }
     } catch (error) {
       console.error("Error fetching odds:", error);
-      addToast(translate('matchCard.odds.fetchError'), 'error');
+      addToast('matchCard.odds.fetchError', 'error');
       setOddsData(null); // Mark as failed
     } finally {
       setIsLoadingOdds(false);

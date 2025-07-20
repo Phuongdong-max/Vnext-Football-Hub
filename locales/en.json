@@ -1,5 +1,4 @@
 
-
 {
   "app.title": "VNEXT JAPAN - Football Club",
   "landing.subtitle": "Your ultimate hub for friendly football betting!",
@@ -278,6 +277,13 @@
   "tournament.saveScheduleButton": "Save New Schedule",
   "tournament.schedulePreviewTitle": "New Schedule Preview",
   "tournament.scheduleOverwriteWarning": "Warning: Saving will overwrite the existing schedule.",
+  "tournament.toast.scheduleGenerated": "Schedule generated for preview!",
+  "tournament.error.saveSchedule": "Error saving schedule: {{message}}",
+  "tournament.success.saveSchedule": "New schedule saved successfully!",
+  "tournament.error.updateMatch": "Error updating match details: {{message}}",
+  "tournament.success.updateMatch": "Match details updated successfully!",
+  "tournament.error.saveScheduleGeneric": "Failed to save schedule. Error: {{message}}",
+  "tournament.error.updateMatchGeneric": "Failed to update match. Error: {{message}}",
 
   "standingsTable.team": "Team",
   "standingsTable.played": "P",
@@ -293,7 +299,9 @@
   "schedule.status.finished": "Finished",
   "schedule.status.scheduled": "Scheduled",
   "schedule.updateScore": "Update",
+  "schedule.matchDate": "Date",
   "schedule.noMatches": "No matches have been scheduled for this tournament yet.",
+  "schedule.error.invalidScore": "Invalid score. Please enter a valid number.",
 
   "teamList.captain": "Captain",
   "teamList.members": "Members",

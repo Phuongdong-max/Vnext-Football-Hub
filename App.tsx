@@ -24,13 +24,48 @@ import { SoccerBallIcon } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
 import { LandingPage } from './components/LandingPage';
 import { LockScreen } from './components/LockScreen';
-import { AppContext, AppContextType } from './contexts/AppContext';
+import { AppContext, AppContextType, useAppContext } from './contexts/AppContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 
 
-// --- App Context Provider ---
+// --- Main Application Component (Stable) ---
+// By defining MainApp outside of AppCore, it is no longer recreated on every
+// state change in AppCore. This is the critical fix to prevent state loss
+// in child components like TournamentPage when a toast notification appears.
+const MainApp: React.FC = () => {
+  const { translate } = useLanguage();
+  const { currentUser } = useAppContext();
 
+  return (
+    <div className="flex flex-col min-h-screen bg-background text-textPrimary">
+      <Header />
+      <AuthComponent />
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/" element={<MemberHomePage />} />
+          <Route path="/admin" element={
+            currentUser?.role === UserRole.ADMIN 
+              ? <AdminDashboardPage /> 
+              : <Navigate to="/" replace />
+          } />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/team-divider" element={<TeamDividerPage />} />
+          <Route path="/tournament" element={<TournamentPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      <footer className="py-4 bg-surface shadow-md">
+        <div className="container mx-auto px-4 text-center text-textSecondary">
+          {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+
+// --- App Core Logic (Handles State) ---
 const AppCore: React.FC = () => {
   const { translate, translationsLoading, language } = useLanguage(); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -58,11 +93,11 @@ const AppCore: React.FC = () => {
   }, []);
 
 
-  const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', isTranslationKey: boolean = false, replacements?: Record<string, string | number>) => {
+  const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', replacements?: Record<string, string | number>) => {
     const id = new Date().toISOString() + Math.random(); 
-    const message = isTranslationKey && !translationsLoading ? translate(messageOrKey, replacements) : messageOrKey; // Only translate if not loading
+    const message = translate(messageOrKey, replacements);
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
-  }, [translate, translationsLoading]);
+  }, [translate]);
 
   const handleUnlock = () => {
     try {
@@ -88,24 +123,20 @@ const AppCore: React.FC = () => {
       setLeaderboard(data.sort((a,b) => b.points - a.points));
     } catch (error) {
       console.error("Failed to refresh leaderboard:", error);
-      // Use key directly if translations might not be ready
-      const msgKey = "error.failedToRefreshLeaderboard";
-      addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
+      addToast("error.failedToRefreshLeaderboard", "error");
     } finally {
       setIsLeaderboardLoading(false);
       isLeaderboardLoadingRef.current = false;
     }
-  }, [addToast, isFirebaseReady, isEnvironmentSupported, translate, translationsLoading]);
+  }, [addToast, isFirebaseReady, isEnvironmentSupported]);
 
   useEffect(() => {
     const envCheck = checkFirebaseEnvironment();
     if (!envCheck.isSupported) {
       setIsEnvironmentSupported(false);
-      // Use key directly if translations might not be ready
-      const messageKey = "error.firebaseEnvNotSupported";
-      const message = translationsLoading ? messageKey : (envCheck.message || translate(messageKey));
+      const message = envCheck.message || translate("error.firebaseEnvNotSupported");
       setCriticalError(message);
-      addToast(message, "error", translationsLoading && !envCheck.message);
+      addToast(message, "error");
       setIsLoading(false);
       return;
     }
@@ -114,10 +145,9 @@ const AppCore: React.FC = () => {
     setIsFirebaseReady(firebaseInitialized);
     
     if (!firebaseInitialized) {
-        const messageKey = "error.firebaseInitFailed";
-        const message = translationsLoading ? messageKey : translate(messageKey);
+        const message = translate("error.firebaseInitFailed");
         setCriticalError(message);
-        addToast(message, "error", translationsLoading);
+        addToast(message, "error");
         setCurrentUser(null);
         setIsLoading(false);
         return;
@@ -127,30 +157,24 @@ const AppCore: React.FC = () => {
     const unsubscribe = onFirebaseAuthStateChanged(async (appUserFromService) => {
       try {
         setCurrentUser(appUserFromService);
-        // if (appUserFromService && appUserFromService.name) {
-        //   addToast(translate("toast.loggedInAs", { name: appUserFromService.name }), 'success');
-        // }
         await refreshLeaderboard(); 
       } catch (error) {
           console.error("Error processing auth state change:", error);
-          const msgKey = "error.authProcessingError";
-          addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
+          addToast("error.authProcessingError", "error");
       } finally {
           setIsLoading(false); 
       }
     });
     return () => unsubscribe();
-  }, [addToast, refreshLeaderboard, translate, translationsLoading]); // Added translationsLoading dependency
+  }, [addToast, refreshLeaderboard, translate]);
 
   const handleSignInWithGoogle = useCallback(async (): Promise<User | null> => {
     if (!isEnvironmentSupported) {
-      const msgKey = "error.googleSignInNotSupportedEnv";
-      addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
+      addToast("error.googleSignInNotSupportedEnv", "error");
       return null;
     }
     if (!isFirebaseReady) {
-      const msgKey = "error.firebaseNotAvailable";
-      addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
+      addToast("error.firebaseNotAvailable", "error");
       return null;
     }
     setIsLoading(true); 
@@ -164,11 +188,11 @@ const AppCore: React.FC = () => {
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMessageKey = "error.googleSignInCancelled";
       }
-      addToast(translationsLoading ? errorMessageKey : translate(errorMessageKey), "error", translationsLoading, { message: error.message });
+      addToast(errorMessageKey, "error", { message: error.message });
       setIsLoading(false); 
       return null;
     }
-  }, [addToast, isFirebaseReady, isEnvironmentSupported, translate, translationsLoading]);
+  }, [addToast, isFirebaseReady, isEnvironmentSupported]);
 
 
   const handleLogout = useCallback(async () => {
@@ -180,17 +204,15 @@ const AppCore: React.FC = () => {
       await refreshLeaderboard(); 
       setIsLoading(false); 
     }
-    const msgKey = "toast.loggedOut";
-    addToast(translationsLoading ? msgKey : translate(msgKey), 'info', translationsLoading);
-  }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser, translate, translationsLoading]);
+    addToast("toast.loggedOut", 'info');
+  }, [refreshLeaderboard, addToast, isFirebaseReady, currentUser]);
   
   const updateUserPoints = useCallback(async (userId: string, newPoints: number) => {
     try {
       if (isFirebaseReady && isEnvironmentSupported) { 
         await updateUserPointsInFirestore(userId, newPoints);
       } else {
-        const msgKey = "error.cannotUpdatePointsNoFirebase";
-        throw new Error(translationsLoading ? msgKey : translate(msgKey));
+        throw new Error(translate("error.cannotUpdatePointsNoFirebase"));
       }
       
       if (currentUser && currentUser.id === userId) {
@@ -199,10 +221,9 @@ const AppCore: React.FC = () => {
       await refreshLeaderboard(); 
     } catch (error) {
         console.error("Error updating user points:", error);
-        const msgKey = "error.failedToUpdateUserPoints";
-        addToast(translationsLoading ? msgKey : translate(msgKey), "error", translationsLoading);
+        addToast("error.failedToUpdateUserPoints", "error");
     }
-  }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported, translate, translationsLoading]);
+  }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported, translate]);
 
   const appContextValue: AppContextType = {
     currentUser,
@@ -226,12 +247,11 @@ const AppCore: React.FC = () => {
     let loadingMessage = "Initializing..."; // Default message
     if (language === 'vi') loadingMessage = "Đang khởi tạo...";
 
-    if (!isLoading && translationsLoading) { // Firebase loaded, but translations still loading
+    if (!isLoading && translationsLoading) { // This case is less likely now
         loadingMessage = language === 'vi' ? "Đang tải ngôn ngữ..." : "Loading languages...";
-    } else if (isLoading && !translationsLoading) { // Translations loaded, but Firebase still loading
+    } else if (isLoading && !translationsLoading) {
         loadingMessage = translate("app.loadingTitle", { appTitle: translate(APP_TITLE) });
     }
-    // If both isLoading and translationsLoading are true, "Initializing..." is fine.
     
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-textPrimary">
@@ -242,55 +262,23 @@ const AppCore: React.FC = () => {
   }
 
   if (criticalError) {
-    // Critical error message itself should not depend on translations if they might have failed.
-    // However, if criticalError was set using translate and translationsLoading was false, it's already translated.
-    // For simplicity, we assume criticalError message is self-contained or a key if translations failed.
-    const errorTitleKey = "error.appErrorTitle";
-    const errorGuidanceKey = "error.appErrorGuidance";
+    const errorTitle = translate("error.appErrorTitle");
+    const errorGuidance = translate("error.appErrorGuidance");
     return (
       <>
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-textPrimary p-4 text-center">
           <SoccerBallIcon className="w-16 h-16 text-danger mb-4" />
-          <h1 className="text-2xl font-bold text-danger mb-2">{translationsLoading ? errorTitleKey : translate(errorTitleKey)}</h1>
+          <h1 className="text-2xl font-bold text-danger mb-2">{errorTitle}</h1>
           <p className="text-textSecondary">{criticalError}</p>
-          <p className="mt-4 text-sm text-textSecondary">{translationsLoading ? errorGuidanceKey : translate(errorGuidanceKey)}</p>
+          <p className="mt-4 text-sm text-textSecondary">{errorGuidance}</p>
         </div>
         <ToastContainer toasts={toasts} setToasts={setToasts} />
       </>
     );
   }
   
-  const MainApp = () => (
-    <div className="flex flex-col min-h-screen bg-background text-textPrimary">
-      <Header />
-      <AuthComponent />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/" element={<MemberHomePage />} />
-          <Route path="/admin" element={
-            currentUser?.role === UserRole.ADMIN 
-              ? <AdminDashboardPage /> 
-              : <Navigate to="/" replace />
-          } />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/team-divider" element={<TeamDividerPage />} />
-          <Route path="/tournament" element={<TournamentPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <footer className="py-4 bg-surface shadow-md">
-        <div className="container mx-auto px-4 text-center text-textSecondary">
-          {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
-        </div>
-      </footer>
-    </div>
-  );
-
   const location = useLocation();
   
-  // Show landing page only on root path when logged out.
-  // Otherwise, show the main app layout for all other pages (including TeamDivider)
-  // which will correctly show login prompts etc. for logged out users.
   if (!currentUser && location.pathname === '/') {
     return (
       <AppContext.Provider value={appContextValue}>

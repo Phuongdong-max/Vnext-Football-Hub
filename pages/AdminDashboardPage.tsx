@@ -48,7 +48,7 @@ export const AdminDashboardPage: React.FC = () => {
         rounds = await getFirebaseBettingRoundsByAdmin(currentUser.id);
       } else {
         rounds = []; 
-        addToast("error.adminRoundsUnavailableFirebaseNotReady", "error", true);
+        addToast("error.adminRoundsUnavailableFirebaseNotReady", "error");
       }
       setBettingRounds(rounds.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ));
       
@@ -61,12 +61,12 @@ export const AdminDashboardPage: React.FC = () => {
         } catch (apiError) {
           console.error("API error fetching football-data.org leagues:", apiError);
           // Toasting on explicit error is fine, the loop was caused by success/info toasts.
-          addToast("error.failedToFetchLeaguesManual", "error", true, {errorMessage: (apiError as Error).message});
+          addToast("error.failedToFetchLeaguesManual", "error", {errorMessage: (apiError as Error).message});
         }
       }
     } catch (error) {
       console.error("Error fetching admin data:", error);
-      addToast("error.failedToLoadAdminData", "error", true);
+      addToast("error.failedToLoadAdminData", "error");
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
@@ -78,17 +78,17 @@ export const AdminDashboardPage: React.FC = () => {
   
   const handleLoadMatchesForFootballDataModal = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
     if (!apiAvailable) { 
-      addToast("error.liveApiUnavailable", "info", true);
+      addToast("error.liveApiUnavailable", "info");
       return []; 
     }
     try {
       const matches = await fetchMatchesByDateAndLeague(date, leagueCode);
       if (matches.length === 0) {
-        addToast("info.noMatchesFound", "info", true, { leagueCode, date: new Date(date).toLocaleDateString() });
+        addToast("info.noMatchesFound", "info", { leagueCode, date: new Date(date).toLocaleDateString() });
       }
       return matches; 
     } catch (error) {
-      addToast("error.failedToFetchMatches", "error", true, { errorMessage: (error as Error).message });
+      addToast("error.failedToFetchMatches", "error", { errorMessage: (error as Error).message });
       return []; 
     }
   }, [addToast, apiAvailable]);
@@ -101,16 +101,16 @@ export const AdminDashboardPage: React.FC = () => {
       if (isFirebaseReady) {
         await createFirebaseBettingRound(matchToCreate, currentUser.id);
       } else {
-        addToast("error.cannotCreateRoundFirebaseNotReady", "error", true);
+        addToast("error.cannotCreateRoundFirebaseNotReady", "error");
         setIsDataLoading(false);
         return;
       }
-      addToast("success.bettingRoundCreated", "success", true);
+      addToast("success.bettingRoundCreated", "success");
       fetchAdminPageData(true); 
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error("Error creating betting round:", error);
-      addToast("error.creatingRound", "error", true, { errorMessage: (error as Error).message });
+      addToast("error.creatingRound", "error", { errorMessage: (error as Error).message });
     } finally {
       setIsDataLoading(false);
     }
@@ -129,18 +129,18 @@ export const AdminDashboardPage: React.FC = () => {
       if (isFirebaseReady) {
          updatedRound = await updateFirebaseMatchResult(roundId, winningTeam);
       } else {
-        addToast("error.cannotUpdateResultFirebaseNotReady", "error", true);
+        addToast("error.cannotUpdateResultFirebaseNotReady", "error");
         setIsDataLoading(false);
         return;
       }
-      addToast("success.resultUpdatedForRound", "success", true, { homeTeam: updatedRound.matchDetails.homeTeam, awayTeam: updatedRound.matchDetails.awayTeam });
+      addToast("success.resultUpdatedForRound", "success", { homeTeam: updatedRound.matchDetails.homeTeam, awayTeam: updatedRound.matchDetails.awayTeam });
       fetchAdminPageData(true); 
       refreshLeaderboard(); 
       setIsUpdateModalOpen(false);
       setSelectedRoundForUpdate(null);
     } catch (error) {
       console.error("Error updating result:", error);
-      addToast("error.updatingResult", "error", true, { errorMessage: (error as Error).message });
+      addToast("error.updatingResult", "error", { errorMessage: (error as Error).message });
     } finally {
       setIsDataLoading(false);
     }

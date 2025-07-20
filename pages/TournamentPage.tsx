@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -10,6 +9,15 @@ import { Button } from '../components/shared/Button';
 import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon } from '../components/icons';
 import { ManageTournamentModal } from '../components/Tournament/ManageTournamentModal';
 
+const formatDateForInput = (date: Date | null | undefined): string => {
+    if (!date) return '';
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const TournamentPage: React.FC = () => {
     const { translate, language } = useLanguage();
     const { currentUser, isFirebaseReady, addToast } = useAppContext();
@@ -18,46 +26,91 @@ export const TournamentPage: React.FC = () => {
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [newlyGeneratedSchedule, setNewlyGeneratedSchedule] = useState<TournamentMatch[] | null>(null);
     const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+    
+    const [scoreInputs, setScoreInputs] = useState<Record<string, { home: string, away: string }>>({});
+    const [dateInputs, setDateInputs] = useState<Record<string, string>>({});
+    const [updatingMatchId, setUpdatingMatchId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isFirebaseReady) return;
-
         const unsubscribe = onTournamentUpdate(TOURNAMENT_DOC_ID, (data) => {
             setTournament(data);
-            // Do not reset the preview here, only when it's saved successfully.
-            // setNewlyGeneratedSchedule(null); 
             setIsLoading(false);
         });
-
         return () => unsubscribe();
     }, [isFirebaseReady]);
+    
+    useEffect(() => {
+        if (tournament?.schedule) {
+            const initialScores: Record<string, { home: string, away: string }> = {};
+            const initialDates: Record<string, string> = {};
+            tournament.schedule.forEach(match => {
+                initialScores[match.id] = {
+                    home: match.homeTeamScore?.toString() ?? '',
+                    away: match.awayTeamScore?.toString() ?? ''
+                };
+                initialDates[match.id] = formatDateForInput(match.date);
+            });
+            setScoreInputs(initialScores);
+            setDateInputs(initialDates);
+        }
+    }, [tournament?.schedule]);
 
-    const handleUpdateScore = async (matchId: string, homeScoreStr: string, awayScoreStr: string) => {
+    const handleScoreInputChange = (matchId: string, team: 'home' | 'away', value: string) => {
+        setScoreInputs(prev => ({
+            ...prev,
+            [matchId]: {
+                ...(prev[matchId] || { home: '', away: '' }),
+                [team]: value
+            }
+        }));
+    };
+    
+    const handleDateInputChange = (matchId: string, value: string) => {
+        setDateInputs(prev => ({ ...prev, [matchId]: value }));
+    };
+
+    const handleUpdateMatch = async (matchId: string) => {
         if (!tournament || !currentUser) return;
+        setUpdatingMatchId(matchId);
+    
+        const scores = scoreInputs[matchId];
+        const dateStr = dateInputs[matchId];
         
-        const homeScore = homeScoreStr === '' ? undefined : parseInt(homeScoreStr, 10);
-        const awayScore = awayScoreStr === '' ? undefined : parseInt(awayScoreStr, 10);
-
+        const homeScore = scores.home.trim() === '' ? null : parseInt(scores.home, 10);
+        const awayScore = scores.away.trim() === '' ? null : parseInt(scores.away, 10);
+    
+        if ((scores.home.trim() !== '' && (isNaN(homeScore!) || homeScore! < 0)) || (scores.away.trim() !== '' && (isNaN(awayScore!) || awayScore! < 0))) {
+            addToast('schedule.error.invalidScore', 'error');
+            setUpdatingMatchId(null);
+            return;
+        }
+        
+        const newDate = dateStr ? new Date(dateStr) : null;
+    
         const newSchedule = tournament.schedule.map(match => {
             if (match.id === matchId) {
                 return {
                     ...match,
                     homeTeamScore: homeScore,
                     awayTeamScore: awayScore,
-                    status: (homeScore !== undefined && awayScore !== undefined) ? 'finished' : 'scheduled'
+                    date: newDate,
+                    status: (homeScore !== null && awayScore !== null) ? 'finished' : 'scheduled'
                 } as TournamentMatch;
             }
             return match;
         });
-
+    
         const newStandings = calculateStandings(tournament.teams, newSchedule);
         
         try {
             await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
-            addToast('Score updated successfully', 'success');
+            addToast('tournament.success.updateMatch', 'success');
         } catch (error) {
-            addToast(`Error updating score: ${(error as Error).message}`, 'error');
+            addToast('tournament.error.updateMatchGeneric', 'error', { message: (error as Error).message });
             console.error(error);
+        } finally {
+            setUpdatingMatchId(null);
         }
     };
     
@@ -68,7 +121,7 @@ export const TournamentPage: React.FC = () => {
             standingsMap[team.id] = {
                 teamId: team.id,
                 teamName: team.name,
-                logoUrl: team.logoUrl,
+                logoUrl: team.logoUrl ?? null,
                 played: 0,
                 wins: 0,
                 draws: 0,
@@ -123,57 +176,64 @@ export const TournamentPage: React.FC = () => {
         return standingsArray;
     };
     
-    const handleGenerateSchedule = () => {
+    const handleGenerateSchedule = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        
         if (!tournament || !tournament.teams || tournament.teams.length < 2) {
-            addToast(translate('manageTournament.error.minTeamsForSchedule'), 'error', true);
+            addToast('manageTournament.error.minTeamsForSchedule', 'error');
             return;
         }
 
         const teams = [...tournament.teams];
         if (teams.length % 2 !== 0) {
-            teams.push({ id: 'bye', name: 'BYE', members: [] });
+            teams.push({ id: 'bye', name: 'BYE', members: [], logoUrl: null, captainId: null });
         }
         
-        const numRounds = (teams.length - 1) * 2; // Double round-robin
+        const numRounds = (teams.length - 1) * 2;
         const matchesPerRound = teams.length / 2;
         const schedule: TournamentMatch[] = [];
+        const rotatingTeams = teams.slice(1);
 
         for (let round = 0; round < numRounds; round++) {
             for (let i = 0; i < matchesPerRound; i++) {
-                const home = teams[i];
-                const away = teams[teams.length - 1 - i];
+                const home = i === 0 ? teams[0] : rotatingTeams[i - 1];
+                const away = i === 0 ? rotatingTeams[rotatingTeams.length - 1] : rotatingTeams[rotatingTeams.length - 1 - i];
 
                 if (home.id === 'bye' || away.id === 'bye') continue;
                 
                 const isSecondHalf = round >= (numRounds / 2);
-                const homeTeamId = (isSecondHalf) ? away.id : home.id;
-                const awayTeamId = (isSecondHalf) ? home.id : away.id;
+                const homeTeamId = (round + i) % 2 === 0 ? (isSecondHalf ? away.id : home.id) : (isSecondHalf ? home.id : away.id);
+                const awayTeamId = (round + i) % 2 === 0 ? (isSecondHalf ? home.id : away.id) : (isSecondHalf ? away.id : home.id);
 
                 schedule.push({
-                    id: `match_${Date.now()}_${round}_${i}`,
+                    id: crypto.randomUUID(),
                     round: round + 1,
                     homeTeamId,
                     awayTeamId,
                     status: 'scheduled',
+                    homeTeamScore: null,
+                    awayTeamScore: null,
+                    date: null,
                 });
             }
-            const lastTeam = teams.pop()!;
-            teams.splice(1, 0, lastTeam);
+            rotatingTeams.unshift(rotatingTeams.pop()!);
         }
+
         setNewlyGeneratedSchedule(schedule);
-        addToast('Schedule generated for preview!', 'success');
+        addToast('tournament.toast.scheduleGenerated', 'success');
     };
 
-    const handleSaveSchedule = async () => {
+    const handleSaveSchedule = async (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
         if (!newlyGeneratedSchedule || !tournament || !currentUser) return;
         setIsSavingSchedule(true);
         try {
             const newStandings = calculateStandings(tournament.teams, newlyGeneratedSchedule);
             await updateTournament(TOURNAMENT_DOC_ID, { schedule: newlyGeneratedSchedule, standings: newStandings }, currentUser);
-            addToast('New schedule saved successfully!', 'success');
+            addToast('tournament.success.saveSchedule', 'success');
             setNewlyGeneratedSchedule(null);
         } catch(error) {
-            addToast(`Error saving schedule: ${(error as Error).message}`, 'error');
+            addToast('tournament.error.saveScheduleGeneric', 'error', { message: (error as Error).message });
         } finally {
             setIsSavingSchedule(false);
         }
@@ -189,7 +249,7 @@ export const TournamentPage: React.FC = () => {
         if (currentUser?.role !== UserRole.ADMIN || !tournament) return null;
 
         return (
-            <section className="p-4 bg-surface rounded-lg shadow-md border-t-4 border-primary">
+            <form onSubmit={(e) => e.preventDefault()} className="p-4 bg-surface rounded-lg shadow-md border-t-4 border-primary">
                 <h2 className="text-xl font-semibold mb-3">{translate('tournament.generateScheduleSectionTitle')}</h2>
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                      <Button type="button" onClick={handleGenerateSchedule} variant="secondary" disabled={isSavingSchedule}>
@@ -198,7 +258,8 @@ export const TournamentPage: React.FC = () => {
                     </Button>
                     {newlyGeneratedSchedule && (
                         <Button type="button" onClick={handleSaveSchedule} variant="primary" disabled={isSavingSchedule}>
-                            {isSavingSchedule ? <LoadingSpinner size="sm" /> : translate('tournament.saveScheduleButton')}
+                            {isSavingSchedule ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+                            {isSavingSchedule ? translate('manageTournament.saving') : translate('tournament.saveScheduleButton')}
                         </Button>
                     )}
                 </div>
@@ -218,7 +279,7 @@ export const TournamentPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-            </section>
+            </form>
         );
     };
 
@@ -322,22 +383,33 @@ export const TournamentPage: React.FC = () => {
                                     <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
                                     <div className="space-y-3">
                                         {schedule.filter(m => m.round === roundNum).map(match => (
-                                            <div key={match.id} className="bg-surface shadow-md rounded-lg p-3 flex items-center justify-between">
-                                                <div className="flex-1 text-right pr-4 font-semibold">{getTeamName(match.homeTeamId)}</div>
-                                                <div className="flex items-center space-x-2">
+                                            <div key={match.id} className="bg-surface shadow-md rounded-lg p-3 grid grid-cols-3 items-center gap-2">
+                                                <div className="flex-1 text-right font-semibold">{getTeamName(match.homeTeamId)}</div>
+                                                <div className="flex flex-col items-center justify-center">
                                                     {currentUser?.role === UserRole.ADMIN ? (
                                                         <>
-                                                            <input type="number" min="0" defaultValue={match.homeTeamScore} onChange={(e) => handleUpdateScore(match.id, e.target.value, match.awayTeamScore?.toString() ?? '')} className="w-12 text-center bg-background border border-border rounded-md p-1" />
-                                                            <span>-</span>
-                                                            <input type="number" min="0" defaultValue={match.awayTeamScore} onChange={(e) => handleUpdateScore(match.id, match.homeTeamScore?.toString() ?? '', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" />
+                                                            <div className="flex items-center space-x-2">
+                                                                <input type="number" min="0" value={scoreInputs[match.id]?.home ?? ''} onChange={(e) => handleScoreInputChange(match.id, 'home', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" aria-label={`${getTeamName(match.homeTeamId)} score`} />
+                                                                <span>-</span>
+                                                                <input type="number" min="0" value={scoreInputs[match.id]?.away ?? ''} onChange={(e) => handleScoreInputChange(match.id, 'away', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" aria-label={`${getTeamName(match.awayTeamId)} score`} />
+                                                            </div>
+                                                            <div className="flex items-center space-x-2 mt-2">
+                                                                <input type="date" value={dateInputs[match.id] || ''} onChange={(e) => handleDateInputChange(match.id, e.target.value)} className="w-32 text-center text-xs bg-background border border-border rounded-md p-1 dark:[color-scheme:dark]" aria-label={`${getTeamName(match.homeTeamId)} vs ${getTeamName(match.awayTeamId)} date`} />
+                                                                <Button size="sm" onClick={() => handleUpdateMatch(match.id)} disabled={updatingMatchId === match.id} variant="secondary" className="!px-2 !py-1">
+                                                                    {updatingMatchId === match.id ? <LoadingSpinner size="sm" /> : translate('schedule.updateScore')}
+                                                                </Button>
+                                                            </div>
                                                         </>
                                                     ) : (
-                                                         <span className="text-xl font-bold px-2 py-1 bg-background rounded-md">
-                                                            {match.status === 'finished' ? `${match.homeTeamScore} - ${match.awayTeamScore}` : '-'}
-                                                        </span>
+                                                        <>
+                                                            <span className="text-xl font-bold px-2 py-1 bg-background rounded-md">
+                                                                {match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : '-'}
+                                                            </span>
+                                                            {match.date && <span className="text-xs text-textSecondary mt-1">{formatDateForInput(match.date)}</span>}
+                                                        </>
                                                     )}
                                                 </div>
-                                                <div className="flex-1 text-left pl-4 font-semibold">{getTeamName(match.awayTeamId)}</div>
+                                                <div className="flex-1 text-left font-semibold">{getTeamName(match.awayTeamId)}</div>
                                             </div>
                                         ))}
                                     </div>

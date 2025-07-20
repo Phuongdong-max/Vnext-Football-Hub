@@ -89,7 +89,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
         const candidatesToConsider = idealCandidates.length > 0 ? idealCandidates : currentTeams;
         
         if (idealCandidates.length === 0 && currentTeams.length > 0 && player.seed !== 'GK') {
-             addToast(translate('teamDivider.spinner.unbalancedWarning', { playerName: player.name }), 'warning', true);
+             addToast('teamDivider.spinner.unbalancedWarning', 'warning', { playerName: player.name });
         }
         
         // Sort the chosen candidates to find the single best fit

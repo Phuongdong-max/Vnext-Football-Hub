@@ -21,7 +21,7 @@ esbuild.serve({
   platform: 'browser',
   format: 'esm',
   jsx: 'automatic',
-  loader: { '.tsx': 'tsx' },
+  loader: { '.tsx': 'tsx', '.json': 'json' }, // Added .json loader
   define: {
     'process.env.NODE_ENV': '"development"',
     'process.env.FOOTBALL_DATA_API_KEY': JSON.stringify(footballApiKey),

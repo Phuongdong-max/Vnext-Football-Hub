@@ -38,13 +38,13 @@ export const MemberHomePage: React.FC = () => {
         open = await getFirebaseOpenBettingRounds();
         closed = await getFirebaseClosedBettingRoundsForMember(currentUser.id); 
       } else {
-        addToast("info.bettingRoundsUnavailableFirebaseNotReady", "info", true);
+        addToast("info.bettingRoundsUnavailableFirebaseNotReady", "info");
       }
       setOpenRounds(open.sort((a,b) => new Date(a.matchDetails.startTime).getTime() - new Date(b.matchDetails.startTime).getTime() ));
       setClosedRounds(closed.sort((a,b) => new Date(b.matchDetails.startTime).getTime() - new Date(a.matchDetails.startTime).getTime() ));
     } catch (error) {
       console.error("Error fetching member data:", error);
-      addToast("error.failedToLoadBettingRounds", "error", true);
+      addToast("error.failedToLoadBettingRounds", "error");
     } finally {
       if(isManualRefresh) setIsDataLoading(false); else setIsLoading(false);
     }
@@ -62,11 +62,11 @@ export const MemberHomePage: React.FC = () => {
 
   const handleOpenBettingModal = (round: BettingRound) => {
     if (!currentUser) {
-      addToast("info.loginToPlaceBet", "info", true); 
+      addToast("info.loginToPlaceBet", "info"); 
       return;
     }
     if (currentUser.points <= 0) {
-      addToast("info.noPointsToBet", "info", true);
+      addToast("info.noPointsToBet", "info");
       return;
     }
     setSelectedRoundForBet(round);
@@ -76,7 +76,7 @@ export const MemberHomePage: React.FC = () => {
   const handlePlaceBet = async (roundId: string, team: BetTeamSelection, points: number) => {
     if (!currentUser) return;
     if (points > currentUser.points) {
-        addToast("error.betExceedsPoints", "error", true);
+        addToast("error.betExceedsPoints", "error");
         return;
     }
     setIsDataLoading(true);
@@ -84,11 +84,11 @@ export const MemberHomePage: React.FC = () => {
       if (isFirebaseReady) {
         await placeFirebaseBet(roundId, currentUser.id, currentUser.name, team, points);
       } else {
-        addToast("error.cannotPlaceBetFirebaseNotReady", "error", true);
+        addToast("error.cannotPlaceBetFirebaseNotReady", "error");
         setIsDataLoading(false);
         return;
       }
-      addToast("success.betPlaced", "success", true, { points });
+      addToast("success.betPlaced", "success", { points });
       
       fetchMemberData(true); 
       refreshLeaderboard();
@@ -96,7 +96,7 @@ export const MemberHomePage: React.FC = () => {
       setSelectedRoundForBet(null);
     } catch (error) {
       console.error("Error placing bet:", error);
-      addToast("error.placingBet", "error", true, { errorMessage: (error as Error).message });
+      addToast("error.placingBet", "error", { errorMessage: (error as Error).message });
     } finally {
       setIsDataLoading(false);
     }

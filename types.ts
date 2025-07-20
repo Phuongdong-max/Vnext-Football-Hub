@@ -173,15 +173,15 @@ export interface TeamDivisionData {
 export interface TournamentMember {
   id: string; // Unique ID for the member entry
   name: string;
-  userId?: string; // Optional: for linking to a registered user
-  avatarUrl?: string; // Optional
+  userId?: string | null; // Optional: for linking to a registered user
+  avatarUrl?: string | null; // Optional
 }
 
 export interface TournamentTeam {
   id: string;
   name:string;
-  logoUrl?: string;
-  captainId?: string;
+  logoUrl?: string | null;
+  captainId?: string | null;
   members: TournamentMember[];
 }
 
@@ -190,16 +190,16 @@ export interface TournamentMatch {
   round: number;
   homeTeamId: string;
   awayTeamId: string;
-  homeTeamScore?: number;
-  awayTeamScore?: number;
-  date?: Date; // Firestore timestamp will be converted to Date
+  homeTeamScore?: number | null;
+  awayTeamScore?: number | null;
+  date?: Date | null;
   status: 'scheduled' | 'finished' | 'postponed';
 }
 
 export interface TeamStanding {
   teamId: string;
   teamName: string;
-  logoUrl?: string;
+  logoUrl?: string | null;
   played: number;
   wins: number;
   draws: number;

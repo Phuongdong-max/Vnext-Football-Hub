@@ -539,6 +539,6 @@ export const updateTournament = async (tournamentId: string, data: Partial<Tourn
         await docRef.set(payload, { merge: true });
     } catch (error) {
         console.error("Error updating tournament data:", error);
-        throw new Error("Failed to save tournament data.");
+        throw error;
     }
 };

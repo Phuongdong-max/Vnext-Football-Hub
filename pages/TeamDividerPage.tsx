@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -120,10 +121,10 @@ export const TeamDividerPage: React.FC = () => {
         setIsSaving(true);
         try {
             await updateTeamDivision({ seedPlayers, dividedTeams: finalTeams }, currentUser);
-            addToast(translate('teamDivider.message.saveSuccess'), 'success', true);
+            addToast('teamDivider.message.saveSuccess', 'success');
         } catch (error) {
             console.error(error);
-            addToast(translate('teamDivider.message.saveError'), 'error');
+            addToast('teamDivider.message.saveError', 'error');
         } finally {
             setIsSaving(false);
         }

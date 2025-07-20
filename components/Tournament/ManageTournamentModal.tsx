@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
@@ -51,17 +50,19 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     const handleAddTeam = (event: React.MouseEvent<HTMLButtonElement>) => {
         event.preventDefault();
         if (!newTeamName.trim()) {
-            addToast(translate('manageTournament.error.teamNameRequired'), 'error', true);
+            addToast('manageTournament.error.teamNameRequired', 'error');
             return;
         }
         if (teams.some(t => t.name.toLowerCase() === newTeamName.trim().toLowerCase())) {
-            addToast(translate('manageTournament.error.teamNameExists'), 'error', true);
+            addToast('manageTournament.error.teamNameExists', 'error');
             return;
         }
         const newTeam: TournamentTeam = {
             id: `team_${Date.now()}`,
             name: newTeamName.trim(),
             members: [],
+            logoUrl: null,
+            captainId: null,
         };
         setTeams(prev => [...prev, newTeam]);
         setNewTeamName('');
@@ -78,13 +79,15 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
 
         const team = teams.find(t => t.id === teamId);
         if (team && team.members.some(m => m.name.toLowerCase() === name.toLowerCase())) {
-            addToast(translate('manageTournament.error.memberNameExists'), 'error', true);
+            addToast('manageTournament.error.memberNameExists', 'error');
             return;
         }
         
         const newMember: TournamentMember = {
             id: `member_${Date.now()}_${Math.random().toString(16).slice(2)}`,
             name: name,
+            userId: null,
+            avatarUrl: null,
         };
         
         setTeams(prev => prev.map(t => {
@@ -124,10 +127,10 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
             }
 
             await updateTournament(TOURNAMENT_DOC_ID, dataToSave, currentUser);
-            addToast(translate('manageTournament.saveSuccess'), 'success', true);
+            addToast('manageTournament.saveSuccess', 'success');
             onClose();
         } catch (error) {
-            addToast(translate('manageTournament.saveError', { error: (error as Error).message }), 'error', true);
+            addToast('manageTournament.saveError', 'error', { error: (error as Error).message });
             console.error(error);
         } finally {
             setIsSaving(false);
