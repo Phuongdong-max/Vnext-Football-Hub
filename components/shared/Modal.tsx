@@ -6,7 +6,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
@@ -17,6 +17,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
   };
 
   return (
@@ -35,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             <XIcon className="w-6 h-6" />
           </button>
         </div>
-        <div className="p-5 overflow-y-auto max-h-[70vh]">
+        <div className="p-5 overflow-y-auto max-h-[85vh]">
           {children}
         </div>
       </div>

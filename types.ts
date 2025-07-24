@@ -183,6 +183,7 @@ export interface TournamentTeam {
   logoUrl?: string | null;
   captainId?: string | null;
   members: TournamentMember[];
+  jersey?: string | null;
 }
 
 export interface TournamentMatch {

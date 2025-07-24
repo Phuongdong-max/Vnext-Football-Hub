@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -6,8 +7,10 @@ import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole } f
 import { TOURNAMENT_DOC_ID } from '../constants';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
-import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon } from '../components/icons';
+import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon, TShirtIcon } from '../components/icons';
 import { ManageTournamentModal } from '../components/Tournament/ManageTournamentModal';
+import { TournamentScheduleGeneratorModal } from '../components/Tournament/TournamentScheduleGeneratorModal';
+import { TournamentJerseyDrawModal } from '../components/Tournament/TournamentJerseyDrawModal';
 
 const formatDateForInput = (date: Date | null | undefined): string => {
     if (!date) return '';
@@ -24,8 +27,8 @@ export const TournamentPage: React.FC = () => {
     const [tournament, setTournament] = useState<Tournament | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-    const [newlyGeneratedSchedule, setNewlyGeneratedSchedule] = useState<TournamentMatch[] | null>(null);
-    const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+    const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
+    const [isJerseyDrawModalOpen, setIsJerseyDrawModalOpen] = useState(false);
     
     const [scoreInputs, setScoreInputs] = useState<Record<string, { home: string, away: string }>>({});
     const [dateInputs, setDateInputs] = useState<Record<string, string>>({});
@@ -145,8 +148,6 @@ export const TournamentPage: React.FC = () => {
         return standingsArray;
     };
     
-    // Using useCallback and a functional update for `setTournament` to prevent stale state issues
-    // when multiple updates happen quickly.
     const handleUpdateMatch = useCallback(async (matchId: string) => {
         if (!currentUser) return;
         setUpdatingMatchId(matchId);
@@ -165,7 +166,6 @@ export const TournamentPage: React.FC = () => {
         
         const newDate = dateStr ? new Date(dateStr) : null;
         
-        // Use a functional update to ensure we're working with the latest state
         setTournament(prevTournament => {
             console.log(`[TournamentPage] Starting functional update for match: ${matchId}`);
             if (!prevTournament) {
@@ -191,7 +191,6 @@ export const TournamentPage: React.FC = () => {
             const newStandings = calculateStandings(prevTournament.teams, newSchedule);
             const updatedTournamentData = { ...prevTournament, schedule: newSchedule, standings: newStandings };
 
-            // Perform the async Firestore update as a side effect after calculating the new state.
             (async () => {
                 try {
                     await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
@@ -204,73 +203,39 @@ export const TournamentPage: React.FC = () => {
                 }
             })();
 
-            // Return the new state for an optimistic UI update. The listener will then sync it from Firestore.
             return updatedTournamentData;
         });
     }, [currentUser, addToast, scoreInputs, dateInputs]);
     
-    const handleGenerateSchedule = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-        
-        if (!tournament || !tournament.teams || tournament.teams.length < 2) {
-            addToast('manageTournament.error.minTeamsForSchedule', 'error');
-            return;
-        }
-
-        const teams = [...tournament.teams];
-        if (teams.length % 2 !== 0) {
-            teams.push({ id: 'bye', name: 'BYE', members: [], logoUrl: null, captainId: null });
-        }
-        
-        const numRounds = (teams.length - 1) * 2;
-        const matchesPerRound = teams.length / 2;
-        const schedule: TournamentMatch[] = [];
-        const rotatingTeams = teams.slice(1);
-
-        for (let round = 0; round < numRounds; round++) {
-            for (let i = 0; i < matchesPerRound; i++) {
-                const home = i === 0 ? teams[0] : rotatingTeams[i - 1];
-                const away = i === 0 ? rotatingTeams[rotatingTeams.length - 1] : rotatingTeams[rotatingTeams.length - 1 - i];
-
-                if (home.id === 'bye' || away.id === 'bye') continue;
-                
-                const isSecondHalf = round >= (numRounds / 2);
-                const homeTeamId = (round + i) % 2 === 0 ? (isSecondHalf ? away.id : home.id) : (isSecondHalf ? home.id : away.id);
-                const awayTeamId = (round + i) % 2 === 0 ? (isSecondHalf ? home.id : away.id) : (isSecondHalf ? away.id : home.id);
-
-                schedule.push({
-                    id: crypto.randomUUID(),
-                    round: round + 1,
-                    homeTeamId,
-                    awayTeamId,
-                    status: 'scheduled',
-                    homeTeamScore: null,
-                    awayTeamScore: null,
-                    date: null,
-                });
-            }
-            rotatingTeams.unshift(rotatingTeams.pop()!);
-        }
-
-        setNewlyGeneratedSchedule(schedule);
-        addToast('tournament.toast.scheduleGenerated', 'success');
-    };
-
-    const handleSaveSchedule = async (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-        if (!newlyGeneratedSchedule || !tournament || !currentUser) return;
-        setIsSavingSchedule(true);
+     const handleSaveGeneratedSchedule = async (schedule: TournamentMatch[]) => {
+        if (!tournament || !currentUser) return;
+        setIsLoading(true);
         try {
-            const newStandings = calculateStandings(tournament.teams, newlyGeneratedSchedule);
-            await updateTournament(TOURNAMENT_DOC_ID, { schedule: newlyGeneratedSchedule, standings: newStandings }, currentUser);
+            const newStandings = calculateStandings(tournament.teams, schedule);
+            await updateTournament(TOURNAMENT_DOC_ID, { schedule, standings: newStandings }, currentUser);
             addToast('tournament.success.saveSchedule', 'success');
-            setNewlyGeneratedSchedule(null);
+            setIsGeneratorModalOpen(false);
         } catch(error) {
             addToast('tournament.error.saveScheduleGeneric', 'error', { message: (error as Error).message });
         } finally {
-            setIsSavingSchedule(false);
+            setIsLoading(false);
         }
     };
+
+    const handleSaveJerseys = async (updatedTeams: TournamentTeam[]) => {
+        if (!tournament || !currentUser) return;
+        setIsLoading(true);
+        try {
+            await updateTournament(TOURNAMENT_DOC_ID, { teams: updatedTeams }, currentUser);
+            addToast('manageTournament.saveSuccess', 'success');
+            setIsJerseyDrawModalOpen(false);
+        } catch(error) {
+            addToast('manageTournament.saveError', 'error', { error: (error as Error).message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     if (isLoading) {
         return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4">{translate('tournament.loading')}</p></div>;
@@ -278,41 +243,35 @@ export const TournamentPage: React.FC = () => {
     
     const getTeamName = (teamId: string) => tournament?.teams.find(t => t.id === teamId)?.name || 'Unknown Team';
 
-    const renderAdminScheduleGenerator = () => {
-        if (currentUser?.role !== UserRole.ADMIN || !tournament) return null;
+    const renderScheduleManagement = () => {
+        if (!currentUser || !tournament) return null;
 
         return (
-            <form onSubmit={(e) => e.preventDefault()} className="p-4 bg-surface rounded-lg shadow-md border-t-4 border-primary">
+            <div className="p-4 bg-surface rounded-lg shadow-md border-t-4 border-primary">
                 <h2 className="text-xl font-semibold mb-3">{translate('tournament.generateScheduleSectionTitle')}</h2>
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                     <Button type="button" onClick={handleGenerateSchedule} variant="secondary" disabled={isSavingSchedule}>
+                 <div className="flex flex-wrap gap-2">
+                    <Button 
+                      type="button" 
+                      onClick={() => setIsGeneratorModalOpen(true)}
+                      disabled={!tournament || tournament.teams.length < 2}
+                    >
                         <ArrowPathIcon className="w-5 h-5 mr-2" />
                         {translate('tournament.button.generateSchedule')}
                     </Button>
-                    {newlyGeneratedSchedule && (
-                        <Button type="button" onClick={handleSaveSchedule} variant="primary" disabled={isSavingSchedule}>
-                            {isSavingSchedule ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-                            {isSavingSchedule ? translate('manageTournament.saving') : translate('tournament.saveScheduleButton')}
-                        </Button>
-                    )}
-                </div>
-                {newlyGeneratedSchedule && (
-                    <div className="mt-4">
-                        <h3 className="font-semibold text-textPrimary">{translate('tournament.schedulePreviewTitle')}</h3>
-                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-2">{translate('tournament.scheduleOverwriteWarning')}</p>
-                        <div className="space-y-3 max-h-60 overflow-y-auto p-2 bg-background rounded-md">
-                             {[...new Set(newlyGeneratedSchedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
-                                <div key={`preview-${roundNum}`}>
-                                    <h4 className="text-sm font-semibold text-textSecondary mb-1">{translate('schedule.round', { round: roundNum })}</h4>
-                                    {newlyGeneratedSchedule.filter(m => m.round === roundNum).map(m => (
-                                        <p key={m.id} className="text-xs text-textPrimary pl-2">{getTeamName(m.homeTeamId)} vs {getTeamName(m.awayTeamId)}</p>
-                                    ))}
-                                </div>
-                             ))}
-                        </div>
-                    </div>
+                    <Button 
+                      type="button" 
+                      onClick={() => setIsJerseyDrawModalOpen(true)}
+                      disabled={!tournament || tournament.teams.length < 2}
+                      variant="secondary"
+                    >
+                        <TShirtIcon className="w-5 h-5 mr-2" />
+                        {translate('tournament.button.drawJerseys')}
+                    </Button>
+                 </div>
+                {(!tournament || tournament.teams.length < 2) && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">{translate('manageTournament.error.minTeamsForSchedule')}</p>
                 )}
-            </form>
+            </div>
         );
     };
 
@@ -320,13 +279,13 @@ export const TournamentPage: React.FC = () => {
         return (
             <div className="text-center py-10">
                 <p className="text-textSecondary">{translate('tournament.noData')}</p>
-                {currentUser?.role === UserRole.ADMIN && (
+                {currentUser && (
                      <Button onClick={() => setIsManageModalOpen(true)} className="mt-4">
                         <PlusCircleIcon className="w-5 h-5 mr-2" />
                         {translate('tournament.createButton')}
                     </Button>
                 )}
-                {isManageModalOpen && currentUser?.role === UserRole.ADMIN && (
+                {isManageModalOpen && currentUser && (
                     <ManageTournamentModal
                         isOpen={isManageModalOpen}
                         onClose={() => setIsManageModalOpen(false)}
@@ -341,10 +300,10 @@ export const TournamentPage: React.FC = () => {
     
     return (
         <div className="space-y-12">
-            <header className="flex justify-between items-center">
+            <header className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
-                    <h1 className="text-4xl font-bold text-primary flex items-center">
-                        <TrophyIcon className="w-10 h-10 mr-3" />
+                    <h1 className="text-3xl sm:text-4xl font-bold text-primary flex items-center">
+                        <TrophyIcon className="w-8 h-8 sm:w-10 sm:h-10 mr-3" />
                         {name || translate('tournament.title')}
                     </h1>
                     {lastUpdated && updatedBy && (
@@ -356,7 +315,7 @@ export const TournamentPage: React.FC = () => {
                         </p>
                     )}
                 </div>
-                {currentUser?.role === UserRole.ADMIN && (
+                {currentUser && (
                     <Button onClick={() => setIsManageModalOpen(true)}>
                         <PencilAltIcon className="w-5 h-5 mr-2" />
                         {translate('tournament.manageButton')}
@@ -364,7 +323,7 @@ export const TournamentPage: React.FC = () => {
                 )}
             </header>
             
-            {renderAdminScheduleGenerator()}
+            {renderScheduleManagement()}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
@@ -372,7 +331,8 @@ export const TournamentPage: React.FC = () => {
                     <section>
                         <h2 className="text-2xl font-semibold mb-4 flex items-center"><TableCellsIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.standings')}</h2>
                         <div className="bg-surface shadow-lg rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto">
+                             {/* Desktop Table View */}
+                            <div className="overflow-x-auto hidden md:block">
                                 <table className="min-w-full divide-y divide-border">
                                     <thead className="bg-gray-50 dark:bg-slate-700/50">
                                         <tr>
@@ -404,6 +364,30 @@ export const TournamentPage: React.FC = () => {
                                     </tbody>
                                 </table>
                             </div>
+                            {/* Mobile Card View */}
+                            <div className="block md:hidden">
+                                <ul className="divide-y divide-border">
+                                    {standings?.map((s, index) => (
+                                        <li key={s.teamId} className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center">
+                                                    <span className="w-8 font-bold text-lg text-textSecondary">{index + 1}</span>
+                                                    <span className="font-semibold text-textPrimary">{s.teamName}</span>
+                                                </div>
+                                                <div className="font-bold text-lg text-primary">{s.points} {translate('standingsTable.points')}</div>
+                                            </div>
+                                            <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.played}</p><p className="text-textSecondary">{translate('standingsTable.played')}</p></div>
+                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.wins}</p><p className="text-textSecondary">{translate('standingsTable.wins')}</p></div>
+                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.draws}</p><p className="text-textSecondary">{translate('standingsTable.draws')}</p></div>
+                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.losses}</p><p className="text-textSecondary">{translate('standingsTable.losses')}</p></div>
+                                                <div className="col-span-2 bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.goalsFor}-{s.goalsAgainst}</p><p className="text-textSecondary">GF-GA</p></div>
+                                                <div className="col-span-2 bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.goalDifference}</p><p className="text-textSecondary">{translate('standingsTable.gd')}</p></div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
                     </section>
 
@@ -416,20 +400,21 @@ export const TournamentPage: React.FC = () => {
                                     <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
                                     <div className="space-y-3">
                                         {schedule.filter(m => m.round === roundNum).map(match => (
-                                            <div key={match.id} className="bg-surface shadow-md rounded-lg p-3 grid grid-cols-3 items-center gap-2">
-                                                <div className="flex-1 text-right font-semibold">{getTeamName(match.homeTeamId)}</div>
-                                                <div className="flex flex-col items-center justify-center">
-                                                    {currentUser?.role === UserRole.ADMIN ? (
+                                            <div key={match.id} className="bg-surface shadow-md rounded-lg p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+                                                <div className="w-full md:w-2/5 text-center md:text-right font-semibold">{getTeamName(match.homeTeamId)}</div>
+                                                
+                                                <div className="flex flex-col items-center justify-center my-2 md:my-0">
+                                                    {currentUser ? (
                                                         <>
                                                             <div className="flex items-center space-x-2">
                                                                 <input type="number" min="0" value={scoreInputs[match.id]?.home ?? ''} onChange={(e) => handleScoreInputChange(match.id, 'home', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" aria-label={`${getTeamName(match.homeTeamId)} score`} />
-                                                                <span>-</span>
+                                                                <span className="font-bold">-</span>
                                                                 <input type="number" min="0" value={scoreInputs[match.id]?.away ?? ''} onChange={(e) => handleScoreInputChange(match.id, 'away', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" aria-label={`${getTeamName(match.awayTeamId)} score`} />
                                                             </div>
                                                             <div className="flex items-center space-x-2 mt-2">
                                                                 <input type="date" value={dateInputs[match.id] || ''} onChange={(e) => handleDateInputChange(match.id, e.target.value)} className="w-32 text-center text-xs bg-background border border-border rounded-md p-1 dark:[color-scheme:dark]" aria-label={`${getTeamName(match.homeTeamId)} vs ${getTeamName(match.awayTeamId)} date`} />
                                                                 <Button size="sm" onClick={() => handleUpdateMatch(match.id)} disabled={updatingMatchId === match.id} variant="secondary" className="!px-2 !py-1">
-                                                                    {updatingMatchId === match.id ? <LoadingSpinner size="sm" /> : translate('schedule.updateScore')}
+                                                                    {updatingMatchId === match.id ? <LoadingSpinner size="sm" /> : <PencilAltIcon className="w-4 h-4" />}
                                                                 </Button>
                                                             </div>
                                                         </>
@@ -438,11 +423,11 @@ export const TournamentPage: React.FC = () => {
                                                             <span className="text-xl font-bold px-2 py-1 bg-background rounded-md">
                                                                 {match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : '-'}
                                                             </span>
-                                                            {match.date && <span className="text-xs text-textSecondary mt-1">{formatDateForInput(match.date)}</span>}
+                                                            {match.date && <span className="text-xs text-textSecondary mt-1">{new Date(match.date).toLocaleDateString(language)}</span>}
                                                         </>
                                                     )}
                                                 </div>
-                                                <div className="flex-1 text-left font-semibold">{getTeamName(match.awayTeamId)}</div>
+                                                <div className="w-full md:w-2/5 text-center md:text-left font-semibold">{getTeamName(match.awayTeamId)}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -456,7 +441,10 @@ export const TournamentPage: React.FC = () => {
                      <h2 className="text-2xl font-semibold flex items-center"><UsersIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.teams')}</h2>
                      {teams?.map(team => (
                         <div key={team.id} className="bg-surface shadow-lg rounded-lg p-4">
-                            <h3 className="font-bold text-lg text-primary mb-2">{team.name}</h3>
+                            <h3 className="font-bold text-lg text-primary mb-2">
+                                {team.name}
+                                {team.jersey && <span className="text-sm font-normal text-textSecondary ml-2">({team.jersey})</span>}
+                            </h3>
                             <h4 className="font-semibold text-sm text-textSecondary mb-1">{translate('teamList.members')}</h4>
                             <ul className="space-y-1">
                                 {team.members?.map(member => (
@@ -472,11 +460,27 @@ export const TournamentPage: React.FC = () => {
                 </aside>
             </div>
 
-            {isManageModalOpen && currentUser?.role === UserRole.ADMIN && (
+            {isManageModalOpen && currentUser && (
                 <ManageTournamentModal
                     isOpen={isManageModalOpen}
                     onClose={() => setIsManageModalOpen(false)}
                     tournament={tournament}
+                />
+            )}
+             {isGeneratorModalOpen && tournament && (
+                <TournamentScheduleGeneratorModal
+                    isOpen={isGeneratorModalOpen}
+                    onClose={() => setIsGeneratorModalOpen(false)}
+                    teams={tournament.teams}
+                    onSave={handleSaveGeneratedSchedule}
+                />
+            )}
+             {isJerseyDrawModalOpen && tournament && (
+                <TournamentJerseyDrawModal
+                    isOpen={isJerseyDrawModalOpen}
+                    onClose={() => setIsJerseyDrawModalOpen(false)}
+                    teams={tournament.teams}
+                    onSave={handleSaveJerseys}
                 />
             )}
         </div>

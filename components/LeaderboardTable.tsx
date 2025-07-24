@@ -15,7 +15,8 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaderboardD
 
   return (
     <div className="bg-surface shadow-xl rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="overflow-x-auto hidden md:block">
         <table className="min-w-full divide-y divide-border">
           <thead className="bg-gray-50 dark:bg-slate-700">
             <tr>
@@ -69,6 +70,60 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaderboardD
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="block md:hidden">
+        <ul className="divide-y divide-border">
+          {sortedLeaderboard.map((entry, index) => {
+              const netPointsChange = entry.points - INITIAL_USER_POINTS;
+              const winRate = entry.betsMade > 0 ? (entry.wins / entry.betsMade * 100) : 0;
+              let netChangeColor = 'text-textSecondary';
+              if (netPointsChange > 0) netChangeColor = 'text-success';
+              else if (netPointsChange < 0) netChangeColor = 'text-danger';
+
+              return (
+                 <li key={entry.userId} className={`p-4 ${index < 3 ? 'bg-yellow-50 dark:bg-yellow-500/10' : ''}`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                             <div className="flex items-center font-bold text-lg text-textPrimary w-10">
+                                {index === 0 && <StarIcon className="w-6 h-6 text-yellow-400 dark:text-yellow-300 mr-1" />}
+                                {index === 1 && <StarIcon className="w-6 h-6 text-gray-400 dark:text-slate-400 mr-1" />}
+                                {index === 2 && <StarIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-500 mr-1" />}
+                                {index > 2 && <span className="w-6 text-center">{index + 1}</span>}
+                            </div>
+                            {entry.avatarUrl ? (
+                                <img className="h-10 w-10 rounded-full mr-3 border-2 border-primary/50" src={entry.avatarUrl} alt={entry.userName} />
+                            ) : (
+                                <UserCircleIcon className="h-10 w-10 text-gray-400 dark:text-slate-500 mr-3"/>
+                            )}
+                            <span className="font-semibold text-textPrimary">{entry.userName}</span>
+                        </div>
+                        <div className="text-right">
+                           <p className="font-bold text-lg text-primary">{entry.points}</p>
+                           <p className={`text-xs font-semibold ${netChangeColor}`}>
+                             {netPointsChange > 0 ? '+' : ''}{netPointsChange}
+                           </p>
+                        </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md">
+                            <p className="font-semibold text-textPrimary">{entry.betsMade}</p>
+                            <p className="text-textSecondary">{translate('leaderboardTable.header.betsMade')}</p>
+                        </div>
+                        <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md">
+                            <p className="font-semibold text-textPrimary">{entry.wins}</p>
+                            <p className="text-textSecondary">{translate('leaderboardTable.header.wins')}</p>
+                        </div>
+                        <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md">
+                            <p className="font-semibold text-textPrimary">{winRate.toFixed(1)}%</p>
+                            <p className="text-textSecondary">{translate('leaderboardTable.header.winRate')}</p>
+                        </div>
+                    </div>
+                 </li>
+              )
+          })}
+        </ul>
       </div>
     </div>
   );
