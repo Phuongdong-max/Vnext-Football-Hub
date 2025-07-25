@@ -1,7 +1,8 @@
 
+
 import React from 'react';
 import { APP_TITLE } from '../constants';
-import { SoccerBallIcon, GoogleIcon, PlusIcon, MinusIcon } from './icons'; // Added PlusIcon, MinusIcon
+import { VnfcLogoStatic, VnfcLogoAnimated, GoogleIcon, PlusIcon, MinusIcon } from './icons';
 import { Button } from './shared/Button';
 import { LoadingSpinner } from './shared/LoadingSpinner';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -57,9 +58,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseRe
         };
         if (el.type === 'ball') {
           return (
-            <SoccerBallIcon 
+            <VnfcLogoStatic 
               key={el.id} 
-              className={`floating-soccer-ball text-white ${el.sizeClass} ${el.opacityClass}`} 
+              className={`floating-soccer-ball ${el.sizeClass} ${el.opacityClass}`} 
               style={style}
             />
           );
@@ -82,7 +83,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn, isFirebaseRe
       {/* Main Content - Centered and above decorations */}
       <div className="relative z-10 flex flex-col items-center animate-fadeInContent">
         <div className="mb-10 sm:mb-12">
-          <SoccerBallIcon className="w-28 h-28 sm:w-36 sm:h-36 text-white/95 mx-auto shadow-2xl rounded-full" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))' }}/>
+          <VnfcLogoAnimated className="w-28 h-28 sm:w-36 sm:h-36 mx-auto shadow-2xl rounded-full" style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))' }}/>
           <h1 className="mt-6 text-5xl sm:text-6xl md:text-7xl font-bold text-white tracking-tight" style={{ textShadow: '2px 2px 8px rgba(0,0,0,0.6)' }}>
             {translate(APP_TITLE)}
           </h1>

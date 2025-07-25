@@ -29,7 +29,7 @@ export const TournamentJerseyDrawModal: React.FC<TournamentJerseyDrawModalProps>
     const [diceDisplayText, setDiceDisplayText] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     
-    const diceIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const diceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const resetDraw = useCallback(() => {
         // Clear all jersey assignments to ensure a fresh start for the draw session.

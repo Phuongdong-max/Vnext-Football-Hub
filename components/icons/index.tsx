@@ -123,46 +123,39 @@ export const TrophyIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
-export const SoccerBallIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 100 100"
-    // Removed fixed width and height to allow Tailwind classes to control size
-    {...props}
-  >
-    {/* Main ball circle - fill can be white or transparent depending on desired effect, stroke will take parent color */}
-    <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="5" />
+// New Static Logo Component using CSS Mask for theming
+export const VnfcLogoStatic: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => {
+  const logoUrl = "assets/VFLogo fix.png"; // Path to the logo image
 
-    {/* Pattern group - lines will take parent color, pentagon fill remains black for classic look */}
-    <g stroke="currentColor" strokeWidth="5" strokeLinejoin="round">
-      
-      {/* Central black pentagon */}
-      <polygon 
-        fill="black" // Keep pentagons black for traditional look
-        points="50,38  65.5,49.5  59.5,67.5  40.5,67.5  34.5,49.5"
-      />
+  return (
+    <div
+      {...props}
+      // Apply the theme background color and any passed class names
+      className={`bg-primary ${className || ''}`}
+      style={{
+        ...props.style,
+        // Directly apply the mask properties. This is more robust than using a CSS variable and class.
+        // We use a type assertion to allow for vendor-prefixed properties.
+        'WebkitMaskImage': `url('${logoUrl}')`,
+        'maskImage': `url('${logoUrl}')`,
+        'WebkitMaskSize': 'contain',
+        'maskSize': 'contain',
+        'WebkitMaskRepeat': 'no-repeat',
+        'maskRepeat': 'no-repeat',
+        'WebkitMaskPosition': 'center',
+        'maskPosition': 'center',
+      } as React.CSSProperties}
+      role="img"
+      aria-label="VNEXT FC Logo"
+    />
+  );
+};
 
-      {/* Lines forming hexagons - these will use currentColor for stroke */}
-      <g fill="none" strokeWidth="5" strokeLinecap="round"> {/* Removed stroke="black" here */}
-        <path d="M 50,38 L 50,10" />
-        <path d="M 65.5,49.5 L 85,45" />
-        <path d="M 59.5,67.5 L 69,88" />
-        <path d="M 40.5,67.5 L 31,88" />
-        <path d="M 34.5,49.5 L 15,45" />
-      </g>
 
-      {/* "V" logo inside the pentagon - kept white for contrast against black pentagon */}
-      <path
-        d="M 46 51 L 50 58 L 54 51"
-        fill="none"
-        stroke="currentColor" 
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-    </g>
-  </svg>
+// New Animated Logo Component
+export const VnfcLogoAnimated: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> = (props) => (
+  <img src="assets/VFLogo GIF fix.gif" alt="VNEXT FC Logo Animated" {...props} />
 );
-
 
 
 export const ChartBarIcon: React.FC<IconProps> = (props) => (

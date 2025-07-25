@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { Button } from './shared/Button';
-import { SoccerBallIcon } from './icons';
+import { VnfcLogoStatic } from './icons';
 import { VERIFY_LOCK_SCREEN_PROXY_URL } from '../constants';
 
 interface LockScreenProps {
@@ -66,7 +67,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-900 text-white animated-gradient-bg">
       <div className="relative z-10 w-full max-w-md p-8 bg-surface/10 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20">
-        <SoccerBallIcon className="w-20 h-20 text-white mx-auto mb-6" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}/>
+        <VnfcLogoStatic className="w-20 h-20 mx-auto mb-6" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}/>
         <h1 className="text-2xl font-bold text-center text-white mb-2" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.5)' }}>
           Xác thực quyền truy cập
         </h1>

@@ -1,11 +1,12 @@
 
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { UserRole } from '../types';
-import { SoccerBallIcon, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon, TrophyIcon } from './icons';
+import { VnfcLogoStatic, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon, TrophyIcon } from './icons';
 import { ThemeToggleButton } from './ThemeToggleButton';
 import { LanguageToggleButton } from './LanguageToggleButton';
 
@@ -38,7 +39,7 @@ export const Header: React.FC = () => {
       <div className="container mx-auto px-2 sm:px-4 py-3 flex items-center justify-between">
         <div className="flex items-center flex-shrink-0">
           <Link to="/" className="flex items-center text-xl sm:text-2xl font-bold text-primary">
-            <SoccerBallIcon className="w-8 h-8 mr-2"/>
+            <VnfcLogoStatic className="w-8 h-8 mr-2"/>
             <span className="hidden sm:inline">{translate(APP_TITLE)}</span>
             <span className="sm:hidden">VNFCH</span>
           </Link>

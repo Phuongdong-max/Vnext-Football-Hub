@@ -21,6 +21,21 @@ fs.copyFileSync(
   path.join(distDir, 'index.html')
 );
 
+// Copy logo assets
+const assetsToCopy = ['VFLogo fix.png', 'VFLogo GIF fix.gif'];
+assetsToCopy.forEach(asset => {
+    const sourcePath = path.join(projectRoot, 'assets', asset); // <-- sửa ở đây
+    const destDir = path.join(distDir, 'assets');
+    const destPath = path.join(destDir, asset);
+    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+    if (fs.existsSync(sourcePath)) {
+        fs.copyFileSync(sourcePath, destPath);
+        console.log(`Copied ${asset} to dist/assets.`);
+    } else {
+        console.warn(`Warning: Asset ${asset} not found in assets/. Skipping copy.`);
+    }
+});
+
 // esbuild build configuration
 const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
 // Read GEMINI_API_KEY from .env, but we will define it as process.env.API_KEY for the client

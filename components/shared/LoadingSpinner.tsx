@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SoccerBallIcon } from '../icons'; // Using SoccerBall as a themed spinner
+import { VnfcLogoAnimated } from '../icons'; // Using the animated logo
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -20,9 +20,8 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   return (
-    <SoccerBallIcon 
-      className={`animate-spin ${sizeClasses[size]} ${color} ${className}`} 
+    <VnfcLogoAnimated 
+      className={`${sizeClasses[size]} ${className}`} 
     />
   );
 };
-    

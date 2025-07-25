@@ -20,7 +20,7 @@ import { LeaderboardPage } from './pages/LeaderboardPage';
 import { TeamDividerPage } from './pages/TeamDividerPage';
 import { TournamentPage } from './pages/TournamentPage';
 import { ToastContainer } from './components/shared/ToastContainer';
-import { SoccerBallIcon } from './components/icons';
+import { VnfcLogoStatic, VnfcLogoAnimated } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
 import { LandingPage } from './components/LandingPage';
 import { LockScreen } from './components/LockScreen';
@@ -255,7 +255,7 @@ const AppCore: React.FC = () => {
     
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-textPrimary">
-        <SoccerBallIcon className="w-16 h-16 text-primary animate-spin" />
+        <VnfcLogoAnimated className="w-20 h-20" />
         <p className="ml-4 text-xl font-semibold text-textPrimary">{loadingMessage}</p>
       </div>
     );
@@ -267,7 +267,7 @@ const AppCore: React.FC = () => {
     return (
       <>
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-textPrimary p-4 text-center">
-          <SoccerBallIcon className="w-16 h-16 text-danger mb-4" />
+          <VnfcLogoStatic className="w-16 h-16 mb-4" />
           <h1 className="text-2xl font-bold text-danger mb-2">{errorTitle}</h1>
           <p className="text-textSecondary">{criticalError}</p>
           <p className="mt-4 text-sm text-textSecondary">{errorGuidance}</p>
