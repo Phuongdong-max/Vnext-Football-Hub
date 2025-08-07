@@ -1,7 +1,8 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
 import { APP_TITLE } from './constants'; 
 import { 
@@ -22,7 +23,6 @@ import { TournamentPage } from './pages/TournamentPage';
 import { ToastContainer } from './components/shared/ToastContainer';
 import { VnfcLogoStatic, VnfcLogoAnimated } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
-import { LandingPage } from './components/LandingPage';
 import { LockScreen } from './components/LockScreen';
 import { AppContext, AppContextType, useAppContext } from './contexts/AppContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -277,17 +277,8 @@ const AppCore: React.FC = () => {
     );
   }
   
-  const location = useLocation();
-  
-  if (!currentUser && location.pathname === '/') {
-    return (
-      <AppContext.Provider value={appContextValue}>
-        <LandingPage onSignIn={handleSignInWithGoogle} isFirebaseReady={isFirebaseReady} />
-        <ToastContainer toasts={toasts} setToasts={setToasts} />
-      </AppContext.Provider>
-    );
-  }
-  
+  // The LandingPage is no longer shown by default. The MainApp component, which includes
+  // the standard header and auth components, is now rendered for all users.
   return (
     <AppContext.Provider value={appContextValue}>
         <MainApp />

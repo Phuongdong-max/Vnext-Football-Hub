@@ -170,6 +170,12 @@ export interface TeamDivisionData {
 
 
 // --- Tournament Types ---
+export interface Goal {
+  goalId: string; // To uniquely identify each goal instance
+  scorerName: string;
+  scorerId?: string | null; // Optional link to a TournamentMember
+}
+
 export interface TournamentMember {
   id: string; // Unique ID for the member entry
   name: string;
@@ -195,6 +201,8 @@ export interface TournamentMatch {
   awayTeamScore: number | null;
   date: Date | null;
   status: 'scheduled' | 'finished' | 'postponed';
+  homeTeamGoals?: Goal[];
+  awayTeamGoals?: Goal[];
 }
 
 export interface TeamStanding {

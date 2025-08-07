@@ -137,6 +137,7 @@
   "updateResultModal.button.confirmResult": "Xác Nhận Kết Quả",
   
   "common.button.cancel": "Hủy",
+  "common.button.save": "Lưu",
   "button.viewAiAnalysis": "Xem phân tích AI",
 
   "bettingRoundStatus.open": "Mở",
@@ -270,6 +271,7 @@
   "tournament.standings": "Bảng xếp hạng",
   "tournament.schedule": "Lịch thi đấu",
   "tournament.teams": "Các đội",
+  "tournament.topScorers": "Vua phá lưới",
   "tournament.lastUpdated": "Cập nhật lần cuối bởi {{name}} vào lúc {{date}}",
   "tournament.notUpdated": "Chưa được cập nhật.",
   "tournament.generateScheduleSectionTitle": "Quản lý Lịch thi đấu",
@@ -321,6 +323,8 @@
   "schedule.status.scheduled": "Chưa đá",
   "schedule.updateScore": "Cập nhật",
   "schedule.matchDate": "Ngày",
+  "schedule.dateTBD": "Ngày chưa xác định",
+  "schedule.updateScoreTitle": "Nhấn để cập nhật tỉ số và người ghi bàn",
   "schedule.noMatches": "Chưa có lịch thi đấu cho giải này.",
   "schedule.error.invalidScore": "Tỷ số không hợp lệ. Vui lòng nhập số hợp lệ.",
 
@@ -347,5 +351,17 @@
   "manageTournament.button.saveChanges": "Lưu Thay Đổi",
   "manageTournament.saving": "Đang lưu...",
   "manageTournament.saveSuccess": "Cập nhật giải đấu thành công!",
-  "manageTournament.saveError": "Không thể cập nhật giải đấu: {{error}}"
+  "manageTournament.saveError": "Không thể cập nhật giải đấu: {{error}}",
+
+  "goalscorerModal.title": "Quản lý Bàn thắng cho {{teamName}}",
+  "goalscorerModal.currentScore": "Tỷ số hiện tại",
+  "goalscorerModal.noGoals": "Chưa có bàn thắng.",
+  "goalscorerModal.addGoalFromTeam": "Thêm bàn thắng từ Thành viên Đội",
+  "goalscorerModal.addGuestScorer": "Thêm cầu thủ ghi bàn (Khách)",
+  "goalscorerModal.guestNamePlaceholder": "Tên cầu thủ khách...",
+
+  "topScorersList.goals": "Bàn thắng",
+  "topScorersList.team": "Đội",
+  "topScorersList.noScorers": "Chưa có bàn thắng nào được ghi.",
+  "topScorersList.guest": " (Khách)"
 }

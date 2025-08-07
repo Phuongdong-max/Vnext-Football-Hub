@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, BetTeamSelection, BettingRoundStatus } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -26,20 +27,25 @@ export const MemberHomePage: React.FC = () => {
   const [selectedRoundForBet, setSelectedRoundForBet] = useState<BettingRound | null>(null);
 
   const fetchMemberData = useCallback(async (isManualRefresh = false) => {
-    if (!currentUser) { 
-        setIsLoading(false);
-        return;
-    }
     if(isManualRefresh) setIsDataLoading(true); else setIsLoading(true);
     
     try {
-      let open: BettingRound[] = [], closed: BettingRound[] = [];
+      let openRoundsPromise: Promise<BettingRound[]> = Promise.resolve([]);
+      let closedRoundsPromise: Promise<BettingRound[]> = Promise.resolve([]);
+
       if (isFirebaseReady) {
-        open = await getFirebaseOpenBettingRounds();
-        closed = await getFirebaseClosedBettingRoundsForMember(currentUser.id); 
+        // Always fetch open rounds for all users.
+        openRoundsPromise = getFirebaseOpenBettingRounds();
+        // Only fetch closed (user-specific) rounds if logged in.
+        if (currentUser) {
+          closedRoundsPromise = getFirebaseClosedBettingRoundsForMember(currentUser.id);
+        }
       } else {
         addToast("info.bettingRoundsUnavailableFirebaseNotReady", "info");
       }
+      
+      const [open, closed] = await Promise.all([openRoundsPromise, closedRoundsPromise]);
+
       setOpenRounds(open.sort((a,b) => new Date(a.matchDetails.startTime).getTime() - new Date(b.matchDetails.startTime).getTime() ));
       setClosedRounds(closed.sort((a,b) => new Date(b.matchDetails.startTime).getTime() - new Date(a.matchDetails.startTime).getTime() ));
     } catch (error) {
@@ -51,14 +57,17 @@ export const MemberHomePage: React.FC = () => {
   }, [currentUser, addToast, isFirebaseReady]);
 
   useEffect(() => {
-    if (currentUser && isFirebaseReady) { 
+    // Fetch data as soon as Firebase is ready. The dependency on currentUser
+    // will trigger a re-fetch upon login/logout to get the user-specific `closedRounds`.
+    if (isFirebaseReady) { 
       fetchMemberData();
-    } else if (!currentUser) {
+    } else {
+      // If firebase isn't ready, don't show a loader forever.
       setIsLoading(false); 
       setOpenRounds([]);
       setClosedRounds([]);
     }
-  }, [currentUser, fetchMemberData, isFirebaseReady]); 
+  }, [currentUser, fetchMemberData, isFirebaseReady]);
 
   const handleOpenBettingModal = (round: BettingRound) => {
     if (!currentUser) {

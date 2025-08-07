@@ -1,25 +1,18 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { onTournamentUpdate, updateTournament } from '../services/firebaseService';
-import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole } from '../types';
+import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole, Goal } from '../types';
 import { TOURNAMENT_DOC_ID } from '../constants';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
-import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon, TShirtIcon } from '../components/icons';
+import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon, TShirtIcon, StarIcon } from '../components/icons';
 import { ManageTournamentModal } from '../components/Tournament/ManageTournamentModal';
 import { TournamentScheduleGeneratorModal } from '../components/Tournament/TournamentScheduleGeneratorModal';
 import { TournamentJerseyDrawModal } from '../components/Tournament/TournamentJerseyDrawModal';
-
-const formatDateForInput = (date: Date | null | undefined): string => {
-    if (!date) return '';
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-    const day = d.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+import { GoalscorerModal } from '../components/Tournament/GoalscorerModal';
+import { TopScorersList } from '../components/Tournament/TopScorersList';
 
 export const TournamentPage: React.FC = () => {
     const { translate, language } = useLanguage();
@@ -29,10 +22,10 @@ export const TournamentPage: React.FC = () => {
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
     const [isJerseyDrawModalOpen, setIsJerseyDrawModalOpen] = useState(false);
-    
-    const [scoreInputs, setScoreInputs] = useState<Record<string, { home: string, away: string }>>({});
-    const [dateInputs, setDateInputs] = useState<Record<string, string>>({});
-    const [updatingMatchId, setUpdatingMatchId] = useState<string | null>(null);
+
+    // State for the new Goalscorer modal
+    const [isGoalscorerModalOpen, setIsGoalscorerModalOpen] = useState(false);
+    const [editingMatchInfo, setEditingMatchInfo] = useState<{ match: TournamentMatch; teamType: 'home' | 'away' } | null>(null);
 
     useEffect(() => {
         if (!isFirebaseReady) return;
@@ -48,36 +41,6 @@ export const TournamentPage: React.FC = () => {
         };
     }, [isFirebaseReady]);
     
-    useEffect(() => {
-        if (tournament?.schedule) {
-            const initialScores: Record<string, { home: string, away: string }> = {};
-            const initialDates: Record<string, string> = {};
-            tournament.schedule.forEach(match => {
-                initialScores[match.id] = {
-                    home: match.homeTeamScore?.toString() ?? '',
-                    away: match.awayTeamScore?.toString() ?? ''
-                };
-                initialDates[match.id] = formatDateForInput(match.date);
-            });
-            setScoreInputs(initialScores);
-            setDateInputs(initialDates);
-        }
-    }, [tournament]);
-
-    const handleScoreInputChange = (matchId: string, team: 'home' | 'away', value: string) => {
-        setScoreInputs(prev => ({
-            ...prev,
-            [matchId]: {
-                ...(prev[matchId] || { home: '', away: '' }),
-                [team]: value
-            }
-        }));
-    };
-    
-    const handleDateInputChange = (matchId: string, value: string) => {
-        setDateInputs(prev => ({ ...prev, [matchId]: value }));
-    };
-
     const calculateStandings = (teams: TournamentTeam[], schedule: TournamentMatch[]): TeamStanding[] => {
         console.log("[TournamentPage] Starting standings calculation...");
         const standingsMap: { [teamId: string]: TeamStanding } = {};
@@ -99,7 +62,10 @@ export const TournamentPage: React.FC = () => {
         });
 
         schedule.forEach(match => {
-            if (match.status !== 'finished' || typeof match.homeTeamScore !== 'number' || typeof match.awayTeamScore !== 'number') {
+            const homeScore = match.homeTeamGoals?.length ?? match.homeTeamScore;
+            const awayScore = match.awayTeamGoals?.length ?? match.awayTeamScore;
+
+            if (match.status !== 'finished' || typeof homeScore !== 'number' || typeof awayScore !== 'number') {
                  console.log(`[TournamentPage] Skipping match ${match.id} from standings (not finished).`);
                 return;
             }
@@ -114,16 +80,16 @@ export const TournamentPage: React.FC = () => {
 
             home.played++;
             away.played++;
-            home.goalsFor += match.homeTeamScore;
-            away.goalsFor += match.awayTeamScore;
-            home.goalsAgainst += match.awayTeamScore;
-            away.goalsAgainst += match.homeTeamScore;
+            home.goalsFor += homeScore;
+            away.goalsFor += awayScore;
+            home.goalsAgainst += awayScore;
+            away.goalsAgainst += homeScore;
             
-            if (match.homeTeamScore > match.awayTeamScore) {
+            if (homeScore > awayScore) {
                 home.wins++;
                 away.losses++;
                 home.points += 3;
-            } else if (match.homeTeamScore < match.awayTeamScore) {
+            } else if (homeScore < awayScore) {
                 away.wins++;
                 home.losses++;
                 away.points += 3;
@@ -148,64 +114,91 @@ export const TournamentPage: React.FC = () => {
         return standingsArray;
     };
     
-    const handleUpdateMatch = useCallback(async (matchId: string) => {
-        if (!currentUser) return;
-        setUpdatingMatchId(matchId);
+    const topScorers = useMemo(() => {
+        if (!tournament?.schedule || !tournament?.teams) return [];
 
-        const scores = scoreInputs[matchId];
-        const dateStr = dateInputs[matchId];
-        
-        const homeScore = scores.home.trim() === '' ? null : parseInt(scores.home, 10);
-        const awayScore = scores.away.trim() === '' ? null : parseInt(scores.away, 10);
-    
-        if ((scores.home.trim() !== '' && (isNaN(homeScore!) || homeScore! < 0)) || (scores.away.trim() !== '' && (isNaN(awayScore!) || awayScore! < 0))) {
-            addToast('schedule.error.invalidScore', 'error');
-            setUpdatingMatchId(null);
-            return;
-        }
-        
-        const newDate = dateStr ? new Date(dateStr) : null;
-        
-        setTournament(prevTournament => {
-            console.log(`[TournamentPage] Starting functional update for match: ${matchId}`);
-            if (!prevTournament) {
-                console.error("[TournamentPage] Cannot update match, previous tournament state is null.");
-                addToast('tournament.error.updateMatchGeneric', 'error', { message: 'Tournament data not loaded.' });
-                setUpdatingMatchId(null);
-                return null;
-            }
+        const scorerStats: Record<string, {
+            name: string;
+            goals: number;
+            teamId: string;
+            isGuest: boolean;
+        }> = {};
 
-            const newSchedule = prevTournament.schedule.map(match => {
-                if (match.id === matchId) {
-                    return {
-                        ...match,
-                        homeTeamScore: homeScore,
-                        awayTeamScore: awayScore,
-                        date: newDate,
-                        status: (homeScore !== null && awayScore !== null) ? 'finished' : 'scheduled'
-                    } as TournamentMatch;
-                }
-                return match;
-            });
-        
-            const newStandings = calculateStandings(prevTournament.teams, newSchedule);
-            const updatedTournamentData = { ...prevTournament, schedule: newSchedule, standings: newStandings };
+        tournament.schedule.forEach(match => {
+            const processGoals = (goals: Goal[] = [], teamId: string) => {
+                goals.forEach(goal => {
+                    const key = goal.scorerId ? goal.scorerId : `guest_${goal.scorerName}`;
+                    if (!scorerStats[key]) {
+                        scorerStats[key] = { name: goal.scorerName, goals: 0, teamId: teamId, isGuest: !goal.scorerId };
+                    }
+                    scorerStats[key].goals++;
+                    scorerStats[key].teamId = teamId;
+                });
+            };
 
-            (async () => {
-                try {
-                    await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
-                    addToast('tournament.success.updateMatch', 'success');
-                } catch (error) {
-                    addToast('tournament.error.updateMatchGeneric', 'error', { message: (error as Error).message });
-                    console.error("Error in async update part of handleUpdateMatch:", error);
-                } finally {
-                    setUpdatingMatchId(null);
-                }
-            })();
-
-            return updatedTournamentData;
+            processGoals(match.homeTeamGoals, match.homeTeamId);
+            processGoals(match.awayTeamGoals, match.awayTeamId);
         });
-    }, [currentUser, addToast, scoreInputs, dateInputs]);
+
+        const topScorersList = Object.values(scorerStats).map(stats => ({
+            ...stats,
+            teamName: tournament.teams.find(t => t.id === stats.teamId)?.name || '?',
+        }));
+
+        topScorersList.sort((a, b) => {
+            if (b.goals !== a.goals) {
+                return b.goals - a.goals;
+            }
+            return a.name.localeCompare(b.name);
+        });
+
+        return topScorersList;
+    }, [tournament]);
+
+    const handleOpenGoalscorerModal = (match: TournamentMatch, teamType: 'home' | 'away') => {
+        if (!currentUser) return;
+        setEditingMatchInfo({ match, teamType });
+        setIsGoalscorerModalOpen(true);
+    };
+
+    const handleSaveGoals = async (matchId: string, teamType: 'home' | 'away', goals: Goal[]) => {
+        if (!currentUser || !tournament) return;
+        setIsLoading(true);
+
+        const newSchedule = tournament.schedule.map(match => {
+            if (match.id === matchId) {
+                const newScore = goals.length;
+                const updatedMatch = { ...match };
+
+                if (teamType === 'home') {
+                    updatedMatch.homeTeamGoals = goals;
+                    updatedMatch.homeTeamScore = newScore;
+                } else {
+                    updatedMatch.awayTeamGoals = goals;
+                    updatedMatch.awayTeamScore = newScore;
+                }
+                
+                const homeScore = updatedMatch.homeTeamScore;
+                const awayScore = updatedMatch.awayTeamScore;
+                updatedMatch.status = (homeScore !== null && awayScore !== null) ? 'finished' : 'scheduled';
+                return updatedMatch;
+            }
+            return match;
+        });
+
+        const newStandings = calculateStandings(tournament.teams, newSchedule);
+        
+        try {
+            await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
+            addToast('tournament.success.updateMatch', 'success');
+            setIsGoalscorerModalOpen(false);
+            setEditingMatchInfo(null);
+        } catch (error) {
+            addToast('tournament.error.updateMatchGeneric', 'error', { message: (error as Error).message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
     
      const handleSaveGeneratedSchedule = async (schedule: TournamentMatch[]) => {
         if (!tournament || !currentUser) return;
@@ -390,6 +383,15 @@ export const TournamentPage: React.FC = () => {
                             </div>
                         </div>
                     </section>
+                    
+                    {/* Top Scorers */}
+                    <section>
+                        <h2 className="text-2xl font-semibold mb-4 flex items-center">
+                            <StarIcon className="w-6 h-6 mr-2 text-primary" />
+                            {translate('tournament.topScorers')}
+                        </h2>
+                        <TopScorersList scorers={topScorers} />
+                    </section>
 
                      {/* Schedule */}
                     <section>
@@ -405,26 +407,29 @@ export const TournamentPage: React.FC = () => {
                                                 
                                                 <div className="flex flex-col items-center justify-center my-2 md:my-0">
                                                     {currentUser ? (
-                                                        <>
-                                                            <div className="flex items-center space-x-2">
-                                                                <input type="number" min="0" value={scoreInputs[match.id]?.home ?? ''} onChange={(e) => handleScoreInputChange(match.id, 'home', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" aria-label={`${getTeamName(match.homeTeamId)} score`} />
-                                                                <span className="font-bold">-</span>
-                                                                <input type="number" min="0" value={scoreInputs[match.id]?.away ?? ''} onChange={(e) => handleScoreInputChange(match.id, 'away', e.target.value)} className="w-12 text-center bg-background border border-border rounded-md p-1" aria-label={`${getTeamName(match.awayTeamId)} score`} />
-                                                            </div>
-                                                            <div className="flex items-center space-x-2 mt-2">
-                                                                <input type="date" value={dateInputs[match.id] || ''} onChange={(e) => handleDateInputChange(match.id, e.target.value)} className="w-32 text-center text-xs bg-background border border-border rounded-md p-1 dark:[color-scheme:dark]" aria-label={`${getTeamName(match.homeTeamId)} vs ${getTeamName(match.awayTeamId)} date`} />
-                                                                <Button size="sm" onClick={() => handleUpdateMatch(match.id)} disabled={updatingMatchId === match.id} variant="secondary" className="!px-2 !py-1">
-                                                                    {updatingMatchId === match.id ? <LoadingSpinner size="sm" /> : <PencilAltIcon className="w-4 h-4" />}
-                                                                </Button>
-                                                            </div>
-                                                        </>
+                                                        <div className="flex items-center space-x-2">
+                                                            <button
+                                                                onClick={() => handleOpenGoalscorerModal(match, 'home')}
+                                                                className="flex items-center justify-center w-24 text-lg font-bold text-center bg-background dark:bg-slate-700 border border-border rounded-lg p-2 cursor-pointer hover:bg-primary/10 hover:border-primary/50 transition-colors shadow-sm"
+                                                                aria-label={`Update score for ${getTeamName(match.homeTeamId)}`}
+                                                                title={translate('schedule.updateScoreTitle')}
+                                                            >
+                                                                <span>{match.homeTeamScore ?? '0'}</span>
+                                                            </button>
+                                                            <span className="font-bold text-lg">-</span>
+                                                             <button
+                                                                onClick={() => handleOpenGoalscorerModal(match, 'away')}
+                                                                className="flex items-center justify-center w-24 text-lg font-bold text-center bg-background dark:bg-slate-700 border border-border rounded-lg p-2 cursor-pointer hover:bg-primary/10 hover:border-primary/50 transition-colors shadow-sm"
+                                                                aria-label={`Update score for ${getTeamName(match.awayTeamId)}`}
+                                                                title={translate('schedule.updateScoreTitle')}
+                                                            >
+                                                                <span>{match.awayTeamScore ?? '0'}</span>
+                                                            </button>
+                                                        </div>
                                                     ) : (
-                                                        <>
-                                                            <span className="text-xl font-bold px-2 py-1 bg-background rounded-md">
-                                                                {match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : '-'}
-                                                            </span>
-                                                            {match.date && <span className="text-xs text-textSecondary mt-1">{new Date(match.date).toLocaleDateString(language)}</span>}
-                                                        </>
+                                                        <span className="text-xl font-bold px-2 py-1 bg-background rounded-md">
+                                                            {match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}
+                                                        </span>
                                                     )}
                                                 </div>
                                                 <div className="w-full md:w-2/5 text-center md:text-left font-semibold">{getTeamName(match.awayTeamId)}</div>
@@ -481,6 +486,16 @@ export const TournamentPage: React.FC = () => {
                     onClose={() => setIsJerseyDrawModalOpen(false)}
                     teams={tournament.teams}
                     onSave={handleSaveJerseys}
+                />
+            )}
+             {isGoalscorerModalOpen && editingMatchInfo && tournament && (
+                <GoalscorerModal
+                    isOpen={isGoalscorerModalOpen}
+                    onClose={() => setIsGoalscorerModalOpen(false)}
+                    match={editingMatchInfo.match}
+                    teamType={editingMatchInfo.teamType}
+                    allTeams={tournament.teams}
+                    onSave={handleSaveGoals}
                 />
             )}
         </div>

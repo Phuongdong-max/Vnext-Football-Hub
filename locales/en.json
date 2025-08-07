@@ -137,6 +137,7 @@
   "updateResultModal.button.confirmResult": "Confirm Result",
   
   "common.button.cancel": "Cancel",
+  "common.button.save": "Save",
   "button.viewAiAnalysis": "View AI Analysis",
 
   "bettingRoundStatus.open": "Open",
@@ -270,6 +271,7 @@
   "tournament.standings": "Standings",
   "tournament.schedule": "Schedule",
   "tournament.teams": "Teams",
+  "tournament.topScorers": "Top Scorers",
   "tournament.lastUpdated": "Last Updated by {{name}} on {{date}}",
   "tournament.notUpdated": "Not yet updated.",
   "tournament.generateScheduleSectionTitle": "Schedule Management",
@@ -321,6 +323,8 @@
   "schedule.status.scheduled": "Scheduled",
   "schedule.updateScore": "Update",
   "schedule.matchDate": "Date",
+  "schedule.dateTBD": "Date TBD",
+  "schedule.updateScoreTitle": "Click to update score and goalscorers",
   "schedule.noMatches": "No matches have been scheduled for this tournament yet.",
   "schedule.error.invalidScore": "Invalid score. Please enter a valid number.",
 
@@ -347,5 +351,17 @@
   "manageTournament.button.saveChanges": "Save Changes",
   "manageTournament.saving": "Saving...",
   "manageTournament.saveSuccess": "Tournament updated successfully!",
-  "manageTournament.saveError": "Failed to update tournament: {{error}}"
+  "manageTournament.saveError": "Failed to update tournament: {{error}}",
+
+  "goalscorerModal.title": "Manage Goals for {{teamName}}",
+  "goalscorerModal.currentScore": "Current Score",
+  "goalscorerModal.noGoals": "No goals yet.",
+  "goalscorerModal.addGoalFromTeam": "Add Goal from Team Members",
+  "goalscorerModal.addGuestScorer": "Add Guest Scorer",
+  "goalscorerModal.guestNamePlaceholder": "Guest scorer name...",
+
+  "topScorersList.goals": "Goals",
+  "topScorersList.team": "Team",
+  "topScorersList.noScorers": "No goals have been scored yet.",
+  "topScorersList.guest": " (Guest)"
 }
