@@ -176,6 +176,13 @@ export interface Goal {
   scorerId?: string | null; // Optional link to a TournamentMember
 }
 
+export interface TournamentPlayer {
+  id: string;
+  name: string;
+  jerseyNumber: number;
+}
+
+// This is used by the ManageTournamentModal, but the actual data in Firestore might be different
 export interface TournamentMember {
   id: string; // Unique ID for the member entry
   name: string;
@@ -188,8 +195,9 @@ export interface TournamentTeam {
   name:string;
   logoUrl?: string | null;
   captainId?: string | null;
-  members: TournamentMember[];
+  members: { playerId: string }[];
   jersey?: string | null;
+  color?: string | null;
 }
 
 export interface TournamentMatch {
@@ -217,12 +225,14 @@ export interface TeamStanding {
   goalsAgainst: number;
   goalDifference: number;
   points: number;
+  teamColor?: string | null;
 }
 
 export interface Tournament {
   id: string; // Document ID in Firestore
   name: string;
   teams: TournamentTeam[];
+  players?: TournamentPlayer[];
   schedule: TournamentMatch[];
   standings: TeamStanding[]; // This will be calculated and stored
   lastUpdated?: any; // Firestore Timestamp

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { TournamentMatch, Goal, TournamentTeam } from '../../types';
+import { TournamentMatch, Goal, TournamentTeam, TournamentPlayer } from '../../types';
 import { PlusIcon, XIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
@@ -12,10 +12,11 @@ interface GoalscorerModalProps {
     match: TournamentMatch;
     teamType: 'home' | 'away';
     allTeams: TournamentTeam[];
+    allPlayers: TournamentPlayer[];
     onSave: (matchId: string, teamType: 'home' | 'away', goals: Goal[]) => Promise<void>;
 }
 
-export const GoalscorerModal: React.FC<GoalscorerModalProps> = ({ isOpen, onClose, match, teamType, allTeams, onSave }) => {
+export const GoalscorerModal: React.FC<GoalscorerModalProps> = ({ isOpen, onClose, match, teamType, allTeams, allPlayers, onSave }) => {
     const { translate } = useLanguage();
     const [goals, setGoals] = useState<Goal[]>([]);
     const [guestScorerName, setGuestScorerName] = useState('');
@@ -24,7 +25,10 @@ export const GoalscorerModal: React.FC<GoalscorerModalProps> = ({ isOpen, onClos
     const teamId = teamType === 'home' ? match.homeTeamId : match.awayTeamId;
     const team = allTeams.find(t => t.id === teamId);
     const teamName = team?.name || 'Unknown Team';
-    const teamMembers = team?.members || [];
+    
+    // Correctly find team members by mapping player IDs to the global players list
+    const teamMemberIds = team?.members.map(m => m.playerId) || [];
+    const teamPlayers = allPlayers.filter(p => teamMemberIds.includes(p.id));
 
     useEffect(() => {
         if (isOpen) {
@@ -86,9 +90,9 @@ export const GoalscorerModal: React.FC<GoalscorerModalProps> = ({ isOpen, onClos
                 <div>
                     <h4 className="font-semibold text-textPrimary mb-2">{translate('goalscorerModal.addGoalFromTeam')}</h4>
                     <div className="flex flex-wrap gap-2">
-                        {teamMembers.map(member => (
-                            <Button key={member.id} variant="outline" size="sm" onClick={() => addGoal(member.name, member.id)}>
-                                {member.name}
+                        {teamPlayers.map(player => (
+                            <Button key={player.id} variant="outline" size="sm" onClick={() => addGoal(player.name, player.id)}>
+                                {player.name}
                             </Button>
                         ))}
                     </div>

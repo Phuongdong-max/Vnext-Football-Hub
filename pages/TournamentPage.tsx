@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -14,6 +13,22 @@ import { TournamentJerseyDrawModal } from '../components/Tournament/TournamentJe
 import { GoalscorerModal } from '../components/Tournament/GoalscorerModal';
 import { TopScorersList } from '../components/Tournament/TopScorersList';
 
+const TeamDisplay = ({ teamId, alignment = 'start', teams }: { teamId: string, alignment?: 'start' | 'end', teams: TournamentTeam[] }) => {
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return <div className="w-full md:w-2/5 text-center font-semibold text-textPrimary">Unknown Team</div>;
+
+    const teamColor = team.color || '#a1a1aa'; // default slate-400
+    const alignClass = alignment === 'end' ? 'md:flex-row-reverse' : 'md:flex-row';
+    const textAlign = alignment === 'end' ? 'md:text-right' : 'md:text-left';
+
+    return (
+        <div className={`flex items-center justify-center ${textAlign} w-full md:w-2/5 font-semibold text-textPrimary ${alignClass} gap-3`}>
+            <div style={{ backgroundColor: teamColor }} className={`w-1 h-4 rounded-full flex-shrink-0`}></div>
+            <span>{team.name}</span>
+        </div>
+    );
+};
+
 export const TournamentPage: React.FC = () => {
     const { translate, language } = useLanguage();
     const { currentUser, isFirebaseReady, addToast } = useAppContext();
@@ -23,18 +38,24 @@ export const TournamentPage: React.FC = () => {
     const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
     const [isJerseyDrawModalOpen, setIsJerseyDrawModalOpen] = useState(false);
 
-    // State for the new Goalscorer modal
     const [isGoalscorerModalOpen, setIsGoalscorerModalOpen] = useState(false);
     const [editingMatchInfo, setEditingMatchInfo] = useState<{ match: TournamentMatch; teamType: 'home' | 'away' } | null>(null);
 
+    // Effect for fetching data
     useEffect(() => {
-        if (!isFirebaseReady) return;
+        if (!isFirebaseReady) {
+            setIsLoading(false);
+            return;
+        }
+
         console.log("[TournamentPage] Subscribing to tournament updates...");
+        setIsLoading(true);
         const unsubscribe = onTournamentUpdate(TOURNAMENT_DOC_ID, (data) => {
             console.log("[TournamentPage] Received data from Firestore listener:", data);
             setTournament(data);
             setIsLoading(false);
         });
+        
         return () => {
             console.log("[TournamentPage] Unsubscribing from tournament updates.");
             unsubscribe();
@@ -50,6 +71,7 @@ export const TournamentPage: React.FC = () => {
                 teamId: team.id,
                 teamName: team.name,
                 logoUrl: team.logoUrl ?? null,
+                teamColor: team.color ?? null,
                 played: 0,
                 wins: 0,
                 draws: 0,
@@ -189,7 +211,7 @@ export const TournamentPage: React.FC = () => {
         const newStandings = calculateStandings(tournament.teams, newSchedule);
         
         try {
-            await updateTournament(TOURNAMENT_DOC_ID, { schedule: newSchedule, standings: newStandings }, currentUser);
+            await updateTournament(TOURNAMENT_DOC_ID, { teams: tournament.teams, players: tournament.players, schedule: newSchedule, standings: newStandings }, currentUser);
             addToast('tournament.success.updateMatch', 'success');
             setIsGoalscorerModalOpen(false);
             setEditingMatchInfo(null);
@@ -205,7 +227,7 @@ export const TournamentPage: React.FC = () => {
         setIsLoading(true);
         try {
             const newStandings = calculateStandings(tournament.teams, schedule);
-            await updateTournament(TOURNAMENT_DOC_ID, { schedule, standings: newStandings }, currentUser);
+            await updateTournament(TOURNAMENT_DOC_ID, { teams: tournament.teams, players: tournament.players, schedule, standings: newStandings }, currentUser);
             addToast('tournament.success.saveSchedule', 'success');
             setIsGeneratorModalOpen(false);
         } catch(error) {
@@ -219,7 +241,7 @@ export const TournamentPage: React.FC = () => {
         if (!tournament || !currentUser) return;
         setIsLoading(true);
         try {
-            await updateTournament(TOURNAMENT_DOC_ID, { teams: updatedTeams }, currentUser);
+            await updateTournament(TOURNAMENT_DOC_ID, { teams: updatedTeams, players: tournament.players }, currentUser);
             addToast('manageTournament.saveSuccess', 'success');
             setIsJerseyDrawModalOpen(false);
         } catch(error) {
@@ -229,45 +251,12 @@ export const TournamentPage: React.FC = () => {
         }
     };
 
-
     if (isLoading) {
-        return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4">{translate('tournament.loading')}</p></div>;
+        return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4 text-textPrimary">{translate('tournament.loading')}</p></div>;
     }
+
+    const panelClasses = "bg-surface shadow-lg rounded-lg";
     
-    const getTeamName = (teamId: string) => tournament?.teams.find(t => t.id === teamId)?.name || 'Unknown Team';
-
-    const renderScheduleManagement = () => {
-        if (!currentUser || !tournament) return null;
-
-        return (
-            <div className="p-4 bg-surface rounded-lg shadow-md border-t-4 border-primary">
-                <h2 className="text-xl font-semibold mb-3">{translate('tournament.generateScheduleSectionTitle')}</h2>
-                 <div className="flex flex-wrap gap-2">
-                    <Button 
-                      type="button" 
-                      onClick={() => setIsGeneratorModalOpen(true)}
-                      disabled={!tournament || tournament.teams.length < 2}
-                    >
-                        <ArrowPathIcon className="w-5 h-5 mr-2" />
-                        {translate('tournament.button.generateSchedule')}
-                    </Button>
-                    <Button 
-                      type="button" 
-                      onClick={() => setIsJerseyDrawModalOpen(true)}
-                      disabled={!tournament || tournament.teams.length < 2}
-                      variant="secondary"
-                    >
-                        <TShirtIcon className="w-5 h-5 mr-2" />
-                        {translate('tournament.button.drawJerseys')}
-                    </Button>
-                 </div>
-                {(!tournament || tournament.teams.length < 2) && (
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">{translate('manageTournament.error.minTeamsForSchedule')}</p>
-                )}
-            </div>
-        );
-    };
-
     if (!tournament) {
         return (
             <div className="text-center py-10">
@@ -289,18 +278,18 @@ export const TournamentPage: React.FC = () => {
         );
     }
     
-    const { name, teams, schedule, standings, lastUpdated, updatedBy } = tournament;
+    const { name, teams, schedule, standings, lastUpdated, updatedBy, players } = tournament;
     
     return (
         <div className="space-y-12">
-            <header className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl sm:text-4xl font-bold text-primary flex items-center">
-                        <TrophyIcon className="w-8 h-8 sm:w-10 sm:h-10 mr-3" />
-                        {name || translate('tournament.title')}
+            <header className="relative text-center">
+                <div className="bg-surface backdrop-blur-sm p-6 rounded-xl shadow-lg inline-block border border-border">
+                    <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-primary" style={{ filter: 'drop-shadow(0 4px 8px rgba(253, 224, 71, 0.3))' }} />
+                    <h1 className="text-4xl sm:text-5xl font-bold text-textPrimary tracking-tight">
+                        {name || 'VNext Open Cup Season 1'}
                     </h1>
-                    {lastUpdated && updatedBy && (
-                        <p className="text-xs text-textSecondary mt-1">
+                     {lastUpdated && updatedBy && (
+                        <p className="text-xs text-textSecondary mt-2">
                             {translate('tournament.lastUpdated', {
                                 name: updatedBy.name,
                                 date: new Date(lastUpdated).toLocaleString(language)
@@ -308,158 +297,172 @@ export const TournamentPage: React.FC = () => {
                         </p>
                     )}
                 </div>
-                {currentUser && (
-                    <Button onClick={() => setIsManageModalOpen(true)}>
-                        <PencilAltIcon className="w-5 h-5 mr-2" />
-                        {translate('tournament.manageButton')}
-                    </Button>
+                 {!!currentUser && (
+                    <div className="absolute top-0 right-0">
+                        <Button onClick={() => setIsManageModalOpen(true)}>
+                            <PencilAltIcon className="w-5 h-5 mr-2" />
+                            {translate('tournament.manageButton')}
+                        </Button>
+                    </div>
                 )}
             </header>
             
-            {renderScheduleManagement()}
+            {!!currentUser && (
+                <div className={`${panelClasses} p-4`}>
+                    <h2 className="text-xl font-semibold mb-3 text-textPrimary">{translate('tournament.generateScheduleSectionTitle')}</h2>
+                     <div className="flex flex-wrap gap-2">
+                        <Button 
+                          type="button" 
+                          onClick={() => setIsGeneratorModalOpen(true)}
+                          disabled={!tournament || tournament.teams.length < 2}
+                        >
+                            <ArrowPathIcon className="w-5 h-5 mr-2" />
+                            {translate('tournament.button.generateSchedule')}
+                        </Button>
+                        <Button 
+                          type="button" 
+                          onClick={() => setIsJerseyDrawModalOpen(true)}
+                          disabled={!tournament || tournament.teams.length < 2}
+                          variant="secondary"
+                        >
+                            <TShirtIcon className="w-5 h-5 mr-2" />
+                            {translate('tournament.button.drawJerseys')}
+                        </Button>
+                     </div>
+                    {(!tournament || tournament.teams.length < 2) && (
+                        <p className="text-xs text-yellow-400 mt-2">{translate('manageTournament.error.minTeamsForSchedule')}</p>
+                    )}
+                </div>
+            )}
+
+            {/* Standings */}
+            <section>
+                <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary"><TableCellsIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.standings')}</h2>
+                <div className={`${panelClasses} overflow-hidden`}>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-border">
+                            <thead className="bg-gray-50 dark:bg-slate-700/50">
+                                <tr>
+                                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('standingsTable.team')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.wins')}>{translate('standingsTable.wins')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.draws')}>{translate('standingsTable.draws')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.losses')}>{translate('standingsTable.losses')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.gf')}>{translate('standingsTable.gf')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.ga')}>{translate('standingsTable.ga')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.gd')}>{translate('standingsTable.gd')}</th>
+                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.points')}>{translate('standingsTable.points')}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {standings?.map((s, index) => (
+                                    <tr key={s.teamId} className="hover:bg-gray-100 dark:hover:bg-slate-800/60 transition-colors">
+                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center text-textPrimary font-medium">
+                                                <span className="w-6 text-center mr-2 font-semibold text-textSecondary">{index + 1}</span>
+                                                <div style={{ backgroundColor: s.teamColor || '#a1a1aa' }} className="w-1 h-4 rounded-full mr-3 flex-shrink-0"></div>
+                                                {s.teamName}
+                                            </div>
+                                        </td>
+                                        <td className="px-2 py-4 text-center text-textSecondary">{s.played}</td>
+                                        <td className="px-2 py-4 text-center font-semibold text-green-500">{s.wins}</td>
+                                        <td className="px-2 py-4 text-center font-semibold text-yellow-500">{s.draws}</td>
+                                        <td className="px-2 py-4 text-center font-semibold text-red-500">{s.losses}</td>
+                                        <td className="px-2 py-4 text-center text-textSecondary">{s.goalsFor}</td>
+                                        <td className="px-2 py-4 text-center text-textSecondary">{s.goalsAgainst}</td>
+                                        <td className="px-2 py-4 text-center font-semibold text-textSecondary">{s.goalDifference}</td>
+                                        <td className="px-2 py-4 text-center font-extrabold text-primary bg-primary/10">{s.points}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Standings */}
-                    <section>
-                        <h2 className="text-2xl font-semibold mb-4 flex items-center"><TableCellsIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.standings')}</h2>
-                        <div className="bg-surface shadow-lg rounded-lg overflow-hidden">
-                             {/* Desktop Table View */}
-                            <div className="overflow-x-auto hidden md:block">
-                                <table className="min-w-full divide-y divide-border">
-                                    <thead className="bg-gray-50 dark:bg-slate-700/50">
-                                        <tr>
-                                            <th className="px-3 sm:px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('standingsTable.team')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.wins')}>{translate('standingsTable.wins')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.draws')}>{translate('standingsTable.draws')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.losses')}>{translate('standingsTable.losses')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.gf')}>{translate('standingsTable.gf')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.ga')}>{translate('standingsTable.ga')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.gd')}>{translate('standingsTable.gd')}</th>
-                                            <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.points')}>{translate('standingsTable.points')}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-surface divide-y divide-border">
-                                        {standings?.map((s, index) => (
-                                            <tr key={s.teamId} className="hover:bg-primary/5 transition-colors">
-                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap"><div className="flex items-center"><span className="w-6 text-center mr-2 font-semibold text-textSecondary">{index + 1}</span> {s.teamName}</div></td>
-                                                <td className="px-2 py-4 text-center">{s.played}</td>
-                                                <td className="px-2 py-4 text-center text-green-600">{s.wins}</td>
-                                                <td className="px-2 py-4 text-center text-yellow-600">{s.draws}</td>
-                                                <td className="px-2 py-4 text-center text-red-600">{s.losses}</td>
-                                                <td className="px-2 py-4 text-center">{s.goalsFor}</td>
-                                                <td className="px-2 py-4 text-center">{s.goalsAgainst}</td>
-                                                <td className="px-2 py-4 text-center font-semibold">{s.goalDifference}</td>
-                                                <td className="px-2 py-4 text-center font-bold text-primary">{s.points}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {/* Mobile Card View */}
-                            <div className="block md:hidden">
-                                <ul className="divide-y divide-border">
-                                    {standings?.map((s, index) => (
-                                        <li key={s.teamId} className="p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center">
-                                                    <span className="w-8 font-bold text-lg text-textSecondary">{index + 1}</span>
-                                                    <span className="font-semibold text-textPrimary">{s.teamName}</span>
-                                                </div>
-                                                <div className="font-bold text-lg text-primary">{s.points} {translate('standingsTable.points')}</div>
-                                            </div>
-                                            <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
-                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.played}</p><p className="text-textSecondary">{translate('standingsTable.played')}</p></div>
-                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.wins}</p><p className="text-textSecondary">{translate('standingsTable.wins')}</p></div>
-                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.draws}</p><p className="text-textSecondary">{translate('standingsTable.draws')}</p></div>
-                                                <div className="bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.losses}</p><p className="text-textSecondary">{translate('standingsTable.losses')}</p></div>
-                                                <div className="col-span-2 bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.goalsFor}-{s.goalsAgainst}</p><p className="text-textSecondary">GF-GA</p></div>
-                                                <div className="col-span-2 bg-gray-100 dark:bg-slate-700 p-2 rounded-md"><p className="font-semibold text-textPrimary">{s.goalDifference}</p><p className="text-textSecondary">{translate('standingsTable.gd')}</p></div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    </section>
-                    
                     {/* Top Scorers */}
                     <section>
-                        <h2 className="text-2xl font-semibold mb-4 flex items-center">
+                        <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary">
                             <StarIcon className="w-6 h-6 mr-2 text-primary" />
                             {translate('tournament.topScorers')}
                         </h2>
-                        <TopScorersList scorers={topScorers} />
+                        <div className={panelClasses}>
+                           <TopScorersList scorers={topScorers} teams={teams} />
+                        </div>
                     </section>
 
                      {/* Schedule */}
                     <section>
-                        <h2 className="text-2xl font-semibold mb-4 flex items-center"><CalendarIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.schedule')}</h2>
+                        <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary"><CalendarIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.schedule')}</h2>
                         <div className="space-y-6">
                             {schedule?.length > 0 ? [...new Set(schedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
                                 <div key={roundNum}>
                                     <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
                                     <div className="space-y-3">
                                         {schedule.filter(m => m.round === roundNum).map(match => (
-                                            <div key={match.id} className="bg-surface shadow-md rounded-lg p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
-                                                <div className="w-full md:w-2/5 text-center md:text-right font-semibold">{getTeamName(match.homeTeamId)}</div>
-                                                
+                                            <div key={match.id} className={`${panelClasses} p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4`}>
+                                                <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
                                                 <div className="flex flex-col items-center justify-center my-2 md:my-0">
-                                                    {currentUser ? (
+                                                    {!!currentUser ? (
                                                         <div className="flex items-center space-x-2">
                                                             <button
                                                                 onClick={() => handleOpenGoalscorerModal(match, 'home')}
-                                                                className="flex items-center justify-center w-24 text-lg font-bold text-center bg-background dark:bg-slate-700 border border-border rounded-lg p-2 cursor-pointer hover:bg-primary/10 hover:border-primary/50 transition-colors shadow-sm"
-                                                                aria-label={`Update score for ${getTeamName(match.homeTeamId)}`}
+                                                                className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm"
                                                                 title={translate('schedule.updateScoreTitle')}
                                                             >
-                                                                <span>{match.homeTeamScore ?? '0'}</span>
+                                                                {match.homeTeamScore ?? '-'}
                                                             </button>
-                                                            <span className="font-bold text-lg">-</span>
+                                                            <span className="font-bold text-lg text-textSecondary">-</span>
                                                              <button
                                                                 onClick={() => handleOpenGoalscorerModal(match, 'away')}
-                                                                className="flex items-center justify-center w-24 text-lg font-bold text-center bg-background dark:bg-slate-700 border border-border rounded-lg p-2 cursor-pointer hover:bg-primary/10 hover:border-primary/50 transition-colors shadow-sm"
-                                                                aria-label={`Update score for ${getTeamName(match.awayTeamId)}`}
+                                                                className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm"
                                                                 title={translate('schedule.updateScoreTitle')}
                                                             >
-                                                                <span>{match.awayTeamScore ?? '0'}</span>
+                                                                {match.awayTeamScore ?? '-'}
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xl font-bold px-2 py-1 bg-background rounded-md">
+                                                        <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">
                                                             {match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="w-full md:w-2/5 text-center md:text-left font-semibold">{getTeamName(match.awayTeamId)}</div>
+                                                <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                            )) : <p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p>}
+                            )) : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
                         </div>
                     </section>
                 </div>
                 {/* Teams */}
                 <aside className="lg:col-span-1 space-y-6">
-                     <h2 className="text-2xl font-semibold flex items-center"><UsersIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.teams')}</h2>
+                     <h2 className="text-2xl font-semibold flex items-center text-textPrimary"><UsersIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.teams')}</h2>
                      {teams?.map(team => (
-                        <div key={team.id} className="bg-surface shadow-lg rounded-lg p-4">
-                            <h3 className="font-bold text-lg text-primary mb-2">
-                                {team.name}
-                                {team.jersey && <span className="text-sm font-normal text-textSecondary ml-2">({team.jersey})</span>}
-                            </h3>
-                            <h4 className="font-semibold text-sm text-textSecondary mb-1">{translate('teamList.members')}</h4>
-                            <ul className="space-y-1">
-                                {team.members?.map(member => (
-                                    <li key={member.id} className="flex items-center text-sm p-1 rounded hover:bg-primary/5">
-                                        {member.avatarUrl ? <img src={member.avatarUrl} alt={member.name} className="w-6 h-6 rounded-full mr-2"/> : <UserCircleIcon className="w-6 h-6 text-gray-400 mr-2"/>}
-                                        {member.name}
-                                    </li>
-                                ))}
-                                {(!team.members || team.members.length === 0) && <p className="text-xs text-textSecondary italic">{translate('teamList.noMembers')}</p>}
-                            </ul>
+                        <div key={team.id} className={panelClasses}>
+                            <div className="p-4">
+                                <h3 className="font-bold text-lg text-primary mb-2 flex items-center gap-3">
+                                    <div style={{ backgroundColor: team.color || '#a1a1aa' }} className="w-1 h-4 rounded-full flex-shrink-0"></div>
+                                    {team.name}
+                                </h3>
+                                <h4 className="font-semibold text-sm text-textPrimary mb-1">{translate('teamList.members')}</h4>
+                                <ul className="space-y-1">
+                                    {team.members?.map(memberRef => {
+                                        const player = players?.find(p => p.id === memberRef.playerId);
+                                        if (!player) return null;
+                                        return (
+                                            <li key={player.id} className="flex items-center text-sm p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary">
+                                                <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2"/>
+                                                <span>{player.name}</span>
+                                            </li>
+                                        );
+                                    })}
+                                    {(!team.members || team.members.length === 0) && <p className="text-xs text-textSecondary italic">{translate('teamList.noMembers')}</p>}
+                                </ul>
+                            </div>
                         </div>
                      ))}
                 </aside>
@@ -495,6 +498,7 @@ export const TournamentPage: React.FC = () => {
                     match={editingMatchInfo.match}
                     teamType={editingMatchInfo.teamType}
                     allTeams={tournament.teams}
+                    allPlayers={tournament.players || []}
                     onSave={handleSaveGoals}
                 />
             )}

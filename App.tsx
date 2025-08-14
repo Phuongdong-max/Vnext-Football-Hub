@@ -1,8 +1,11 @@
 
 
 
+
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
 import { APP_TITLE } from './constants'; 
 import { 
@@ -36,9 +39,12 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 const MainApp: React.FC = () => {
   const { translate } = useLanguage();
   const { currentUser } = useAppContext();
+  
+  // Removed animated background logic to enforce standard theme background everywhere.
+  const backgroundClass = 'bg-background';
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-textPrimary">
+    <div className={`flex flex-col min-h-screen text-textPrimary ${backgroundClass}`}>
       <Header />
       <AuthComponent />
       <main className="flex-grow container mx-auto px-4 py-8">
