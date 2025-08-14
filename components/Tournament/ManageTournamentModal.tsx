@@ -4,18 +4,19 @@ import { Button } from '../shared/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAppContext } from '../../contexts/AppContext';
 import { Tournament, TournamentTeam, TournamentPlayer } from '../../types';
-import { updateTournament } from '../../services/firebaseService';
-import { TOURNAMENT_DOC_ID } from '../../constants';
-import { PlusIcon, XIcon, PencilAltIcon } from '../icons';
+import { updateTournament, addPlayer, updatePlayer, deletePlayer } from '../../services/firebaseService';
+import { PlusIcon, XIcon, InformationCircleIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 interface ManageTournamentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    tournament: Tournament | null;
+    tournament: Tournament;
+    allPlayers: TournamentPlayer[]; // global player list for management
+    availablePlayersForLookup: TournamentPlayer[]; // combined list for display/selection
 }
 
-export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ isOpen, onClose, tournament: initialTournament }) => {
+export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ isOpen, onClose, tournament: initialTournament, allPlayers, availablePlayersForLookup }) => {
     const { translate } = useLanguage();
     const { currentUser, addToast } = useAppContext();
 
@@ -27,21 +28,21 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     const [memberSelection, setMemberSelection] = useState<Record<string, string>>({});
 
     // Player state
-    const [players, setPlayers] = useState<TournamentPlayer[]>([]);
     const [newPlayerName, setNewPlayerName] = useState('');
     const [newPlayerJersey, setNewPlayerJersey] = useState<string>('');
     
     // General state
-    const [tournamentName, setTournamentName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    
+    const isLegacyTournament = initialTournament.players && initialTournament.players.length > 0;
 
     useEffect(() => {
-        if (isOpen) {
-            const currentTeams = initialTournament ? JSON.parse(JSON.stringify(initialTournament.teams)) : [];
-            const currentPlayers = initialTournament ? JSON.parse(JSON.stringify(initialTournament.players || [])) : [];
-            setTeams(currentTeams);
-            setPlayers(currentPlayers);
-            setTournamentName(initialTournament?.name || 'V-League Season 1');
+        if (isOpen && initialTournament) {
+            // Deep copy to prevent direct mutation of the prop
+            const initialTeamsCopy = JSON.parse(JSON.stringify(initialTournament.teams || []));
+            setTeams(initialTeamsCopy);
+            
+            // Reset other states
             setActiveTab('teams');
             setNewTeamName('');
             setNewPlayerName('');
@@ -101,68 +102,66 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         ));
     };
 
-    // --- Player Management ---
-    const handleAddPlayer = () => {
+    // --- Player Management (Now interacts directly with service) ---
+    const handleAddPlayer = async () => {
         const name = newPlayerName.trim();
         const jersey = parseInt(newPlayerJersey, 10);
 
-        if (!name) {
-            addToast('manageTournament.players.error.nameRequired', 'error');
-            return;
-        }
-        if (isNaN(jersey)) {
-            addToast('manageTournament.players.error.jerseyRequired', 'error');
-            return;
-        }
-        if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-            addToast('manageTournament.players.error.nameExists', 'error');
-            return;
-        }
-        if (jersey !== 0 && players.some(p => p.jerseyNumber === jersey)) {
-            addToast('manageTournament.players.error.jerseyExists', 'error');
-            return;
-        }
+        if (!name) { addToast('manageTournament.players.error.nameRequired', 'error'); return; }
+        if (isNaN(jersey)) { addToast('manageTournament.players.error.jerseyRequired', 'error'); return; }
+        if (allPlayers.some(p => p.name.toLowerCase() === name.toLowerCase())) { addToast('manageTournament.players.error.nameExists', 'error'); return; }
+        if (jersey !== 0 && allPlayers.some(p => p.jerseyNumber === jersey)) { addToast('manageTournament.players.error.jerseyExists', 'error'); return; }
 
-        const newPlayer: TournamentPlayer = {
-            id: `player_${Date.now()}`,
-            name,
-            jerseyNumber: jersey,
-        };
-        setPlayers(prev => [...prev, newPlayer].sort((a, b) => a.name.localeCompare(b.name)));
-        setNewPlayerName('');
-        setNewPlayerJersey('');
+        try {
+            await addPlayer({ name, jerseyNumber: jersey });
+            addToast('Cầu thủ đã được thêm thành công!', 'success');
+            setNewPlayerName('');
+            setNewPlayerJersey('');
+        } catch (error) {
+            addToast((error as Error).message, 'error');
+        }
     };
 
-    const handleEditPlayer = (playerId: string, field: 'name' | 'jerseyNumber', value: string | number) => {
-        setPlayers(prevPlayers => prevPlayers.map(p =>
-            p.id === playerId ? { ...p, [field]: value } : p
-        ));
+    const handleUpdatePlayer = async (playerId: string, field: 'name' | 'jerseyNumber', value: string | number) => {
+        try {
+            // Basic validation before updating
+            if(field === 'name' && typeof value === 'string' && !value.trim()) {
+                addToast('manageTournament.players.error.nameRequired', 'error');
+                return; // Don't update if name is empty
+            }
+            await updatePlayer(playerId, { [field]: value });
+            addToast('Thông tin cầu thủ đã được cập nhật.', 'info');
+        } catch (error) {
+            addToast((error as Error).message, 'error');
+        }
     };
 
-    const handleRemovePlayer = (playerIdToRemove: string) => {
+    const handleRemovePlayer = async (playerIdToRemove: string) => {
         if (!window.confirm(translate('manageTournament.players.deleteConfirm'))) return;
 
-        // Remove from global list
-        setPlayers(prev => prev.filter(p => p.id !== playerIdToRemove));
+        try {
+            // This now only deletes from the global list. We also need to update the local `teams` state.
+            await deletePlayer(playerIdToRemove);
 
-        // Remove from all teams
-        setTeams(prevTeams => prevTeams.map(team => ({
-            ...team,
-            members: team.members.filter(m => m.playerId !== playerIdToRemove),
-        })));
+            setTeams(prevTeams => prevTeams.map(team => ({
+                ...team,
+                members: team.members.filter(m => m.playerId !== playerIdToRemove),
+            })));
+
+            addToast('Cầu thủ đã được xoá.', 'success');
+        } catch (error) {
+            addToast((error as Error).message, 'error');
+        }
     };
 
     // --- Save Logic ---
     const handleSaveChanges = async () => {
-        if (!currentUser) return;
+        if (!currentUser || !initialTournament) return;
         setIsSaving(true);
         try {
-            const dataToSave: Partial<Tournament> = { name: tournamentName, teams, players };
-            if (!initialTournament) {
-                dataToSave.schedule = [];
-                dataToSave.standings = [];
-            }
-            await updateTournament(TOURNAMENT_DOC_ID, dataToSave, currentUser);
+            // When saving, we remove the legacy 'players' field to finalize migration for this tournament
+            const dataToUpdate: Partial<Tournament> = { teams, players: [] };
+            await updateTournament(initialTournament.id, dataToUpdate, currentUser);
             addToast('manageTournament.saveSuccess', 'success');
             onClose();
         } catch (error) {
@@ -173,7 +172,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         }
     };
     
-    const modalTitle = initialTournament ? translate('manageTournament.title') : translate('manageTournament.createTitle');
+    const modalTitle = translate('manageTournament.title');
     const inputClasses = "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400";
     const tabButtonBase = "px-4 py-2 text-sm font-medium border-b-2 transition-colors";
     const activeTabClass = "border-primary text-primary";
@@ -181,6 +180,10 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
 
     const renderPlayersTab = () => (
         <div className="space-y-4">
+             <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-lg text-sm flex items-start gap-2">
+                <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                <span>{translate('manageTournament.players.liveSaveInfo')}</span>
+            </div>
             <div className="p-3 bg-gray-100 dark:bg-slate-900/50 rounded-lg">
                 <h4 className="font-semibold mb-2 text-textPrimary">{translate('manageTournament.button.addPlayer')}</h4>
                 <div className="flex items-center space-x-2">
@@ -190,18 +193,18 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                 </div>
             </div>
              <div className="space-y-2">
-                {players.map(player => (
+                {allPlayers.map(player => (
                     <div key={player.id} className="flex items-center justify-between p-2 bg-surface dark:bg-slate-700/50 rounded-md gap-2">
                         <input
                             type="text"
-                            value={player.name}
-                            onChange={e => handleEditPlayer(player.id, 'name', e.target.value)}
+                            defaultValue={player.name}
+                            onBlur={e => handleUpdatePlayer(player.id, 'name', e.target.value)}
                             className={inputClasses}
                         />
                         <input
                             type="number"
-                            value={player.jerseyNumber}
-                            onChange={e => handleEditPlayer(player.id, 'jerseyNumber', parseInt(e.target.value, 10) || 0)}
+                            defaultValue={player.jerseyNumber}
+                            onBlur={e => handleUpdatePlayer(player.id, 'jerseyNumber', parseInt(e.target.value, 10) || 0)}
                             className={`${inputClasses} w-20 text-center`}
                         />
                         <Button type="button" onClick={() => handleRemovePlayer(player.id)} variant="danger" size="sm" className="!p-2"><XIcon className="w-4 h-4"/></Button>
@@ -213,6 +216,17 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     
     const renderTeamsTab = () => (
         <div className="space-y-4">
+             {isLegacyTournament ? (
+                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 rounded-lg text-sm flex items-start gap-2">
+                    <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                    <span><strong>{translate('manageTournament.legacyWarning.title')}</strong> {translate('manageTournament.legacyWarning.body')}</span>
+                </div>
+            ) : (
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-lg text-sm flex items-start gap-2">
+                    <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                    <span>{translate('manageTournament.players.liveSaveInfo')}</span>
+                </div>
+            )}
             <div className="flex items-center space-x-2">
                 <input type="text" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder={translate('manageTournament.teamName.placeholder')} className={inputClasses} />
                 <Button type="button" onClick={handleAddTeam}><PlusIcon className="w-5 h-5 mr-1"/>{translate('manageTournament.button.addTeam')}</Button>
@@ -220,7 +234,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
             <div className="space-y-4">
                 {teams.map(team => {
                      const teamMemberIds = new Set(team.members.map(m => m.playerId));
-                     const availablePlayers = players.filter(p => !teamMemberIds.has(p.id));
+                     const availablePlayersForDropdown = availablePlayersForLookup.filter(p => !teamMemberIds.has(p.id));
 
                     return (
                         <div key={team.id} className="p-3 bg-background dark:bg-slate-800 rounded-lg">
@@ -244,8 +258,8 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                             </div>
                             <div className="space-y-2 mb-2">
                                 {team.members.map(memberRef => {
-                                    const member = players.find(p => p.id === memberRef.playerId);
-                                    if (!member) return null;
+                                    const member = availablePlayersForLookup.find(p => p.id === memberRef.playerId);
+                                    if (!member) return <div key={memberRef.playerId} className="flex items-center justify-between text-sm bg-surface dark:bg-slate-700 p-2 rounded text-red-500 italic">Cầu thủ đã bị xóa</div>;
                                     return (
                                         <div key={member.id} className="flex items-center justify-between text-sm bg-surface dark:bg-slate-700 p-2 rounded">
                                             <span>{member.name} (#{member.jerseyNumber})</span>
@@ -261,7 +275,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                                     className={`${inputClasses} text-sm`}
                                 >
                                     <option value="">{translate('manageTournament.selectMember')}</option>
-                                    {availablePlayers.map(p => <option key={p.id} value={p.id}>{p.name} (#{p.jerseyNumber})</option>)}
+                                    {availablePlayersForDropdown.map(p => <option key={p.id} value={p.id}>{p.name} (#{p.jerseyNumber})</option>)}
                                 </select>
                                 <Button type="button" onClick={() => handleAddMemberToTeam(team.id)} size="sm">{translate('manageTournament.button.addMember')}</Button>
                             </div>
@@ -274,7 +288,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="xl">
-            <form onSubmit={(e) => e.preventDefault()}>
+            <div onSubmit={(e) => e.preventDefault()}>
                 <div className="border-b border-border mb-4">
                     <nav className="-mb-px flex space-x-4" aria-label="Tabs">
                         <button type="button" onClick={() => setActiveTab('teams')} className={`${tabButtonBase} ${activeTab === 'teams' ? activeTabClass : inactiveTabClass}`}>{translate('manageTournament.tab.teams')}</button>
@@ -289,10 +303,10 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                 <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
                     <Button type="button" onClick={onClose} variant="secondary">{translate('common.button.cancel')}</Button>
                     <Button type="button" onClick={handleSaveChanges} disabled={isSaving}>
-                        {isSaving ? <LoadingSpinner size="sm" /> : translate('manageTournament.button.saveChanges')}
+                        {isSaving ? <LoadingSpinner size="sm" /> : translate('manageTournament.button.saveTeams')}
                     </Button>
                 </div>
-            </form>
+            </div>
         </Modal>
     );
 };

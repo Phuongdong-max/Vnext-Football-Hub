@@ -232,9 +232,9 @@ export interface Tournament {
   id: string; // Document ID in Firestore
   name: string;
   teams: TournamentTeam[];
-  players?: TournamentPlayer[];
   schedule: TournamentMatch[];
   standings: TeamStanding[]; // This will be calculated and stored
+  players?: TournamentPlayer[]; // For backward compatibility with old data structure
   lastUpdated?: any; // Firestore Timestamp
   updatedBy?: {
     id: string;

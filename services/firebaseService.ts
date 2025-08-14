@@ -1,5 +1,5 @@
 import { firebaseConfig } from '../firebaseConfig';
-import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament } from '../types';
+import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -479,6 +479,39 @@ export const updateTeamDivision = async (dataToSave: Omit<TeamDivisionData, 'id'
 
 // --- Tournament Functions ---
 
+export const getAllTournaments = async (): Promise<{ id: string; name: string }[]> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const tournamentsSnapshot = await db.collection('tournaments').orderBy('name', 'asc').get();
+    return tournamentsSnapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        name: doc.data().name || 'Unnamed Tournament',
+    }));
+};
+
+export const createTournament = async (name: string, user: User): Promise<string> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const newDocRef = db.collection('tournaments').doc();
+    // Simplified Tournament object without players
+    const newTournament: Omit<Tournament, 'players'> = {
+        id: newDocRef.id,
+        name: name,
+        teams: [],
+        schedule: [],
+        standings: [],
+        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: { id: user.id, name: user.name },
+    };
+    await newDocRef.set(newTournament);
+    return newDocRef.id;
+};
+
+export const deleteTournament = async (tournamentId: string): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const docRef = db.collection('tournaments').doc(tournamentId);
+    await docRef.delete();
+};
+
+
 export const onTournamentUpdate = (
     tournamentId: string,
     callback: (data: Tournament | null) => void
@@ -492,9 +525,7 @@ export const onTournamentUpdate = (
 
     const unsubscribe = docRef.onSnapshot((doc: any) => {
         if (doc.exists) {
-            console.log("[FirebaseService] Received tournament update from Firestore listener.");
             const data = doc.data() as Tournament;
-            // Convert timestamps
             if (data.lastUpdated && typeof data.lastUpdated.toDate === 'function') {
                 data.lastUpdated = data.lastUpdated.toDate();
             }
@@ -506,10 +537,8 @@ export const onTournamentUpdate = (
                     awayTeamScore: match.awayTeamScore ?? null,
                 }));
             }
-            console.log("[FirebaseService] Processed tournament data:", data);
             callback(data);
         } else {
-            console.log("[FirebaseService] Tournament document does not exist.");
             callback(null);
         }
     }, (error: Error) => {
@@ -520,33 +549,69 @@ export const onTournamentUpdate = (
     return unsubscribe;
 };
 
-export const updateTournament = async (tournamentId: string, data: Partial<Tournament>, user: User | null): Promise<void> => {
+export const updateTournament = async (tournamentId: string, data: Partial<Omit<Tournament, 'players'>>, user: User | null): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized.");
 
     const docRef = db.collection('tournaments').doc(tournamentId);
 
-    const payload: Partial<Tournament> = {
+    const payload: Partial<any> = {
         ...data,
         lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: user ? { id: user.id, name: user.name } : { id: 'anonymous', name: 'Anonymous' },
     };
     
-    // Convert Dates back to Timestamps for schedule
     if (payload.schedule) {
-        payload.schedule = payload.schedule.map(match => ({
+        payload.schedule = payload.schedule.map((match: TournamentMatch) => ({
             ...match,
-            // Only convert if it's a Date object, not already a timestamp
             date: match.date && match.date instanceof Date ? window.firebase.firestore.Timestamp.fromDate(match.date) : match.date,
         }));
     }
     
-    console.log("[FirebaseService] Attempting to update tournament with payload:", payload);
-
     try {
         await docRef.set(payload, { merge: true });
-        console.log("[FirebaseService] Tournament updated successfully in Firestore.");
     } catch (error) {
         console.error("[FirebaseService] Error updating tournament data in Firestore:", error);
         throw error;
     }
+};
+
+// --- Global Player Management ---
+const GLOBAL_PLAYERS_COLLECTION = 'globalPlayers';
+
+export const onAllPlayersUpdate = (callback: (data: TournamentPlayer[]) => void): (() => void) => {
+  if (!db) return () => {};
+  const collectionRef = db.collection(GLOBAL_PLAYERS_COLLECTION).orderBy('name', 'asc');
+  const unsubscribe = collectionRef.onSnapshot((querySnapshot: any) => {
+    const players = querySnapshot.docs.map((doc: any) => doc.data() as TournamentPlayer);
+    callback(players);
+  }, (error: Error) => {
+    console.error("Error listening to global players updates:", error);
+    callback([]);
+  });
+  return unsubscribe;
+};
+
+export const addPlayer = async (playerData: Omit<TournamentPlayer, 'id'>): Promise<TournamentPlayer> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const newPlayerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc();
+    const newPlayer: TournamentPlayer = {
+        id: newPlayerRef.id,
+        ...playerData,
+    };
+    await newPlayerRef.set(newPlayer);
+    return newPlayer;
+};
+
+export const updatePlayer = async (playerId: string, data: Partial<Omit<TournamentPlayer, 'id'>>): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const playerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc(playerId);
+    await playerRef.update(data);
+};
+
+export const deletePlayer = async (playerId: string): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    const playerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc(playerId);
+    await playerRef.delete();
+    // Note: This does not perform a cascading delete from teams for simplicity.
+    // The UI will handle rendering teams with missing player references.
 };

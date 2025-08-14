@@ -12,14 +12,16 @@ service cloud.firestore {
     }
 
     // USERS
-    // Users can read all profiles (for leaderboards), but only write to their own document.
+    // Users can read all profiles (for leaderboards).
+    // An admin can update a user's points and wins count for settling bets.
     match /users/{userId} {
       allow read: if request.auth != null;
       // Allow a user to create their own profile upon first sign-in.
       allow create: if request.auth.uid == userId;
-      // Allow a user to update their own profile, but NOT critical fields like role or points.
-      // Transactions are used to securely update points and counters.
-      allow update: if request.auth.uid == userId;
+      // Allow user to update their own profile, but not critical fields.
+      // Allow an admin to update ONLY points and wins count for settling bets.
+      allow update: if request.auth.uid == userId || 
+                     (isAdmin() && request.resource.data.diff(resource.data).affectedKeys.hasOnly(['points', 'winsCount']));
     }
 
     // BETTING ROUNDS
@@ -40,6 +42,14 @@ service cloud.firestore {
     // The 'latest' document can be read and written to by any authenticated user.
     match /teamDivision/latest {
       allow read, write: if request.auth != null;
+    }
+
+    // GLOBAL PLAYERS
+    // A shared list of players for all tournaments.
+    match /globalPlayers/{playerId} {
+      allow read: if request.auth != null;
+      // Any authenticated user can manage the global player list.
+      allow write: if request.auth != null;
     }
 
     // TOURNAMENTS

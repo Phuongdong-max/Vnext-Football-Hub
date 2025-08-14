@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { FootballMatch, League, OddsData } from '../../types';
 import { Modal } from '../shared/Modal';

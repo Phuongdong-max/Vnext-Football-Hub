@@ -38,5 +38,5 @@ export const LEAGUE_CODE_TO_ODDS_API_SPORT_KEY: Record<string, string> = {
 export const ODDS_API_DEFAULT_REGIONS = 'eu'; // eu, us, uk, au
 export const ODDS_API_DEFAULT_MARKETS = 'h2h'; // h2h (head-to-head/moneyline), spreads, totals
 
-// Main tournament document ID
+// Main tournament document ID - now used as a default/fallback
 export const TOURNAMENT_DOC_ID = 'vleague_season_1';
