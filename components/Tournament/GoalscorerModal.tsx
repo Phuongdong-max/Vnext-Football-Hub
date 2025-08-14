@@ -92,7 +92,7 @@ export const GoalscorerModal: React.FC<GoalscorerModalProps> = ({ isOpen, onClos
                     <div className="flex flex-wrap gap-2">
                         {teamPlayers.map(player => (
                             <Button key={player.id} variant="outline" size="sm" onClick={() => addGoal(player.name, player.id)}>
-                                {player.name}
+                                {player.name} (#{player.jerseyNumber})
                             </Button>
                         ))}
                     </div>

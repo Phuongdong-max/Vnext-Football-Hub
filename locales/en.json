@@ -361,7 +361,8 @@
   "manageTournament.players.error.jerseyExists": "A player with this jersey number already exists (0 is allowed for multiple).",
   "manageTournament.players.error.nameRequired": "Player name is required.",
   "manageTournament.players.error.jerseyRequired": "Jersey number is required.",
-
+  "manageTournament.team.changeColor": "Change team color",
+  "manageTournament.button.addPlayer": "Add Player",
   "goalscorerModal.title": "Manage Goals for {{teamName}}",
   "goalscorerModal.currentScore": "Current Score",
   "goalscorerModal.noGoals": "No goals yet.",

@@ -193,16 +193,16 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                 {players.map(player => (
                     <div key={player.id} className="flex items-center justify-between p-2 bg-surface dark:bg-slate-700/50 rounded-md gap-2">
                         <input
-                            type="number"
-                            value={player.jerseyNumber}
-                            onChange={e => handleEditPlayer(player.id, 'jerseyNumber', parseInt(e.target.value, 10) || 0)}
-                            className={`${inputClasses} w-20 text-center`}
-                        />
-                        <input
                             type="text"
                             value={player.name}
                             onChange={e => handleEditPlayer(player.id, 'name', e.target.value)}
                             className={inputClasses}
+                        />
+                        <input
+                            type="number"
+                            value={player.jerseyNumber}
+                            onChange={e => handleEditPlayer(player.id, 'jerseyNumber', parseInt(e.target.value, 10) || 0)}
+                            className={`${inputClasses} w-20 text-center`}
                         />
                         <Button type="button" onClick={() => handleRemovePlayer(player.id)} variant="danger" size="sm" className="!p-2"><XIcon className="w-4 h-4"/></Button>
                     </div>
@@ -225,12 +225,21 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                     return (
                         <div key={team.id} className="p-3 bg-background dark:bg-slate-800 rounded-lg">
                             <div className="flex justify-between items-center mb-2">
-                                <input
-                                    type="text"
-                                    value={team.name}
-                                    onChange={(e) => setTeams(prev => prev.map(t => t.id === team.id ? { ...t, name: e.target.value } : t))}
-                                    className="font-bold text-lg bg-transparent border-none focus:ring-0 p-0"
-                                />
+                                 <div className="flex items-center gap-3 flex-grow">
+                                    <input
+                                        type="color"
+                                        value={team.color || '#a1a1aa'}
+                                        onChange={(e) => setTeams(prev => prev.map(t => t.id === team.id ? { ...t, color: e.target.value } : t))}
+                                        className="w-8 h-8 p-1 bg-surface dark:bg-slate-700 border border-border rounded-md cursor-pointer"
+                                        title={translate('manageTournament.team.changeColor')}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={team.name}
+                                        onChange={(e) => setTeams(prev => prev.map(t => t.id === team.id ? { ...t, name: e.target.value } : t))}
+                                        className="font-bold text-lg bg-transparent border-none focus:ring-0 p-1 w-full text-textPrimary"
+                                    />
+                                </div>
                                 <Button type="button" onClick={() => handleRemoveTeam(team.id)} variant="danger" size="sm"><XIcon className="w-4 h-4 mr-1"/>{translate('manageTournament.button.removeTeam')}</Button>
                             </div>
                             <div className="space-y-2 mb-2">

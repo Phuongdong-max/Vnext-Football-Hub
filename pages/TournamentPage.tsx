@@ -144,6 +144,7 @@ export const TournamentPage: React.FC = () => {
             goals: number;
             teamId: string;
             isGuest: boolean;
+            jerseyNumber?: number;
         }> = {};
 
         tournament.schedule.forEach(match => {
@@ -151,7 +152,14 @@ export const TournamentPage: React.FC = () => {
                 goals.forEach(goal => {
                     const key = goal.scorerId ? goal.scorerId : `guest_${goal.scorerName}`;
                     if (!scorerStats[key]) {
-                        scorerStats[key] = { name: goal.scorerName, goals: 0, teamId: teamId, isGuest: !goal.scorerId };
+                        const player = goal.scorerId ? tournament.players?.find(p => p.id === goal.scorerId) : undefined;
+                        scorerStats[key] = {
+                            name: goal.scorerName,
+                            goals: 0,
+                            teamId: teamId,
+                            isGuest: !goal.scorerId,
+                            jerseyNumber: player?.jerseyNumber,
+                        };
                     }
                     scorerStats[key].goals++;
                     scorerStats[key].teamId = teamId;
@@ -338,40 +346,42 @@ export const TournamentPage: React.FC = () => {
             {/* Standings */}
             <section>
                 <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary"><TableCellsIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.standings')}</h2>
-                <div className={`${panelClasses} overflow-hidden`}>
+                 <div className={`${panelClasses} overflow-hidden`}>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-border">
-                            <thead className="bg-gray-50 dark:bg-slate-700/50">
+                        <table className="min-w-full">
+                            <thead className="bg-slate-100 dark:bg-slate-800">
                                 <tr>
-                                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-bold text-primary uppercase tracking-wider">{translate('standingsTable.team')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.wins')}>{translate('standingsTable.wins')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.draws')}>{translate('standingsTable.draws')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.losses')}>{translate('standingsTable.losses')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.gf')}>{translate('standingsTable.gf')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.ga')}>{translate('standingsTable.ga')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.gd')}>{translate('standingsTable.gd')}</th>
-                                    <th className="px-2 py-3 text-center text-xs font-bold text-primary uppercase tracking-wider" title={translate('standingsTable.points')}>{translate('standingsTable.points')}</th>
+                                    <th scope="col" className="w-1/3 pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-textPrimary sm:pl-6">{translate('standingsTable.team')}</th>
+                                    <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
+                                    <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.wins')}>{translate('standingsTable.wins')}</th>
+                                    <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.draws')}>{translate('standingsTable.draws')}</th>
+                                    <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.losses')}>{translate('standingsTable.losses')}</th>
+                                    <th scope="col" className="hidden sm:table-cell px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.gf')}>{translate('standingsTable.gf')}</th>
+                                    <th scope="col" className="hidden sm:table-cell px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.ga')}>{translate('standingsTable.ga')}</th>
+                                    <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.gd')}>{translate('standingsTable.gd')}</th>
+                                    <th scope="col" className="px-4 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.points')}>{translate('standingsTable.points')}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-border">
+                            <tbody className="divide-y divide-border bg-surface">
                                 {standings?.map((s, index) => (
-                                    <tr key={s.teamId} className="hover:bg-gray-100 dark:hover:bg-slate-800/60 transition-colors">
-                                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center text-textPrimary font-medium">
-                                                <span className="w-6 text-center mr-2 font-semibold text-textSecondary">{index + 1}</span>
-                                                <div style={{ backgroundColor: s.teamColor || '#a1a1aa' }} className="w-1 h-4 rounded-full mr-3 flex-shrink-0"></div>
-                                                {s.teamName}
+                                    <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
+                                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                                            <div className="flex items-center">
+                                                <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>
+                                                <div style={{ backgroundColor: s.teamColor || '#a1a1aa' }} className="w-1.5 h-6 rounded-full mr-4 flex-shrink-0 shadow-sm"></div>
+                                                <div className="font-semibold text-base text-textPrimary">{s.teamName}</div>
                                             </div>
                                         </td>
-                                        <td className="px-2 py-4 text-center text-textSecondary">{s.played}</td>
-                                        <td className="px-2 py-4 text-center font-semibold text-green-500">{s.wins}</td>
-                                        <td className="px-2 py-4 text-center font-semibold text-yellow-500">{s.draws}</td>
-                                        <td className="px-2 py-4 text-center font-semibold text-red-500">{s.losses}</td>
-                                        <td className="px-2 py-4 text-center text-textSecondary">{s.goalsFor}</td>
-                                        <td className="px-2 py-4 text-center text-textSecondary">{s.goalsAgainst}</td>
-                                        <td className="px-2 py-4 text-center font-semibold text-textSecondary">{s.goalDifference}</td>
-                                        <td className="px-2 py-4 text-center font-extrabold text-primary bg-primary/10">{s.points}</td>
+                                        <td className="whitespace-nowrap px-2 py-4 text-center text-base font-medium text-textSecondary">{s.played}</td>
+                                        <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-green-600 dark:text-green-500">{s.wins}</td>
+                                        <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-yellow-600 dark:text-yellow-500">{s.draws}</td>
+                                        <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-red-600 dark:text-red-500">{s.losses}</td>
+                                        <td className="whitespace-nowrap hidden sm:table-cell px-2 py-4 text-center text-sm text-textSecondary">{s.goalsFor}</td>
+                                        <td className="whitespace-nowrap hidden sm:table-cell px-2 py-4 text-center text-sm text-textSecondary">{s.goalsAgainst}</td>
+                                        <td className="whitespace-nowrap px-2 py-4 text-center text-base font-bold text-textPrimary">{s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}</td>
+                                        <td className="whitespace-nowrap px-4 py-4 text-center">
+                                            <span className="inline-block bg-primary text-white text-base font-bold px-3 py-1 rounded-md shadow-md">{s.points}</span>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -456,7 +466,7 @@ export const TournamentPage: React.FC = () => {
                                         return (
                                             <li key={player.id} className="flex items-center text-sm p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary">
                                                 <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2"/>
-                                                <span>{player.name}</span>
+                                                <span>{player.name} (#{player.jerseyNumber})</span>
                                             </li>
                                         );
                                     })}

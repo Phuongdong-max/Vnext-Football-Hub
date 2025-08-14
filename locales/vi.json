@@ -361,7 +361,8 @@
   "manageTournament.players.error.jerseyExists": "Cầu thủ với số áo này đã tồn tại (số 0 được phép trùng).",
   "manageTournament.players.error.nameRequired": "Tên cầu thủ là bắt buộc.",
   "manageTournament.players.error.jerseyRequired": "Số áo là bắt buộc.",
-
+  "manageTournament.team.changeColor": "Đổi màu đội",
+  "manageTournament.button.addPlayer": "Thêm Cầu thủ",
   "goalscorerModal.title": "Quản lý Bàn thắng cho {{teamName}}",
   "goalscorerModal.currentScore": "Tỷ số hiện tại",
   "goalscorerModal.noGoals": "Chưa có bàn thắng.",

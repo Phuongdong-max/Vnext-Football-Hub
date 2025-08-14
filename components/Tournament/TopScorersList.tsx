@@ -9,6 +9,7 @@ interface TopScorer {
     teamName: string;
     teamId: string;
     isGuest: boolean;
+    jerseyNumber?: number;
 }
 
 interface TopScorersListProps {
@@ -46,7 +47,14 @@ export const TopScorersList: React.FC<TopScorersListProps> = ({ scorers, teams }
                                 }
                             </div>
                             <div className="flex-grow ml-2">
-                                <p className="font-semibold text-textPrimary">{scorer.name}</p>
+                                <p className="font-semibold text-textPrimary">
+                                    {scorer.name}
+                                    {!scorer.isGuest && scorer.jerseyNumber !== undefined && (
+                                        <span className="text-textSecondary text-sm font-normal ml-1">
+                                            (#{scorer.jerseyNumber})
+                                        </span>
+                                    )}
+                                </p>
                                 <p className="text-xs text-textSecondary flex items-center gap-2">
                                     <div style={{ backgroundColor: teamColor }} className="w-1 h-3 rounded-full inline-block"></div>
                                     <span>
