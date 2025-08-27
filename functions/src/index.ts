@@ -1,10 +1,11 @@
+
 // functions/src/index.ts
 
 import * as logger from "firebase-functions/logger";
-// Use onRequest from v2/https, and Request/Response types from express
-import {onRequest, Request as FunctionsRequest} from "firebase-functions/v2/https";
-import type {Response as ExpressResponse} from "express";
-import axios, {isAxiosError, AxiosError} from "axios";
+// Use Request and Response from v2/https
+import { onRequest, Request } from "firebase-functions/v2/https";
+import { Response } from "express";
+import axios, { isAxiosError, AxiosError } from "axios";
 // CORS is now handled by Firebase onRequest option
 
 const allowedOrigins = [
@@ -18,165 +19,135 @@ const allowedOrigins = [
 // --- Football-Data.org API Proxy ---
 const FOOTBALL_DATA_ORG_BASE_URL = "https://api.football-data.org/v4";
 export const footballApiProxy = onRequest(
-    {cors: allowedOrigins}, // Firebase handles CORS
-    async (request: FunctionsRequest, response: ExpressResponse): Promise<void> => {
-      logger.info(`footballApiProxy invoked. Origin: ${request.headers["origin"]}, Method: ${request.method}`);
+  { cors: allowedOrigins }, // Firebase handles CORS
+  async (request: Request, response: Response): Promise<void> => {
+    logger.info(`footballApiProxy invoked. Origin: ${request.headers["origin"]}, Method: ${request.method}`);
 
-      const rawTargetPathQuery = request.query.targetPath;
-      let targetPath: string | undefined;
+    const rawTargetPathQuery = request.query.targetPath;
+    let targetPath: string | undefined;
 
-      if (Array.isArray(rawTargetPathQuery)) {
-        targetPath = rawTargetPathQuery[0] as string;
-      } else if (typeof rawTargetPathQuery === "string") {
-        targetPath = rawTargetPathQuery;
-      }
+    if (Array.isArray(rawTargetPathQuery)) {
+      targetPath = rawTargetPathQuery[0] as string;
+    } else if (typeof rawTargetPathQuery === 'string') {
+      targetPath = rawTargetPathQuery;
+    }
 
-      if (typeof targetPath !== "string" || !targetPath) {
-        response.status(400).send("Missing or invalid targetPath parameter.");
-        return;
-      }
+    if (typeof targetPath !== "string" || !targetPath) {
+      response.status(400).send("Missing or invalid targetPath parameter.");
+      return;
+    }
 
-      const footballDataApiKey = process.env.FOOTBALL_DATA_API_KEY;
-      if (!footballDataApiKey) {
-        logger.error("FOOTBALL_DATA_API_KEY not configured for footballApiProxy.");
-        response.status(500).send("Proxy API key (FOOTBALL_DATA_API_KEY) is not configured.");
-        return;
-      }
+    const footballDataApiKey = process.env.FOOTBALL_DATA_API_KEY;
+    if (!footballDataApiKey) {
+      logger.error("FOOTBALL_DATA_API_KEY not configured for footballApiProxy.");
+      response.status(500).send("Proxy API key (FOOTBALL_DATA_API_KEY) is not configured.");
+      return;
+    }
 
-      let externalApiUrl = `${FOOTBALL_DATA_ORG_BASE_URL}${
-        targetPath.startsWith("/") ? targetPath : `/${targetPath}`
-      }`;
+    let externalApiUrl = `${FOOTBALL_DATA_ORG_BASE_URL}${
+      targetPath.startsWith("/") ? targetPath : `/${targetPath}`
+    }`;
     
-      const queryParams = new URLSearchParams();
-      const requestQuery = request.query; // request.query is NameValueRecord
-      for (const key in requestQuery) {
-        if (Object.prototype.hasOwnProperty.call(requestQuery, key) && key !== "targetPath") {
-          const valueRaw = requestQuery[key];
-          if (valueRaw !== undefined) {
-            const value = Array.isArray(valueRaw) ? String(valueRaw[0]) : String(valueRaw);
-            queryParams.append(key, value);
-          }
+    const queryParams = new URLSearchParams();
+    const requestQuery = request.query; // request.query is NameValueRecord
+    for (const key in requestQuery) {
+      if (Object.prototype.hasOwnProperty.call(requestQuery, key) && key !== "targetPath") {
+        const valueRaw = requestQuery[key];
+        if (valueRaw !== undefined) {
+          const value = Array.isArray(valueRaw) ? String(valueRaw[0]) : String(valueRaw);
+          queryParams.append(key, value);
         }
       }
-      const queryString = queryParams.toString();
-      if (queryString) {
-        externalApiUrl += (externalApiUrl.includes("?") ? "&" : "?") + queryString;
-      }
+    }
+    const queryString = queryParams.toString();
+    if (queryString) {
+      externalApiUrl += (externalApiUrl.includes("?") ? "&" : "?") + queryString;
+    }
 
-      logger.info(`Football-Data.org Proxy request to: ${externalApiUrl}`);
-      try {
-        const apiResponse = await axios.get(externalApiUrl, {
-          headers: {"X-Auth-Token": footballDataApiKey, "Accept": "application/json"},
-          timeout: 10000,
-        });
-        response.status(apiResponse.status).send(apiResponse.data);
-      } catch (error: unknown) {
-        handleAxiosError(error, externalApiUrl, response, "footballApiProxy");
-      }
-    },
+    logger.info(`Football-Data.org Proxy request to: ${externalApiUrl}`);
+    try {
+      const apiResponse = await axios.get(externalApiUrl, {
+        headers: { "X-Auth-Token": footballDataApiKey, "Accept": "application/json" },
+        timeout: 10000,
+      });
+      response.status(apiResponse.status).send(apiResponse.data);
+    } catch (error: unknown) {
+      handleAxiosError(error, externalApiUrl, response, "footballApiProxy");
+    }
+  }
 );
 
 // --- The Odds API Proxy ---
 const THE_ODDS_API_BASE_URL = "https://api.the-odds-api.com/v4";
 export const theOddsApiProxy = onRequest(
-    {cors: allowedOrigins}, // Firebase handles CORS
-    async (request: FunctionsRequest, response: ExpressResponse): Promise<void> => {
-      logger.info(`theOddsApiProxy invoked. Origin: ${request.headers["origin"]}, Method: ${request.method}`);
+  { cors: allowedOrigins }, // Firebase handles CORS
+  async (request: Request, response: Response): Promise<void> => {
+    logger.info(`theOddsApiProxy invoked. Origin: ${request.headers["origin"]}, Method: ${request.method}`);
 
-      const rawTargetPathQuery = request.query.targetPath;
-      let targetPath: string | undefined;
+    const rawTargetPathQuery = request.query.targetPath;
+    let targetPath: string | undefined;
 
-      if (Array.isArray(rawTargetPathQuery)) {
-        targetPath = rawTargetPathQuery[0] as string;
-      } else if (typeof rawTargetPathQuery === "string") {
-        targetPath = rawTargetPathQuery;
-      }
+    if (Array.isArray(rawTargetPathQuery)) {
+      targetPath = rawTargetPathQuery[0] as string;
+    } else if (typeof rawTargetPathQuery === 'string') {
+      targetPath = rawTargetPathQuery;
+    }
     
-      if (typeof targetPath !== "string" || !targetPath) {
-        logger.warn("theOddsApiProxy: Missing or invalid targetPath parameter.", {query: request.query});
-        response.status(400).send("Missing or invalid targetPath parameter for The Odds API.");
-        return;
-      }
+    if (typeof targetPath !== "string" || !targetPath) {
+      logger.warn("theOddsApiProxy: Missing or invalid targetPath parameter.", { query: request.query });
+      response.status(400).send("Missing or invalid targetPath parameter for The Odds API.");
+      return;
+    }
 
-      const theOddsApiKey = process.env.THE_ODDS_API_KEY;
-      logger.info(`theOddsApiProxy: THE_ODDS_API_KEY presence: ${theOddsApiKey ? "Exists" : "MISSING!"}`);
+    const theOddsApiKey = process.env.THE_ODDS_API_KEY;
+    logger.info(`theOddsApiProxy: THE_ODDS_API_KEY presence: ${theOddsApiKey ? 'Exists' : 'MISSING!'}`);
 
-      if (!theOddsApiKey) {
-        logger.error("theOddsApiProxy: THE_ODDS_API_KEY not configured.");
-        response.status(500).send("Proxy API key (THE_ODDS_API_KEY) is not configured.");
-        return;
-      }
+    if (!theOddsApiKey) {
+      logger.error("theOddsApiProxy: THE_ODDS_API_KEY not configured.");
+      response.status(500).send("Proxy API key (THE_ODDS_API_KEY) is not configured.");
+      return;
+    }
 
-      let externalApiUrl = `${THE_ODDS_API_BASE_URL}/${targetPath.startsWith("/") ? targetPath.substring(1) : targetPath}`;
+    let externalApiUrl = `${THE_ODDS_API_BASE_URL}/${targetPath.startsWith("/") ? targetPath.substring(1) : targetPath}`;
     
-      const queryParams = new URLSearchParams();
-      queryParams.append("apiKey", theOddsApiKey);
+    const queryParams = new URLSearchParams();
+    queryParams.append("apiKey", theOddsApiKey); 
 
-      const requestQuery = request.query;
-      for (const key in requestQuery) {
-        if (Object.prototype.hasOwnProperty.call(requestQuery, key) && key !== "targetPath" && key !== "apiKey") {
-          const valueRaw = requestQuery[key];
-          if (valueRaw !== undefined) {
-            const value = Array.isArray(valueRaw) ? String(valueRaw[0]) : String(valueRaw);
-            queryParams.append(key, value);
-          }
+    const requestQuery = request.query;
+    for (const key in requestQuery) {
+      if (Object.prototype.hasOwnProperty.call(requestQuery, key) && key !== "targetPath" && key !== "apiKey") {
+         const valueRaw = requestQuery[key];
+        if (valueRaw !== undefined) {
+          const value = Array.isArray(valueRaw) ? String(valueRaw[0]) : String(valueRaw);
+          queryParams.append(key, value);
         }
       }
+    }
     
-      externalApiUrl += `?${queryParams.toString()}`;
+    externalApiUrl += `?${queryParams.toString()}`;
 
-      logger.info(`theOddsApiProxy: Requesting URL: ${externalApiUrl.replace(theOddsApiKey, "THE_ODDS_API_KEY_REDACTED")}`);
+    logger.info(`theOddsApiProxy: Requesting URL: ${externalApiUrl.replace(theOddsApiKey, "THE_ODDS_API_KEY_REDACTED")}`);
     
-      try {
-        logger.info("theOddsApiProxy: Attempting axios.get to The Odds API.");
-        const apiResponse = await axios.get(externalApiUrl, {
-          headers: {"Accept": "application/json"},
-          timeout: 15000,
-        });
-        logger.info(`theOddsApiProxy: The Odds API response status: ${apiResponse.status}`);
-        response.status(apiResponse.status).send(apiResponse.data);
-      } catch (error: unknown) {
-        logger.error("theOddsApiProxy: Error during axios.get to The Odds API.");
-        handleAxiosError(error, externalApiUrl.replace(theOddsApiKey, "THE_ODDS_API_KEY_REDACTED"), response, "theOddsApiProxy");
-      }
-    },
-);
-
-// --- Lock Screen Verification Function ---
-const LOCK_SCREEN_CORRECT_ANSWER = "VNEXT JAPAN - Football Club";
-
-export const verifyLockScreenAnswer = onRequest(
-    {cors: allowedOrigins}, // Use the same CORS policy
-    (request: FunctionsRequest, response: ExpressResponse): void => {
-      logger.info(
-          `verifyLockScreenAnswer invoked. Origin: ${request.headers["origin"]}, Method: ${request.method}`,
-      );
-
-      if (request.method !== "POST") {
-        response.status(405).send({success: false, message: "Method Not Allowed"});
-        return;
-      }
-
-      const userAnswer = request.body?.answer;
-
-      if (typeof userAnswer !== "string" || !userAnswer.trim()) {
-        response.status(400).send({success: false, message: "Answer must be provided."});
-        return;
-      }
-
-      if (userAnswer.trim().toLowerCase() === LOCK_SCREEN_CORRECT_ANSWER.toLowerCase()) {
-        response.status(200).send({success: true});
-      } else {
-        response.status(401).send({success: false, message: "Incorrect answer."});
-      }
-    },
+    try {
+      logger.info(`theOddsApiProxy: Attempting axios.get to The Odds API.`);
+      const apiResponse = await axios.get(externalApiUrl, {
+        headers: { "Accept": "application/json" },
+        timeout: 15000, 
+      });
+      logger.info(`theOddsApiProxy: The Odds API response status: ${apiResponse.status}`);
+      response.status(apiResponse.status).send(apiResponse.data);
+    } catch (error: unknown) {
+      logger.error(`theOddsApiProxy: Error during axios.get to The Odds API.`);
+      handleAxiosError(error, externalApiUrl.replace(theOddsApiKey, "THE_ODDS_API_KEY_REDACTED"), response, "theOddsApiProxy");
+    }
+  }
 );
 
 // Helper function to handle Axios errors consistently
-function handleAxiosError(error: unknown, url: string, response: ExpressResponse, proxyName: string) {
+function handleAxiosError(error: unknown, url: string, response: Response, proxyName: string) {
   let errorMessage = `Error fetching data from external API via ${proxyName}.`;
   let httpStatus = 500;
-  const errorLogDetails: Record<string, any> = {url, proxyName};
+  const errorLogDetails: Record<string, any> = { url, proxyName };
 
   if (error instanceof Error) {
     errorMessage = error.message;
@@ -206,11 +177,12 @@ function handleAxiosError(error: unknown, url: string, response: ExpressResponse
         } else if (axiosErrorInstance.response.data.error && typeof axiosErrorInstance.response.data.error === "string") {
           errorMessage = axiosErrorInstance.response.data.error;
         } else {
-          errorMessage = `External API Error: ${httpStatus} - ${JSON.stringify(axiosErrorInstance.response.data)}`;
+           errorMessage = `External API Error: ${httpStatus} - ${JSON.stringify(axiosErrorInstance.response.data)}`;
         }
       } else {
-        errorMessage = `External API Error: ${httpStatus}`;
+         errorMessage = `External API Error: ${httpStatus}`;
       }
+
     } else if (axiosErrorInstance.request) {
       errorMessage = "No response received from external API.";
       errorLogDetails.axiosRequestInfo = "No response was received from the external API.";

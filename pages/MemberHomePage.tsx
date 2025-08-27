@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, BetTeamSelection, BettingRoundStatus } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';

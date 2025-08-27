@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState } from 'react';
 import { BettingRound, User, BetTeamSelection, MatchResultTeam, BettingRoundStatus, Bet, OddsData, BookmakerOdds, OutcomeOdds } from '../types';
 import { Button } from './shared/Button';
@@ -70,7 +72,7 @@ const OddsDisplay: React.FC<{ oddsData: OddsData, match: BettingRound['matchDeta
 
 export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser }) => {
   const { translate } = useLanguage();
-  const { addToast } = useAppContext();
+  const { addToast, isBettingEnabled } = useAppContext();
   const { matchDetails, status, winningTeam } = round;
   const userBet = currentUser ? round.bets.find(b => b.userId === currentUser.id) : null;
 
@@ -126,7 +128,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
     return null;
   };
 
-  const betStatusDisplay = getBetStatusDisplay(userBet, status, winningTeam);
+  const betStatusDisplay = isBettingEnabled ? getBetStatusDisplay(userBet, status, winningTeam) : null;
 
   const homeBets = round.bets.filter(b => b.selectedTeam === BetTeamSelection.HOME);
   const awayBets = round.bets.filter(b => b.selectedTeam === BetTeamSelection.AWAY);
@@ -181,7 +183,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
           </div>
           
           {/* Odds Display Section */}
-          {isOddsApiConfigured && status === BettingRoundStatus.OPEN && (
+          {isBettingEnabled && isOddsApiConfigured && status === BettingRoundStatus.OPEN && (
             <div className="my-3">
               {isLoadingOdds && (
                 <div className="text-center py-2">
@@ -207,7 +209,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
           )}
 
 
-          {status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
+          {isBettingEnabled && status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
             <div className="my-3 p-2 bg-primary/10 dark:bg-primary/30 rounded-md text-center">
               <p className="text-sm font-semibold text-primary">
                 {translate('matchCard.resultLabel')} {winningTeam === MatchResultTeam.DRAW ? translate('matchResult.draw') : `${winningTeam === MatchResultTeam.HOME_WIN ? matchDetails.homeTeam : matchDetails.awayTeam} ${translate('matchResult.won')}`}
@@ -215,14 +217,14 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
             </div>
           )}
           
-          {userBet && (
+          {isBettingEnabled && userBet && (
             <div className="my-3 p-2 bg-gray-100 dark:bg-slate-700 rounded-md text-sm text-textPrimary">
               <p>{translate('matchCard.yourBet')} <span className="font-semibold">{translate('matchCard.pointsBetValue', { points: userBet.pointsBet })}</span> {translate('matchCard.onTeam')} <span className="font-semibold">{userBet.selectedTeam === BetTeamSelection.HOME ? matchDetails.homeTeam : matchDetails.awayTeam}</span></p>
               {betStatusDisplay && <div className="mt-1">{betStatusDisplay}</div>}
             </div>
           )}
 
-          {status === BettingRoundStatus.OPEN && round.bets.length > 0 && (
+          {isBettingEnabled && status === BettingRoundStatus.OPEN && round.bets.length > 0 && (
             <div className="mt-4 pt-3 border-t border-border">
               <h4 className="text-base font-semibold text-textPrimary mb-3 text-center">{translate('matchCard.currentBets', { count: round.bets.length })}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -260,7 +262,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
             </div>
           )}
 
-          {status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
+          {isBettingEnabled && status === BettingRoundStatus.RESULT_UPDATED && winningTeam && (
             <div className="mt-4 pt-3 border-t border-border">
               <h4 className="text-base font-semibold text-textPrimary mb-3 text-center">{translate('matchCard.allBetOutcomes')}</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -297,19 +299,19 @@ export const MatchCard: React.FC<MatchCardProps> = ({ round, onBet, currentUser 
           )}
         </div>
         
-        {status === BettingRoundStatus.OPEN && onBet && currentUser && !userBet && (
+        {isBettingEnabled && status === BettingRoundStatus.OPEN && onBet && currentUser && !userBet && (
           <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border-t border-border">
             <Button onClick={() => onBet(round.id)} fullWidth>
               <CurrencyDollarIcon className="w-5 h-5 mr-2"/> {translate('matchCard.button.placeBet')}
             </Button>
           </div>
         )}
-        {status === BettingRoundStatus.OPEN && currentUser && userBet && (
+        {isBettingEnabled && status === BettingRoundStatus.OPEN && currentUser && userBet && (
            <div className="p-4 bg-green-50 dark:bg-green-700/30 text-center text-sm text-green-700 dark:text-green-300 font-medium border-t border-green-200 dark:border-green-600/50">
               {translate('matchCard.alreadyBet')}
           </div>
         )}
-         {!currentUser && status === BettingRoundStatus.OPEN && (
+         {isBettingEnabled && !currentUser && status === BettingRoundStatus.OPEN && (
            <div className="p-4 bg-gray-50 dark:bg-slate-800/60 text-center text-sm text-textSecondary font-medium border-t border-border">
               {translate('matchCard.loginToBet')}
           </div>

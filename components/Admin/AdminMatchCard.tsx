@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { BettingRound, BettingRoundStatus, MatchResultTeam } from '../../types';
 import { Button } from '../shared/Button';
@@ -8,6 +9,7 @@ import {
 } from '../icons';
 import { AiAnalysisModal } from '../AiAnalysisModal'; // Import the new modal
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAppContext } from '../../contexts/AppContext';
 
 interface AdminMatchCardProps {
   round: BettingRound;
@@ -16,6 +18,7 @@ interface AdminMatchCardProps {
 
 export const AdminMatchCard: React.FC<AdminMatchCardProps> = ({ round, onUpdateResult }) => {
   const { translate } = useLanguage();
+  const { isBettingEnabled } = useAppContext();
   const { matchDetails, status, bets, winningTeam } = round;
   const [isAiAnalysisModalOpen, setIsAiAnalysisModalOpen] = useState(false);
   const isAiFeatureAvailable = !!process.env.API_KEY && process.env.API_KEY !== "";
@@ -83,7 +86,7 @@ export const AdminMatchCard: React.FC<AdminMatchCardProps> = ({ round, onUpdateR
         
         {(status === BettingRoundStatus.OPEN || status === BettingRoundStatus.CLOSED) && ( 
           <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border-t border-border">
-            <Button onClick={() => onUpdateResult(round.id)} variant="warning" fullWidth>
+            <Button onClick={() => onUpdateResult(round.id)} variant="warning" fullWidth disabled={!isBettingEnabled}>
               <PencilAltIcon className="w-5 h-5 mr-2"/> {translate('adminMatchCard.button.updateResult')}
             </Button>
           </div>

@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyLockScreenAnswer = exports.theOddsApiProxy = exports.footballApiProxy = void 0;
+exports.theOddsApiProxy = exports.footballApiProxy = void 0;
 const logger = __importStar(require("firebase-functions/logger"));
-// Use onRequest from v2/https, and Request/Response types from express
+// Use Request and Response from v2/https
 const https_1 = require("firebase-functions/v2/https");
 const axios_1 = __importStar(require("axios"));
 // CORS is now handled by Firebase onRequest option
@@ -57,7 +57,7 @@ async (request, response) => {
     if (Array.isArray(rawTargetPathQuery)) {
         targetPath = rawTargetPathQuery[0];
     }
-    else if (typeof rawTargetPathQuery === "string") {
+    else if (typeof rawTargetPathQuery === 'string') {
         targetPath = rawTargetPathQuery;
     }
     if (typeof targetPath !== "string" || !targetPath) {
@@ -108,7 +108,7 @@ async (request, response) => {
     if (Array.isArray(rawTargetPathQuery)) {
         targetPath = rawTargetPathQuery[0];
     }
-    else if (typeof rawTargetPathQuery === "string") {
+    else if (typeof rawTargetPathQuery === 'string') {
         targetPath = rawTargetPathQuery;
     }
     if (typeof targetPath !== "string" || !targetPath) {
@@ -117,7 +117,7 @@ async (request, response) => {
         return;
     }
     const theOddsApiKey = process.env.THE_ODDS_API_KEY;
-    logger.info(`theOddsApiProxy: THE_ODDS_API_KEY presence: ${theOddsApiKey ? "Exists" : "MISSING!"}`);
+    logger.info(`theOddsApiProxy: THE_ODDS_API_KEY presence: ${theOddsApiKey ? 'Exists' : 'MISSING!'}`);
     if (!theOddsApiKey) {
         logger.error("theOddsApiProxy: THE_ODDS_API_KEY not configured.");
         response.status(500).send("Proxy API key (THE_ODDS_API_KEY) is not configured.");
@@ -139,7 +139,7 @@ async (request, response) => {
     externalApiUrl += `?${queryParams.toString()}`;
     logger.info(`theOddsApiProxy: Requesting URL: ${externalApiUrl.replace(theOddsApiKey, "THE_ODDS_API_KEY_REDACTED")}`);
     try {
-        logger.info("theOddsApiProxy: Attempting axios.get to The Odds API.");
+        logger.info(`theOddsApiProxy: Attempting axios.get to The Odds API.`);
         const apiResponse = await axios_1.default.get(externalApiUrl, {
             headers: { "Accept": "application/json" },
             timeout: 15000,
@@ -148,29 +148,8 @@ async (request, response) => {
         response.status(apiResponse.status).send(apiResponse.data);
     }
     catch (error) {
-        logger.error("theOddsApiProxy: Error during axios.get to The Odds API.");
+        logger.error(`theOddsApiProxy: Error during axios.get to The Odds API.`);
         handleAxiosError(error, externalApiUrl.replace(theOddsApiKey, "THE_ODDS_API_KEY_REDACTED"), response, "theOddsApiProxy");
-    }
-});
-// --- Lock Screen Verification Function ---
-const LOCK_SCREEN_CORRECT_ANSWER = "VNEXT JAPAN - Football Club";
-exports.verifyLockScreenAnswer = (0, https_1.onRequest)({ cors: allowedOrigins }, // Use the same CORS policy
-(request, response) => {
-    logger.info(`verifyLockScreenAnswer invoked. Origin: ${request.headers["origin"]}, Method: ${request.method}`);
-    if (request.method !== "POST") {
-        response.status(405).send({ success: false, message: "Method Not Allowed" });
-        return;
-    }
-    const userAnswer = request.body?.answer;
-    if (typeof userAnswer !== "string" || !userAnswer.trim()) {
-        response.status(400).send({ success: false, message: "Answer must be provided." });
-        return;
-    }
-    if (userAnswer.trim().toLowerCase() === LOCK_SCREEN_CORRECT_ANSWER.toLowerCase()) {
-        response.status(200).send({ success: true });
-    }
-    else {
-        response.status(401).send({ success: false, message: "Incorrect answer." });
     }
 });
 // Helper function to handle Axios errors consistently

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { User, LeaderboardEntry, UserRole } from '../types';
+import { User, LeaderboardEntry, UserRole, AppSettings } from '../types';
 
 export interface AppContextType {
   currentUser: User | null;
@@ -12,6 +12,8 @@ export interface AppContextType {
   isFirebaseReady: boolean;
   allUsers: User[]; 
   refreshAllUsers: () => void;
+  isBettingEnabled: boolean;
+  updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);

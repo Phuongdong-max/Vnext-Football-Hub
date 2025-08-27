@@ -1,4 +1,3 @@
-
 {
   "app.title": "VNEXT JAPAN - Football Club",
   "landing.subtitle": "Your ultimate hub for friendly football betting!",
@@ -80,6 +79,10 @@
   "info.bettingRoundsUnavailableFirebaseNotReady": "Betting rounds unavailable: Firebase not ready.",
   "error.failedToLoadBettingRounds": "Failed to load betting rounds.",
   "error.cannotPlaceBetFirebaseNotReady": "Cannot place bet: Firebase not ready.",
+  "success.appSettingsUpdated": "App settings updated successfully.",
+  "error.appSettingsUpdateFailed": "Failed to update app settings: {{errorMessage}}",
+  "error.unauthorized": "You are not authorized to perform this action.",
+
 
   "createBettingRoundModal.title": "Create New Betting Round",
   "createBettingRoundModal.api.selectSourceLabel": "Select API Source:",
@@ -383,7 +386,12 @@
   "manageTournament.players.liveSaveInfo": "Changes to this global player list are saved live. Team roster assignments must be confirmed by clicking the 'Save Teams' button.",
   "manageTournament.legacyWarning.title": "Legacy Tournament:",
   "manageTournament.legacyWarning.body": "This tournament uses an old player list. To properly manage players, please add them to the global 'Players' tab and re-assign them to teams. Remember to click 'Save Teams' to confirm roster changes.",
-  "manageTournament.button.addPlayer": "Add Player",
+  "manageTournament.migration.title": "Player Data Migration Required",
+  "manageTournament.migration.body": "This tournament uses an outdated player data format. To enable editing, players must be migrated to the new global system. This is a safe, one-time action.",
+  "manageTournament.migration.button": "Migrate Players",
+  "manageTournament.migration.success": "Player migration successful! The manager has been updated.",
+  "manageTournament.migration.error": "Player migration failed: {{error}}",
+
   "goalscorerModal.title": "Manage Goals for {{teamName}}",
   "goalscorerModal.currentScore": "Current Score",
   "goalscorerModal.noGoals": "No goals yet.",
@@ -394,5 +402,11 @@
   "topScorersList.goals": "Goals",
   "topScorersList.team": "Team",
   "topScorersList.noScorers": "No goals have been scored yet.",
-  "topScorersList.guest": " (Guest)"
+  "topScorersList.guest": " (Guest)",
+
+  "countdown.days": "Days",
+  "countdown.hours": "Hours",
+  "countdown.minutes": "Minutes",
+  "countdown.seconds": "Seconds",
+  "countdown.eventStarted": "The Event Has Begun!"
 }

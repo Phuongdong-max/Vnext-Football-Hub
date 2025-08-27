@@ -241,3 +241,7 @@ export interface Tournament {
     name: string;
   };
 }
+
+export interface AppSettings {
+  isBettingEnabled: boolean;
+}

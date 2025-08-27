@@ -4,7 +4,7 @@ import { Button } from '../shared/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAppContext } from '../../contexts/AppContext';
 import { Tournament, TournamentTeam, TournamentPlayer } from '../../types';
-import { updateTournament, addPlayer, updatePlayer, deletePlayer } from '../../services/firebaseService';
+import { updateTournament, addPlayer, updatePlayer, deletePlayer, batchAddGlobalPlayers } from '../../services/firebaseService';
 import { PlusIcon, XIcon, InformationCircleIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
@@ -33,8 +33,9 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     
     // General state
     const [isSaving, setIsSaving] = useState(false);
+    const [isMigrating, setIsMigrating] = useState(false);
     
-    const isLegacyTournament = initialTournament.players && initialTournament.players.length > 0;
+    const isLegacyTournament = !!initialTournament.players && initialTournament.players.length > 0;
 
     useEffect(() => {
         if (isOpen && initialTournament) {
@@ -49,6 +50,31 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
             setNewPlayerJersey('');
         }
     }, [isOpen, initialTournament]);
+    
+    const handleMigrate = async () => {
+        if (!isLegacyTournament || !initialTournament.players || !currentUser) return;
+        
+        setIsMigrating(true);
+        try {
+            // Step 1: Add all legacy players to the global collection
+            await batchAddGlobalPlayers(initialTournament.players);
+
+            // Step 2: Remove the legacy 'players' array from the tournament document
+            await updateTournament(initialTournament.id, {
+                players: window.firebase.firestore.FieldValue.delete()
+            }, currentUser);
+
+            addToast('manageTournament.migration.success', 'success');
+            // The modal will re-render automatically because the parent's listener will
+            // provide updated tournament data, where `isLegacyTournament` will be false.
+        } catch (error) {
+            addToast('manageTournament.migration.error', 'error', { error: (error as Error).message });
+            console.error("Migration failed:", error);
+        } finally {
+            setIsMigrating(false);
+        }
+    };
+
 
     // --- Team Management ---
     const handleAddTeam = () => {
@@ -160,7 +186,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         setIsSaving(true);
         try {
             // When saving, we remove the legacy 'players' field to finalize migration for this tournament
-            const dataToUpdate: Partial<Tournament> = { teams, players: [] };
+            const dataToUpdate: Partial<Tournament> = { teams };
             await updateTournament(initialTournament.id, dataToUpdate, currentUser);
             addToast('manageTournament.saveSuccess', 'success');
             onClose();
@@ -177,6 +203,24 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     const tabButtonBase = "px-4 py-2 text-sm font-medium border-b-2 transition-colors";
     const activeTabClass = "border-primary text-primary";
     const inactiveTabClass = "border-transparent text-textSecondary hover:border-gray-300 dark:hover:border-slate-600 hover:text-textPrimary";
+    
+    if (isLegacyTournament) {
+        return (
+            <Modal isOpen={isOpen} onClose={onClose} title={translate('manageTournament.migration.title')} size="lg">
+                <div className="text-center p-4">
+                    <InformationCircleIcon className="w-12 h-12 mx-auto text-yellow-400 mb-4" />
+                    <h3 className="text-xl font-bold text-textPrimary">{translate('manageTournament.legacyWarning.title')}</h3>
+                    <p className="mt-2 text-textSecondary">
+                        {translate('manageTournament.migration.body')}
+                    </p>
+                    <Button onClick={handleMigrate} disabled={isMigrating} size="lg" className="mt-6">
+                        {isMigrating ? <LoadingSpinner size="sm" /> : translate('manageTournament.migration.button')}
+                    </Button>
+                </div>
+            </Modal>
+        );
+    }
+
 
     const renderPlayersTab = () => (
         <div className="space-y-4">
@@ -216,17 +260,10 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     
     const renderTeamsTab = () => (
         <div className="space-y-4">
-             {isLegacyTournament ? (
-                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 rounded-lg text-sm flex items-start gap-2">
-                    <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                    <span><strong>{translate('manageTournament.legacyWarning.title')}</strong> {translate('manageTournament.legacyWarning.body')}</span>
-                </div>
-            ) : (
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-lg text-sm flex items-start gap-2">
-                    <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                    <span>{translate('manageTournament.players.liveSaveInfo')}</span>
-                </div>
-            )}
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-lg text-sm flex items-start gap-2">
+                <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                <span>{translate('manageTournament.players.liveSaveInfo')}</span>
+            </div>
             <div className="flex items-center space-x-2">
                 <input type="text" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder={translate('manageTournament.teamName.placeholder')} className={inputClasses} />
                 <Button type="button" onClick={handleAddTeam}><PlusIcon className="w-5 h-5 mr-1"/>{translate('manageTournament.button.addTeam')}</Button>

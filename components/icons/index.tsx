@@ -137,7 +137,7 @@ export const TrophyIcon: React.FC<IconProps> = (props) => (
 
 // New Static Logo Component using CSS Mask for theming
 export const VnfcLogoStatic: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => {
-  const logoUrl = "assets/VFLogo fix.png"; // Path to the logo image
+  const logoUrl = "/assets/VFLogo-fix.png"; // Path to the logo image
 
   return (
     <div
@@ -166,7 +166,7 @@ export const VnfcLogoStatic: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 
 // New Animated Logo Component
 export const VnfcLogoAnimated: React.FC<React.ImgHTMLAttributes<HTMLImageElement>> = (props) => (
-  <img src="assets/VFLogo GIF fix.gif" alt="VNEXT FC Logo Animated" {...props} />
+  <img src="/assets/VFLogo-GIF-fix.gif" alt="VNEXT FC Logo Animated" {...props} />
 );
 
 

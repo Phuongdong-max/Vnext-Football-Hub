@@ -1,4 +1,3 @@
-
 {
   "app.title": "VNEXT JAPAN - Football Club",
   "landing.subtitle": "Trung tâm cá cược bóng đá thân thiện của bạn!",
@@ -80,6 +79,9 @@
   "info.bettingRoundsUnavailableFirebaseNotReady": "Các vòng cược không khả dụng: Firebase chưa sẵn sàng.",
   "error.failedToLoadBettingRounds": "Không thể tải các vòng cược.",
   "error.cannotPlaceBetFirebaseNotReady": "Không thể đặt cược: Firebase chưa sẵn sàng.",
+  "success.appSettingsUpdated": "Cài đặt ứng dụng đã được cập nhật thành công.",
+  "error.appSettingsUpdateFailed": "Không thể cập nhật cài đặt ứng dụng: {{errorMessage}}",
+  "error.unauthorized": "Bạn không được phép thực hiện hành động này.",
 
   "createBettingRoundModal.title": "Tạo Vòng Cược Mới",
   "createBettingRoundModal.api.selectSourceLabel": "Chọn Nguồn API:",
@@ -383,7 +385,12 @@
   "manageTournament.players.liveSaveInfo": "Các thay đổi trong danh sách cầu thủ chung này được lưu trực tiếp. Việc phân công cầu thủ vào đội hình phải được xác nhận bằng cách nhấp vào nút 'Lưu các đội'.",
   "manageTournament.legacyWarning.title": "Giải đấu Cũ:",
   "manageTournament.legacyWarning.body": "Giải đấu này sử dụng danh sách cầu thủ cũ. Để quản lý đúng cách, vui lòng thêm cầu thủ vào danh sách chung trong tab 'Cầu thủ' và gán lại họ vào đội. Hãy nhớ nhấp vào 'Lưu các đội' để xác nhận thay đổi đội hình.",
-  "manageTournament.button.addPlayer": "Thêm Cầu thủ",
+  "manageTournament.migration.title": "Yêu cầu Di chuyển Dữ liệu Cầu thủ",
+  "manageTournament.migration.body": "Giải đấu này sử dụng định dạng dữ liệu cầu thủ cũ. Để có thể chỉnh sửa, danh sách cầu thủ phải được di chuyển sang hệ thống chung mới. Đây là một hành động an toàn và chỉ thực hiện một lần.",
+  "manageTournament.migration.button": "Di chuyển Cầu thủ",
+  "manageTournament.migration.success": "Di chuyển dữ liệu cầu thủ thành công! Trình quản lý đã được cập nhật.",
+  "manageTournament.migration.error": "Di chuyển dữ liệu cầu thủ thất bại: {{error}}",
+
   "goalscorerModal.title": "Quản lý Bàn thắng cho {{teamName}}",
   "goalscorerModal.currentScore": "Tỷ số hiện tại",
   "goalscorerModal.noGoals": "Chưa có bàn thắng.",
@@ -394,5 +401,11 @@
   "topScorersList.goals": "Bàn thắng",
   "topScorersList.team": "Đội",
   "topScorersList.noScorers": "Chưa có bàn thắng nào được ghi.",
-  "topScorersList.guest": " (Khách)"
+  "topScorersList.guest": " (Khách)",
+  
+  "countdown.days": "Ngày",
+  "countdown.hours": "Giờ",
+  "countdown.minutes": "Phút",
+  "countdown.seconds": "Giây",
+  "countdown.eventStarted": "Sự Kiện Đã Bắt Đầu!"
 }

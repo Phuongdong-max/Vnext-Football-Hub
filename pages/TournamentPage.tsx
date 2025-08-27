@@ -481,32 +481,32 @@ export const TournamentPage: React.FC = () => {
     
     return (
         <div className="space-y-6">
-             {currentUser && (
-                <div className={`${panelClasses} p-3`}>
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex-grow">
-                             <label htmlFor="tournament-select" className="sr-only">{translate('tournament.selectTournament')}</label>
-                             <select
-                                id="tournament-select"
-                                value={selectedTournamentId || ''}
-                                onChange={e => setSelectedTournamentId(e.target.value)}
-                                disabled={isListLoading}
-                                className="w-full max-w-xs block px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400"
-                            >
-                                {isListLoading ? <option>{translate('tournament.loading')}</option> : allTournaments.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                        </div>
+            <div className={`${panelClasses} p-3`}>
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex-grow">
+                         <label htmlFor="tournament-select" className="sr-only">{translate('tournament.selectTournament')}</label>
+                         <select
+                            id="tournament-select"
+                            value={selectedTournamentId || ''}
+                            onChange={e => setSelectedTournamentId(e.target.value)}
+                            disabled={isListLoading}
+                            className="w-full max-w-xs block px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400"
+                        >
+                            {isListLoading ? <option>{translate('tournament.loading')}</option> : allTournaments.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {currentUser && (
                         <div className="flex items-center gap-2">
                              <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} size="sm"><PlusSmallIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.new')}</Button>
                              <Button onClick={() => { setModalMode('edit'); setIsCreateEditModalOpen(true); }} size="sm" variant="outline" disabled={!tournament}><PencilIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.edit')}</Button>
                              <Button onClick={handleDeleteTournament} size="sm" variant="danger" disabled={!tournament || allTournaments.length <= 1}><TrashIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.delete')}</Button>
                              <Button onClick={() => setIsManageModalOpen(true)} size="sm" disabled={!tournament}><PencilAltIcon className="w-4 h-4 mr-1" />{translate('tournament.manageButton')}</Button>
                         </div>
-                    </div>
+                    )}
                 </div>
-             )}
+            </div>
 
             {renderContent()}
 

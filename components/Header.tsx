@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
@@ -31,11 +29,11 @@ const NavLink: React.FC<{ to: string; children: React.ReactNode; icon: React.Rea
 };
 
 export const Header: React.FC = () => {
-  const { currentUser } = useAppContext();
+  const { currentUser, isBettingEnabled } = useAppContext();
   const { translate } = useLanguage();
 
   return (
-    <header className="bg-surface shadow-lg sticky top-0 z-50">
+    <header className="bg-surface/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-2 sm:px-4 py-3 flex items-center justify-between">
         <div className="flex items-center flex-shrink-0">
           <Link to="/" className="flex items-center text-xl sm:text-2xl font-bold text-primary">
@@ -52,7 +50,7 @@ export const Header: React.FC = () => {
             {currentUser?.role === UserRole.ADMIN && (
               <NavLink to="/admin" icon={<ShieldCheckIcon className="w-5 h-5" />}>{translate('header.adminDashboard')}</NavLink>
             )}
-            <NavLink to="/leaderboard" icon={<UserGroupIcon className="w-5 h-5" />}>{translate('header.leaderboard')}</NavLink>
+            {isBettingEnabled && <NavLink to="/leaderboard" icon={<UserGroupIcon className="w-5 h-5" />}>{translate('header.leaderboard')}</NavLink>}
           </nav>
           <ThemeToggleButton />
           <LanguageToggleButton />

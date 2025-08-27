@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -8,7 +5,7 @@ import { Button } from './shared/Button';
 import { LogoutIcon, UserCircleIcon, GoogleIcon } from './icons'; 
 
 export const AuthComponent: React.FC = () => {
-  const { currentUser, signInWithGoogle, logout, isFirebaseReady } = useAppContext();
+  const { currentUser, signInWithGoogle, logout, isFirebaseReady, isBettingEnabled } = useAppContext();
   const { translate } = useLanguage();
 
   const handleGoogleLogin = async () => {
@@ -17,7 +14,7 @@ export const AuthComponent: React.FC = () => {
 
   if (currentUser) {
     return (
-      <div className="bg-primary/10 dark:bg-primary/30 p-3 shadow-sm">
+      <div className="bg-black/10 dark:bg-black/20 backdrop-blur-sm p-3 shadow-sm">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center">
             {currentUser.avatarUrl ? (
@@ -27,7 +24,7 @@ export const AuthComponent: React.FC = () => {
             )}
             <div>
               <p className="text-sm font-semibold text-textPrimary">{translate('auth.loggedInAs', { name: currentUser.name })}</p>
-              <p className="text-xs text-textSecondary">{translate('auth.role', {role: currentUser.role})} | {translate('auth.points', {points: currentUser.points})}</p>
+              <p className="text-xs text-textSecondary">{translate('auth.role', {role: currentUser.role})}{isBettingEnabled && ` | ${translate('auth.points', {points: currentUser.points})}`}</p>
             </div>
           </div>
           <Button onClick={logout} variant="secondary" size="sm">
@@ -40,7 +37,7 @@ export const AuthComponent: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-slate-800/60 p-4 shadow-sm">
+    <div className="bg-black/10 dark:bg-black/20 backdrop-blur-sm p-4 shadow-sm">
       <div className="container mx-auto flex flex-col items-center">
         <h3 className="text-lg font-semibold text-textPrimary mb-3 text-center">{translate('auth.signIn')}</h3>
         {isFirebaseReady ? (

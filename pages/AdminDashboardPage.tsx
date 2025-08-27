@@ -15,9 +15,10 @@ import { AdminMatchCard } from '../components/Admin/AdminMatchCard';
 import { Button } from '../components/shared/Button';
 import { PlusCircleIcon, RefreshIcon, ShieldExclamationIcon } from '../components/icons';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
+import { ToggleSwitch } from '../components/shared/ToggleSwitch';
 
 export const AdminDashboardPage: React.FC = () => {
-  const { currentUser, addToast, refreshLeaderboard, isFirebaseReady } = useAppContext();
+  const { currentUser, addToast, refreshLeaderboard, isFirebaseReady, isBettingEnabled, updateAppSettings } = useAppContext();
   const { translate } = useLanguage();
   const [bettingRounds, setBettingRounds] = useState<BettingRound[]>([]);
   
@@ -76,6 +77,11 @@ export const AdminDashboardPage: React.FC = () => {
     fetchAdminPageData();
   }, [fetchAdminPageData]);
   
+  const handleToggleBetting = async (enabled: boolean) => {
+    if (!updateAppSettings) return;
+    await updateAppSettings({ isBettingEnabled: enabled });
+  };
+
   const handleLoadMatchesForFootballDataModal = useCallback(async (date: string, leagueCode: string): Promise<FootballMatch[]> => {
     if (!apiAvailable) { 
       addToast("error.liveApiUnavailable", "info");
@@ -163,17 +169,37 @@ export const AdminDashboardPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-textPrimary">{translate('adminDashboard.title')}</h1>
         <div className="space-x-2">
-           <Button onClick={() => fetchAdminPageData(true)} variant="outline" size="sm" title={translate('adminDashboard.button.refreshData')} disabled={isDataLoading || isLoading}>
+           <Button onClick={() => fetchAdminPageData(true)} variant="outline" size="sm" title={translate('adminDashboard.button.refreshData')} disabled={isDataLoading || isLoading || !isBettingEnabled}>
             {(isDataLoading || isLoading) ? <LoadingSpinner size="sm" className="w-5 h-5"/> : <RefreshIcon className="w-5 h-5"/>}
           </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)} disabled={isDataLoading || isLoading}>
+          <Button onClick={() => setIsCreateModalOpen(true)} disabled={isDataLoading || isLoading || !isBettingEnabled}>
             <PlusCircleIcon className="w-5 h-5 mr-2" />
             {translate('adminDashboard.button.createRound')}
           </Button>
         </div>
       </div>
+
+      <section className="p-4 bg-surface rounded-lg shadow-md border border-border">
+          <h2 className="text-xl font-semibold text-textPrimary mb-4">Global App Controls</h2>
+          <ToggleSwitch
+            id="betting-toggle"
+            label={isBettingEnabled ? "Betting is ON" : "Betting is OFF"}
+            checked={isBettingEnabled}
+            onChange={handleToggleBetting}
+          />
+          <p className="text-xs text-textSecondary mt-2">
+            {isBettingEnabled
+              ? "Users can view leaderboards, place bets, and see betting-related content."
+              : "All betting features, points, and leaderboards are hidden for all users."}
+          </p>
+      </section>
       
-      {!apiAvailable && (
+      {!isBettingEnabled ? (
+        <div className="p-3 bg-red-100 dark:bg-red-500/20 border border-red-300 dark:border-red-500/40 text-sm text-red-700 dark:text-red-200 rounded-md flex items-center">
+            <ShieldExclamationIcon className="w-5 h-5 mr-2"/>
+            Betting is globally disabled. Enable it above to create or manage betting rounds.
+        </div>
+      ) : !apiAvailable && (
          <div className="p-3 bg-yellow-100 dark:bg-yellow-500/20 border border-yellow-300 dark:border-yellow-500/40 text-sm text-yellow-700 dark:text-yellow-200 rounded-md flex items-center">
             <ShieldExclamationIcon className="w-5 h-5 mr-2"/>
             {translate('adminDashboard.apiUnavailableWarning')}

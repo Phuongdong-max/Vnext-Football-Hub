@@ -1,12 +1,6 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { User, UserRole, LeaderboardEntry, ToastMessage } from './types';
+import { User, UserRole, LeaderboardEntry, ToastMessage, AppSettings } from './types';
 import { APP_TITLE } from './constants'; 
 import { 
   initializeFirebase, 
@@ -15,6 +9,8 @@ import {
   firebaseSignOut as performFirebaseSignOut,
   updateUserPointsInFirestore,
   getFirebaseLeaderboardEntries, 
+  onAppSettingsUpdate,
+  updateAppSettings as performUpdateAppSettings
 } from './services/firebaseService';
 import { Header } from './components/Header';
 import { AuthComponent } from './components/Auth';
@@ -23,52 +19,13 @@ import { MemberHomePage } from './pages/MemberHomePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { TeamDividerPage } from './pages/TeamDividerPage';
 import { TournamentPage } from './pages/TournamentPage';
+import { CountdownPage } from './pages/CountdownPage'; // Import the new countdown page
 import { ToastContainer } from './components/shared/ToastContainer';
 import { VnfcLogoStatic, VnfcLogoAnimated } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
-import { LockScreen } from './components/LockScreen';
 import { AppContext, AppContextType, useAppContext } from './contexts/AppContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
-
-
-// --- Main Application Component (Stable) ---
-// By defining MainApp outside of AppCore, it is no longer recreated on every
-// state change in AppCore. This is the critical fix to prevent state loss
-// in child components like TournamentPage when a toast notification appears.
-const MainApp: React.FC = () => {
-  const { translate } = useLanguage();
-  const { currentUser } = useAppContext();
-  
-  // Removed animated background logic to enforce standard theme background everywhere.
-  const backgroundClass = 'bg-background';
-
-  return (
-    <div className={`flex flex-col min-h-screen text-textPrimary ${backgroundClass}`}>
-      <Header />
-      <AuthComponent />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/" element={<MemberHomePage />} />
-          <Route path="/admin" element={
-            currentUser?.role === UserRole.ADMIN 
-              ? <AdminDashboardPage /> 
-              : <Navigate to="/" replace />
-          } />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/team-divider" element={<TeamDividerPage />} />
-          <Route path="/tournament" element={<TournamentPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <footer className="py-4 bg-surface shadow-md">
-        <div className="container mx-auto px-4 text-center text-textSecondary">
-          {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
-        </div>
-      </footer>
-    </div>
-  );
-};
 
 
 // --- App Core Logic (Handles State) ---
@@ -84,37 +41,31 @@ const AppCore: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isEnvironmentSupported, setIsEnvironmentSupported] = useState(true);
   const [criticalError, setCriticalError] = useState<string | null>(null);
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isBettingEnabled, setIsBettingEnabled] = useState(true);
 
-  useEffect(() => {
-    try {
-      const unlockedStatus = localStorage.getItem('isAppUnlocked');
-      if (unlockedStatus === 'true') {
-        setIsUnlocked(true);
-      }
-    } catch (e) {
-      console.error("Could not access localStorage to check unlock status", e);
-      setIsUnlocked(false);
-    }
-  }, []);
-
+  // Get location to conditionally apply layout styles
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
 
   const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', replacements?: Record<string, string | number>) => {
     const id = new Date().toISOString() + Math.random(); 
     const message = translate(messageOrKey, replacements);
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
   }, [translate]);
+  
+  const handleUpdateAppSettings = useCallback(async (settings: Partial<AppSettings>) => {
+      if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+          addToast('error.unauthorized', 'error');
+          return;
+      }
+      try {
+          await performUpdateAppSettings(settings);
+          addToast('success.appSettingsUpdated', 'success');
+      } catch (error) {
+          addToast('error.appSettingsUpdateFailed', 'error', { errorMessage: (error as Error).message });
+      }
+  }, [addToast, currentUser]);
 
-  const handleUnlock = () => {
-    try {
-      localStorage.setItem('isAppUnlocked', 'true');
-      setIsUnlocked(true);
-    } catch (e) {
-      console.error("Could not set unlock status in localStorage", e);
-      setIsUnlocked(true);
-      addToast('Could not save unlock status for future visits.', 'warning');
-    }
-  };
 
   const refreshLeaderboard = useCallback(async () => {
     if (isLeaderboardLoadingRef.current) return; 
@@ -159,8 +110,13 @@ const AppCore: React.FC = () => {
         return;
     }
 
-    setIsLoading(true); 
-    const unsubscribe = onFirebaseAuthStateChanged(async (appUserFromService) => {
+    setIsLoading(true);
+
+    const unsubscribeAppSettings = onAppSettingsUpdate((settings) => {
+        setIsBettingEnabled(settings.isBettingEnabled);
+    });
+
+    const unsubscribeAuth = onFirebaseAuthStateChanged(async (appUserFromService) => {
       try {
         setCurrentUser(appUserFromService);
         await refreshLeaderboard(); 
@@ -171,7 +127,10 @@ const AppCore: React.FC = () => {
           setIsLoading(false); 
       }
     });
-    return () => unsubscribe();
+    return () => {
+        unsubscribeAuth();
+        unsubscribeAppSettings();
+    };
   }, [addToast, refreshLeaderboard, translate]);
 
   const handleSignInWithGoogle = useCallback(async (): Promise<User | null> => {
@@ -242,11 +201,9 @@ const AppCore: React.FC = () => {
     isFirebaseReady,
     allUsers: [], // This will be filled by a provider-level fetch
     refreshAllUsers: () => {}, // Placeholder
+    isBettingEnabled,
+    updateAppSettings: handleUpdateAppSettings,
   };
-
-  if (!isUnlocked) {
-    return <LockScreen onUnlock={handleUnlock} />;
-  }
 
   // Combined loading state management
   if ((isLoading || translationsLoading) && !criticalError) {
@@ -283,12 +240,33 @@ const AppCore: React.FC = () => {
     );
   }
   
-  // The LandingPage is no longer shown by default. The MainApp component, which includes
-  // the standard header and auth components, is now rendered for all users.
   return (
     <AppContext.Provider value={appContextValue}>
-        <MainApp />
-        <ToastContainer toasts={toasts} setToasts={setToasts} />
+      <div className="flex flex-col min-h-screen text-textPrimary bg-background">
+        <Header />
+        <AuthComponent />
+        <main className={`flex-grow flex flex-col ${!isHomePage ? 'container mx-auto px-4 py-8' : ''}`}>
+          <Routes>
+            <Route path="/" element={<CountdownPage />} />
+            <Route path="/betting" element={isBettingEnabled ? <MemberHomePage /> : <Navigate to="/tournament" replace />} />
+            <Route path="/admin" element={
+              currentUser?.role === UserRole.ADMIN 
+                ? <AdminDashboardPage /> 
+                : <Navigate to="/tournament" replace />
+            } />
+            {isBettingEnabled && <Route path="/leaderboard" element={<LeaderboardPage />} />}
+            <Route path="/team-divider" element={<TeamDividerPage />} />
+            <Route path="/tournament" element={<TournamentPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <footer className="py-4 bg-surface shadow-md">
+          <div className="container mx-auto px-4 text-center text-textSecondary">
+            {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
+          </div>
+        </footer>
+      </div>
+      <ToastContainer toasts={toasts} setToasts={setToasts} />
     </AppContext.Provider>
   );
 };

@@ -8,9 +8,6 @@ export const FOOTBALL_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cl
 // This will be the URL of the new Cloud Function we create for The Odds API.
 export const THE_ODDS_API_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/theOddsApiProxy';
 
-// URL for the new lock screen verification function
-export const VERIFY_LOCK_SCREEN_PROXY_URL = 'https://us-central1-vnext-football-hub.cloudfunctions.net/verifyLockScreenAnswer';
-
 export const INITIAL_USER_POINTS = 1000;
 
 // This is no longer the direct API URL but the proxy's URL for football-data.org

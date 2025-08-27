@@ -1,5 +1,5 @@
 import { firebaseConfig } from '../firebaseConfig';
-import { User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam } from '../types';
+import { AppSettings, User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -211,6 +211,54 @@ export const getAllAppUsers = async (): Promise<User[]> => {
         return [];
     }
 };
+
+// --- App Settings Functions ---
+
+const APP_SETTINGS_COLLECTION = 'appSettings';
+const GLOBAL_SETTINGS_DOC_ID = 'global';
+
+// Sets up a real-time listener for global app settings.
+export const onAppSettingsUpdate = (callback: (settings: AppSettings) => void): (() => void) => {
+    if (!db) {
+        console.error("Firestore not initialized for onAppSettingsUpdate.");
+        return () => {};
+    }
+
+    const docRef = db.collection(APP_SETTINGS_COLLECTION).doc(GLOBAL_SETTINGS_DOC_ID);
+
+    const unsubscribe = docRef.onSnapshot((doc: any) => {
+        if (doc.exists) {
+            callback(doc.data() as AppSettings);
+        } else {
+            // If the document doesn't exist, provide default settings.
+            callback({ isBettingEnabled: true });
+        }
+    }, (error: Error) => {
+        console.error("Error listening to app settings updates:", error);
+        // On error, default to enabled to avoid locking everyone out.
+        callback({ isBettingEnabled: true });
+    });
+
+    return unsubscribe;
+};
+
+// Updates the global app settings document in Firestore.
+export const updateAppSettings = async (settings: Partial<AppSettings>): Promise<void> => {
+    if (!db) {
+        throw new Error("Firestore not initialized.");
+    }
+
+    const docRef = db.collection(APP_SETTINGS_COLLECTION).doc(GLOBAL_SETTINGS_DOC_ID);
+
+    try {
+        // .set with merge: true will create or update.
+        await docRef.set(settings, { merge: true });
+    } catch (error) {
+        console.error("Error updating app settings:", error);
+        throw new Error("Failed to save app settings.");
+    }
+};
+
 
 // --- Betting Round Functions ---
 
@@ -525,19 +573,25 @@ export const onTournamentUpdate = (
 
     const unsubscribe = docRef.onSnapshot((doc: any) => {
         if (doc.exists) {
-            const data = doc.data() as Tournament;
-            if (data.lastUpdated && typeof data.lastUpdated.toDate === 'function') {
-                data.lastUpdated = data.lastUpdated.toDate();
+            const data = doc.data();
+            // **FIX**: Explicitly combine the document ID with its data.
+            const tournamentData: Tournament = {
+                id: doc.id,
+                ...data,
+            } as Tournament;
+
+            if (tournamentData.lastUpdated && typeof tournamentData.lastUpdated.toDate === 'function') {
+                tournamentData.lastUpdated = tournamentData.lastUpdated.toDate();
             }
-            if (data.schedule) {
-                data.schedule = data.schedule.map(match => ({
+            if (tournamentData.schedule) {
+                tournamentData.schedule = tournamentData.schedule.map(match => ({
                     ...match,
                     date: match.date && (match.date as any).toDate ? (match.date as any).toDate() : null,
                     homeTeamScore: match.homeTeamScore ?? null,
                     awayTeamScore: match.awayTeamScore ?? null,
                 }));
             }
-            callback(data);
+            callback(tournamentData);
         } else {
             callback(null);
         }
@@ -549,26 +603,29 @@ export const onTournamentUpdate = (
     return unsubscribe;
 };
 
-export const updateTournament = async (tournamentId: string, data: Partial<Omit<Tournament, 'players'>>, user: User | null): Promise<void> => {
+export const updateTournament = async (tournamentId: string, data: Partial<Tournament>, user: User | null): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized.");
 
     const docRef = db.collection('tournaments').doc(tournamentId);
 
-    const payload: Partial<any> = {
+    const payload: any = { // Use 'any' to easily accommodate FieldValue.delete()
         ...data,
         lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: user ? { id: user.id, name: user.name } : { id: 'anonymous', name: 'Anonymous' },
     };
     
-    if (payload.schedule) {
+    if (payload.schedule && Array.isArray(payload.schedule)) {
         payload.schedule = payload.schedule.map((match: TournamentMatch) => ({
             ...match,
+            // Convert Date objects to Firestore Timestamps before saving
             date: match.date && match.date instanceof Date ? window.firebase.firestore.Timestamp.fromDate(match.date) : match.date,
         }));
     }
     
     try {
-        await docRef.set(payload, { merge: true });
+        // The issue was here. Using `update()` is the correct way to handle FieldValue.delete()
+        // and reliably triggers listeners for field removals. `set` with merge does not.
+        await docRef.update(payload);
     } catch (error) {
         console.error("[FirebaseService] Error updating tournament data in Firestore:", error);
         throw error;
@@ -577,6 +634,29 @@ export const updateTournament = async (tournamentId: string, data: Partial<Omit<
 
 // --- Global Player Management ---
 const GLOBAL_PLAYERS_COLLECTION = 'globalPlayers';
+
+export const batchAddGlobalPlayers = async (players: TournamentPlayer[]): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    if (!players || players.length === 0) return;
+
+    const batch = db.batch();
+    const playersCollection = db.collection(GLOBAL_PLAYERS_COLLECTION);
+
+    players.forEach(player => {
+        // Important: a player might already exist in the global list if they were
+        // added manually after the tournament was created. Using set will
+        // create or overwrite, ensuring the legacy data is the source of truth for this migration.
+        const playerRef = playersCollection.doc(player.id);
+        batch.set(playerRef, player);
+    });
+
+    try {
+        await batch.commit();
+    } catch (error) {
+        console.error("Error during player migration batch commit:", error);
+        throw new Error("Failed to migrate legacy players.");
+    }
+};
 
 export const onAllPlayersUpdate = (callback: (data: TournamentPlayer[]) => void): (() => void) => {
   if (!db) return () => {};

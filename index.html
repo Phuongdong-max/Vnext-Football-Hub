@@ -23,14 +23,17 @@
               danger: '#dc3545',
               warning: '#ffc107',
             },
+            fontFamily: {
+              sans: ['Montserrat', 'sans-serif'],
+            },
           },
         },
       }
     </script>
     <style>
       body {
-        font-family: 'Inter', sans-serif;
-        @apply bg-background text-textPrimary transition-colors duration-300;
+        font-family: 'Montserrat', sans-serif;
+        @apply text-textPrimary transition-colors duration-300;
       }
       ::-webkit-scrollbar {
         width: 8px;
@@ -67,35 +70,6 @@
         --color-text-primary: #f1f5f9; /* Slate-100 */
         --color-text-secondary: #94a3b8; /* Slate-400 */
         --color-border: #334155; /* Slate-700 */
-      }
-
-      /* Animated Gradient Background - Darker Version */
-      .animated-gradient-bg {
-        /* Darker, richer tones */
-        background: linear-gradient(-45deg, #4a044e, #042f4e, #0c4a6e, #311b92, #7c2d12); /* Dark Purple, Dark Teal, Dark Blue, Deep Indigo, Dark Orange/Brown */
-        background-size: 400% 400%; /* Larger size for smoother transition */
-        animation: dynamicGradient 30s ease infinite; /* Slower animation */
-      }
-
-      @keyframes dynamicGradient {
-        0% { background-position: 0% 50%; }
-        25% { background-position: 100% 0%; }
-        50% { background-position: 100% 100%; }
-        75% { background-position: 0% 100%; }
-        100% { background-position: 0% 50%; }
-      }
-
-      /* Floating Soccer Ball Animation */
-      @keyframes floatUpAndDown {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        25% { transform: translateY(-15px) rotate(15deg); }
-        50% { transform: translateY(0) rotate(0deg); }
-        75% { transform: translateY(15px) rotate(-15deg); }
-      }
-      .floating-soccer-ball {
-        animation: floatUpAndDown 10s ease-in-out infinite;
-        position: absolute;
-        pointer-events: none;
       }
 
       /* Floating Points Indicator Animation */
@@ -172,7 +146,7 @@
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,700;0,800;0,900;1,700;1,900&display=swap" rel="stylesheet">
   
   <!-- Firebase SDKs -->
   <script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>

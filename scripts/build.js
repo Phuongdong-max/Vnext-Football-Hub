@@ -21,18 +21,33 @@ fs.copyFileSync(
   path.join(distDir, 'index.html')
 );
 
-// Copy logo assets
-const assetsToCopy = ['VFLogo fix.png', 'VFLogo GIF fix.gif'];
+// Copy logo and mascot assets
+const assetsToCopy = [
+    'VFLogo-fix.png', 
+    'VFLogo-GIF-fix.gif',
+    'flaming-ball.png',
+    'tiger.png',
+    'turtle.png',
+    'phoenix.png',
+    'dragon.png'
+];
 assetsToCopy.forEach(asset => {
-    const sourcePath = path.join(projectRoot, 'assets', asset); // <-- sửa ở đây
+        const sourcePath = path.join(projectRoot, 'assets', asset);
     const destDir = path.join(distDir, 'assets');
-    const destPath = path.join(destDir, asset);
+    const destPath = path.join(destDir, asset); // Write to new name
     if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
     if (fs.existsSync(sourcePath)) {
         fs.copyFileSync(sourcePath, destPath);
         console.log(`Copied ${asset} to dist/assets.`);
     } else {
-        console.warn(`Warning: Asset ${asset} not found in assets/. Skipping copy.`);
+        // Fallback for case where file was already renamed
+        const alreadyRenamedSourcePath = path.join(projectRoot, 'assets', asset);
+        if(fs.existsSync(alreadyRenamedSourcePath)) {
+            fs.copyFileSync(alreadyRenamedSourcePath, destPath);
+            console.log(`Copied already renamed ${asset} to dist/assets.`);
+        } else {
+            console.warn(`Warning: Asset ${asset} not found in assets/. Skipping copy.`);
+        }
     }
 });
 

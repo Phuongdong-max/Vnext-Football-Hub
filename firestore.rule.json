@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 // VNext Football Hub Firestore Rules
@@ -9,6 +8,18 @@ service cloud.firestore {
     // Function to check if the requesting user has the 'admin' role.
     function isAdmin() {
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Function to check the global betting enabled status. Defaults to true if not set.
+    function isBettingGloballyEnabled() {
+      return get(/databases/$(database)/documents/appSettings/global).data.isBettingEnabled == true || !exists(/databases/$(database)/documents/appSettings/global);
+    }
+    
+    // APP SETTINGS
+    // Global app settings, only writable by admins.
+    match /appSettings/global {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // USERS
@@ -25,17 +36,14 @@ service cloud.firestore {
     }
 
     // BETTING ROUNDS
-    // Rounds are readable by authenticated users. Admins create/update results.
-    // Users can update a round ONLY to place a bet.
+    // Admins can only create rounds if betting is enabled.
+    // Users can only place bets (update 'bets' and 'bettorIds' fields) if betting is enabled.
+    // Admins can only update results if betting is enabled.
     match /bettingRounds/{roundId} {
       allow read: if request.auth != null;
-      allow create: if isAdmin();
-      
-      // Allow updates if the user is an Admin.
-      // Also allow updates from any authenticated user IF they are only changing the 'bets'
-      // and 'bettorIds' fields. This is what happens during a placeBet transaction.
-      allow update: if isAdmin() || 
-                     (request.auth != null && request.resource.data.diff(resource.data).affectedKeys.hasOnly(['bets', 'bettorIds']));
+      allow create: if isAdmin() && isBettingGloballyEnabled();
+      allow update: if (isAdmin() && isBettingGloballyEnabled()) || 
+                     (isBettingGloballyEnabled() && request.auth != null && request.resource.data.diff(resource.data).affectedKeys.hasOnly(['bets', 'bettorIds']));
     }
 
     // TEAM DIVISION
