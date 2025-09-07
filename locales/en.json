@@ -2,6 +2,7 @@
   "app.title": "VNEXT JAPAN - Football Club",
   "landing.subtitle": "Your ultimate hub for friendly football betting!",
   "landing.join": "Join the fun, place your bets, and climb the leaderboard!",
+  "landing.enterAppButton": "Enter Event Hub",
   "app.loadingTitle": "Loading {{appTitle}}...",
   "error.appErrorTitle": "Application Error",
   "error.appErrorGuidance": "Please try refreshing the page or ensure you are using a supported browser environment.",

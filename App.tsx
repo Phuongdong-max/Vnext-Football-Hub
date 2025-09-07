@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, LeaderboardEntry, ToastMessage, AppSettings } from './types';
 import { APP_TITLE } from './constants'; 
 import { 
@@ -19,7 +19,8 @@ import { MemberHomePage } from './pages/MemberHomePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { TeamDividerPage } from './pages/TeamDividerPage';
 import { TournamentPage } from './pages/TournamentPage';
-import { CountdownPage } from './pages/CountdownPage'; // Import the new countdown page
+import { CountdownPage } from './pages/CountdownPage'; 
+import { LandingPage } from './pages/LandingPage'; // Import the new landing page
 import { ToastContainer } from './components/shared/ToastContainer';
 import { VnfcLogoStatic, VnfcLogoAnimated } from './components/icons';
 import { checkFirebaseEnvironment } from './utils/envChecker';
@@ -45,7 +46,8 @@ const AppCore: React.FC = () => {
 
   // Get location to conditionally apply layout styles
   const location = useLocation();
-  const isHomePage = location.pathname === '/';
+  const isLandingPage = location.pathname === '/';
+  const isHomePage = location.pathname === '/home';
 
   const addToast = useCallback((messageOrKey: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', replacements?: Record<string, string | number>) => {
     const id = new Date().toISOString() + Math.random(); 
@@ -243,16 +245,17 @@ const AppCore: React.FC = () => {
   return (
     <AppContext.Provider value={appContextValue}>
       <div className="flex flex-col min-h-screen text-textPrimary bg-background">
-        <Header />
-        <AuthComponent />
-        <main className={`flex-grow flex flex-col ${!isHomePage ? 'container mx-auto px-4 py-8' : ''}`}>
+        {!isLandingPage && <Header />}
+        {!isLandingPage && <AuthComponent />}
+        <main className={`flex-grow flex flex-col ${!isHomePage && !isLandingPage ? 'container mx-auto px-4 py-8' : ''}`}>
           <Routes>
-            <Route path="/" element={<CountdownPage />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/home" element={<CountdownPage />} />
             <Route path="/betting" element={isBettingEnabled ? <MemberHomePage /> : <Navigate to="/tournament" replace />} />
             <Route path="/admin" element={
               currentUser?.role === UserRole.ADMIN 
                 ? <AdminDashboardPage /> 
-                : <Navigate to="/tournament" replace />
+                : <Navigate to="/home" replace />
             } />
             {isBettingEnabled && <Route path="/leaderboard" element={<LeaderboardPage />} />}
             <Route path="/team-divider" element={<TeamDividerPage />} />
@@ -260,11 +263,13 @@ const AppCore: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-        <footer className="py-4 bg-surface shadow-md">
-          <div className="container mx-auto px-4 text-center text-textSecondary">
-            {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
-          </div>
-        </footer>
+        {!isLandingPage && (
+          <footer className="py-4 bg-surface shadow-md">
+            <div className="container mx-auto px-4 text-center text-textSecondary">
+              {translate("footer.copyright", { year: new Date().getFullYear(), appTitle: translate(APP_TITLE) })}
+            </div>
+          </footer>
+        )}
       </div>
       <ToastContainer toasts={toasts} setToasts={setToasts} />
     </AppContext.Provider>
@@ -275,9 +280,9 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <HashRouter> {/* HashRouter now wraps the AppCore to provide location context */}
+        <BrowserRouter> {/* HashRouter now wraps the AppCore to provide location context */}
           <AppCore />
-        </HashRouter>
+        </BrowserRouter>
       </LanguageProvider>
     </ThemeProvider>
   );

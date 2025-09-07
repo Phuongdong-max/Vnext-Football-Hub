@@ -155,7 +155,7 @@ export const CountdownPage: React.FC = () => {
                             <div className="hidden sm:block bg-white/80 backdrop-blur-sm rounded-2xl p-4 text-black font-bold text-lg leading-tight shadow-lg border border-white">
                                 <span>15:00 - 18:00</span><br />
                                 <span>Oct - 4th</span><br />
-                                <span>Gầm Cầu Stadium</span>
+                                <span>bonera FUTSAL FIELD</span>
                             </div>
                         </div>
                     </div>
@@ -168,10 +168,10 @@ export const CountdownPage: React.FC = () => {
 
                 {/* Team Emblems */}
                 <div className="w-full flex flex-wrap justify-center items-start gap-x-8 sm:gap-x-12 gap-y-6 mt-12 mb-8">
-                    <TeamEmblem name="Mori's brother" imageSrc="assets/tiger.png" borderColor="#D9D9D9" />
-                    <TeamEmblem name="Em chị Huệ" imageSrc="assets/turtle.png" borderColor="#6A8A6F" />
-                    <TeamEmblem name="Em chị Nga" imageSrc="assets/phoenix.png" borderColor="#CB3737" />
-                    <TeamEmblem name="Brother of Son Chủ tịch" imageSrc="assets/dragon.png" borderColor="#4685A3" />
+                    <TeamEmblem name="V - All Star" imageSrc="assets/tiger.png" borderColor="#D9D9D9" />
+                    <TeamEmblem name="Không Thể Cản Phá" imageSrc="assets/turtle.png" borderColor="#6A8A6F" />
+                    <TeamEmblem name="FKO Kamikaze" imageSrc="assets/phoenix.png" borderColor="#CB3737" />
+                    <TeamEmblem name="Magical feet" imageSrc="assets/dragon.png" borderColor="#4685A3" />
                 </div>
                 
                 {/* Decorative Stars */}

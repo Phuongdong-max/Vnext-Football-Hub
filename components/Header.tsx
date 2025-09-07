@@ -1,3 +1,6 @@
+
+
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
@@ -33,10 +36,10 @@ export const Header: React.FC = () => {
   const { translate } = useLanguage();
 
   return (
-    <header className="bg-surface/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-lg sticky top-0 z-50">
+    <header className="bg-surface shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-2 sm:px-4 py-3 flex items-center justify-between">
         <div className="flex items-center flex-shrink-0">
-          <Link to="/" className="flex items-center text-xl sm:text-2xl font-bold text-primary">
+          <Link to="/home" className="flex items-center text-xl sm:text-2xl font-bold text-primary">
             <VnfcLogoStatic className="w-8 h-8 mr-2"/>
             <span className="hidden sm:inline">{translate(APP_TITLE)}</span>
             <span className="sm:hidden">VNFCH</span>
@@ -44,7 +47,7 @@ export const Header: React.FC = () => {
         </div>
         <div className="flex items-center justify-end flex-wrap gap-x-1 sm:gap-x-2 gap-y-1">
           <nav className="flex items-center space-x-1 sm:space-x-2">
-            <NavLink to="/" icon={<HomeIcon className="w-5 h-5" />}>{translate('header.home')}</NavLink>
+            <NavLink to="/home" icon={<HomeIcon className="w-5 h-5" />}>{translate('header.home')}</NavLink>
             <NavLink to="/team-divider" icon={<ArrowsRightLeftIcon className="w-5 h-5" />}>{translate('header.teamDivider')}</NavLink>
             <NavLink to="/tournament" icon={<TrophyIcon className="w-5 h-5" />}>{translate('header.tournament')}</NavLink>
             {currentUser?.role === UserRole.ADMIN && (

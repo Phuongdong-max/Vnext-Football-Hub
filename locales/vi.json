@@ -2,6 +2,7 @@
   "app.title": "VNEXT JAPAN - Football Club",
   "landing.subtitle": "Trung tâm cá cược bóng đá thân thiện của bạn!",
   "landing.join": "Tham gia cuộc vui, đặt cược và leo lên bảng xếp hạng!",
+  "landing.enterAppButton": "Vào Trang Sự Kiện",
   "app.loadingTitle": "Đang tải {{appTitle}}...",
   "error.appErrorTitle": "Lỗi ứng dụng",
   "error.appErrorGuidance": "Vui lòng thử làm mới trang hoặc đảm bảo bạn đang sử dụng môi trường trình duyệt được hỗ trợ.",

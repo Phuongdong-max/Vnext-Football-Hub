@@ -29,7 +29,10 @@ const assetsToCopy = [
     'tiger.png',
     'turtle.png',
     'phoenix.png',
-    'dragon.png'
+    'dragon.png',
+    'stadium-bg.jpg',
+    'vnext.png',
+    'dang-cai-logo.png'
 ];
 assetsToCopy.forEach(asset => {
         const sourcePath = path.join(projectRoot, 'assets', asset);
@@ -58,6 +61,7 @@ const geminiApiKeyFromEnv = process.env.GEMINI_API_KEY || "";
 
 esbuild.build({
   entryPoints: [path.join(projectRoot, 'index.tsx')],
+  
   bundle: true,
   outfile: path.join(distDir, 'index.js'),
   platform: 'browser',
