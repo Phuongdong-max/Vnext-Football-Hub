@@ -19,6 +19,7 @@ import { MemberHomePage } from './pages/MemberHomePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { TeamDividerPage } from './pages/TeamDividerPage';
 import { TournamentPage } from './pages/TournamentPage';
+import { PlayerInfoPage } from './pages/PlayerInfoPage';
 import { CountdownPage } from './pages/CountdownPage'; 
 import { LandingPage } from './pages/LandingPage'; // Import the new landing page
 import { ToastContainer } from './components/shared/ToastContainer';
@@ -260,6 +261,7 @@ const AppCore: React.FC = () => {
             {isBettingEnabled && <Route path="/leaderboard" element={<LeaderboardPage />} />}
             <Route path="/team-divider" element={<TeamDividerPage />} />
             <Route path="/tournament" element={<TournamentPage />} />
+            <Route path="/player-info" element={<PlayerInfoPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

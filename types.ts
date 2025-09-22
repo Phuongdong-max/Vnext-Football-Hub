@@ -176,11 +176,24 @@ export interface Goal {
   scorerId?: string | null; // Optional link to a TournamentMember
 }
 
+export interface PlayerSkills {
+  speed: number;
+  shooting: number;
+  passing: number;
+  dribbling: number;
+  defending: number;
+  physical: number;
+}
+
 export interface TournamentPlayer {
   id: string;
   name: string;
   jerseyNumber: number;
+  avatarUrl?: string | null;
+  bio?: string;
+  skills?: PlayerSkills;
 }
+
 
 // This is used by the ManageTournamentModal, but the actual data in Firestore might be different
 export interface TournamentMember {

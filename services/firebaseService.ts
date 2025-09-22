@@ -1,5 +1,5 @@
 import { firebaseConfig } from '../firebaseConfig';
-import { AppSettings, User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam } from '../types';
+import { AppSettings, User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam, PlayerSkills } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -674,9 +674,14 @@ export const onAllPlayersUpdate = (callback: (data: TournamentPlayer[]) => void)
 export const addPlayer = async (playerData: Omit<TournamentPlayer, 'id'>): Promise<TournamentPlayer> => {
     if (!db) throw new Error("Firestore not initialized.");
     const newPlayerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc();
+    const defaultSkills: PlayerSkills = {
+      speed: 50, shooting: 50, passing: 50,
+      dribbling: 50, defending: 50, physical: 50
+    };
     const newPlayer: TournamentPlayer = {
         id: newPlayerRef.id,
         ...playerData,
+        skills: playerData.skills || defaultSkills,
     };
     await newPlayerRef.set(newPlayer);
     return newPlayer;
@@ -685,8 +690,23 @@ export const addPlayer = async (playerData: Omit<TournamentPlayer, 'id'>): Promi
 export const updatePlayer = async (playerId: string, data: Partial<Omit<TournamentPlayer, 'id'>>): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized.");
     const playerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc(playerId);
-    await playerRef.update(data);
+    
+    // To handle nested objects like `skills`, we need to use dot notation
+    // if we want to update individual fields.
+    const flattenedData: { [key: string]: any } = {};
+    for (const [key, value] of Object.entries(data)) {
+        if (key === 'skills' && typeof value === 'object' && value !== null) {
+            for (const [skillKey, skillValue] of Object.entries(value)) {
+                flattenedData[`skills.${skillKey}`] = skillValue;
+            }
+        } else {
+            flattenedData[key] = value;
+        }
+    }
+
+    await playerRef.update(flattenedData);
 };
+
 
 export const deletePlayer = async (playerId: string): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized.");

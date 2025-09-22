@@ -32,7 +32,9 @@ const assetsToCopy = [
     'dragon.png',
     'stadium-bg.jpg',
     'vnext.png',
-    'dang-cai-logo.png'
+    'dang-cai-logo.png',
+    'location.png',
+    'thank_you_card.png'
 ];
 assetsToCopy.forEach(asset => {
         const sourcePath = path.join(projectRoot, 'assets', asset);

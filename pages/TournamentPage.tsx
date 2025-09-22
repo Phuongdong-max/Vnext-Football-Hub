@@ -50,14 +50,15 @@ export const TournamentPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSwitchingTournament, setIsSwitchingTournament] = useState(false);
     const [isListLoading, setIsListLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'teams' | 'topScorers'>('standings');
     
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
     const [isJerseyDrawModalOpen, setIsJerseyDrawModalOpen] = useState(false);
     const [isGoalscorerModalOpen, setIsGoalscorerModalOpen] = useState(false);
     const [isCreateEditModalOpen, setIsCreateEditModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     
+    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [editingMatchInfo, setEditingMatchInfo] = useState<{ match: TournamentMatch; teamType: 'home' | 'away' } | null>(null);
 
     // Effect for fetching the list of all tournaments
@@ -334,142 +335,167 @@ export const TournamentPage: React.FC = () => {
         }
         
         const { name, teams, schedule, standings, lastUpdated, updatedBy } = tournament;
+        
+        const tabs = [
+            { id: 'standings', label: 'tournament.tab.standings', icon: <TableCellsIcon className="w-5 h-5" /> },
+            { id: 'schedule', label: 'tournament.tab.schedule', icon: <CalendarIcon className="w-5 h-5" /> },
+            { id: 'teams', label: 'tournament.tab.teams', icon: <UsersIcon className="w-5 h-5" /> },
+            { id: 'topScorers', label: 'tournament.tab.topScorers', icon: <StarIcon className="w-5 h-5" /> },
+        ] as const;
+
 
         return (
-            <div className="space-y-8 animate-fadeIn">
+            <div className="space-y-6 animate-fadeIn">
                 <header className="relative text-center">
-                    <div className="bg-surface backdrop-blur-sm p-6 rounded-xl shadow-lg inline-block border border-border">
-                        <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-primary" style={{ filter: 'drop-shadow(0 4px 8px rgba(253, 224, 71, 0.3))' }} />
-                        <h1 className="text-4xl sm:text-5xl font-bold text-textPrimary tracking-tight">{name}</h1>
+                    <div className="bg-surface backdrop-blur-sm p-4 rounded-xl shadow-lg inline-block border border-border">
+                        <h1 className="text-3xl sm:text-4xl font-bold text-textPrimary tracking-tight">{name}</h1>
                         {lastUpdated && updatedBy && (
                             <p className="text-xs text-textSecondary mt-2">{translate('tournament.lastUpdated', { name: updatedBy.name, date: new Date(lastUpdated).toLocaleString(language) })}</p>
                         )}
                     </div>
                 </header>
-                
                  {!!currentUser && (
-                    <div className={`${panelClasses} p-4`}>
-                        <h2 className="text-xl font-semibold mb-3 text-textPrimary">{translate('tournament.generateScheduleSectionTitle')}</h2>
+                    <div className={`${panelClasses} p-3`}>
+                        <h2 className="text-lg font-semibold mb-2 text-textPrimary">{translate('tournament.generateScheduleSectionTitle')}</h2>
                         <div className="flex flex-wrap gap-2">
-                            <Button onClick={() => setIsGeneratorModalOpen(true)} disabled={!tournament || tournament.teams.length < 2}>
-                                <ArrowPathIcon className="w-5 h-5 mr-2" />
+                            <Button onClick={() => setIsGeneratorModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} size="sm">
+                                <ArrowPathIcon className="w-4 h-4 mr-2" />
                                 {translate('tournament.button.generateSchedule')}
                             </Button>
-                            <Button onClick={() => setIsJerseyDrawModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} variant="secondary">
-                                <TShirtIcon className="w-5 h-5 mr-2" />
+                            <Button onClick={() => setIsJerseyDrawModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} variant="secondary" size="sm">
+                                <TShirtIcon className="w-4 h-4 mr-2" />
                                 {translate('tournament.button.drawJerseys')}
                             </Button>
                         </div>
                     </div>
                 )}
 
-                <section>
-                    <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary"><TableCellsIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.standings')}</h2>
-                    <div className={`${panelClasses} overflow-hidden`}>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full">
-                                <thead className="bg-slate-100 dark:bg-slate-800">
-                                    <tr>
-                                        <th scope="col" className="w-1/3 pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-textPrimary sm:pl-6">{translate('standingsTable.team')}</th>
-                                        <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
-                                        <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.wins')}>{translate('standingsTable.wins')}</th>
-                                        <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.draws')}>{translate('standingsTable.draws')}</th>
-                                        <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.losses')}>{translate('standingsTable.losses')}</th>
-                                        <th scope="col" className="hidden lg:table-cell px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.gf')}>{translate('standingsTable.gf')}</th>
-                                        <th scope="col" className="hidden lg:table-cell px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.ga')}>{translate('standingsTable.ga')}</th>
-                                        <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.gd')}>{translate('standingsTable.gd')}</th>
-                                        <th scope="col" className="px-4 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.points')}>{translate('standingsTable.points')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border bg-surface">
-                                    {standings?.map((s, index) => (
-                                        <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
-                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                                                <div className="flex items-center">
-                                                    <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>
-                                                    <div style={{ backgroundColor: s.teamColor || '#a1a1aa' }} className="w-1.5 h-6 rounded-full mr-4 flex-shrink-0 shadow-sm"></div>
-                                                    <div className="font-semibold text-base text-textPrimary">{s.teamName}</div>
-                                                </div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-2 py-4 text-center text-base font-medium text-textSecondary">{s.played}</td>
-                                            <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-green-600 dark:text-green-500">{s.wins}</td>
-                                            <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-yellow-600 dark:text-yellow-500">{s.draws}</td>
-                                            <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-red-600 dark:text-red-500">{s.losses}</td>
-                                            <td className="whitespace-nowrap hidden lg:table-cell px-2 py-4 text-center text-sm text-textSecondary">{s.goalsFor}</td>
-                                            <td className="whitespace-nowrap hidden lg:table-cell px-2 py-4 text-center text-sm text-textSecondary">{s.goalsAgainst}</td>
-                                            <td className="whitespace-nowrap px-2 py-4 text-center text-base font-bold text-textPrimary">{s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}</td>
-                                            <td className="whitespace-nowrap px-4 py-4 text-center"><span className="inline-block bg-primary text-white text-base font-bold px-3 py-1 rounded-md shadow-md">{s.points}</span></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
+                {/* Tab Navigation */}
+                <div className="border-b border-border">
+                    <nav className="-mb-px flex flex-wrap gap-x-2 sm:gap-x-4" aria-label="Tabs">
+                        {tabs.map(tab => (
+                             <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 whitespace-nowrap py-3 px-2 sm:px-4 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                                    activeTab === tab.id
+                                        ? 'border-primary text-primary'
+                                        : 'border-transparent text-textSecondary hover:border-gray-300 dark:hover:border-slate-600 hover:text-textPrimary'
+                                }`}
+                                aria-current={activeTab === tab.id ? 'page' : undefined}
+                            >
+                                {tab.icon}
+                                <span className="hidden sm:inline">{translate(tab.label)}</span>
+                            </button>
+                        ))}
+                    </nav>
+                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-8">
+                {/* Tab Content */}
+                <div className="mt-4">
+                    {activeTab === 'standings' && (
                         <section>
-                            <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary"><StarIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.topScorers')}</h2>
-                            <div className={panelClasses}><TopScorersList scorers={topScorers} teams={teams} /></div>
-                        </section>
-                        <section>
-                            <h2 className="text-2xl font-semibold mb-4 flex items-center text-textPrimary"><CalendarIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.schedule')}</h2>
-                            <div className="space-y-6">
-                                {schedule?.length > 0 ? [...new Set(schedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
-                                    <div key={roundNum}>
-                                        <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
-                                        <div className="space-y-3">
-                                            {schedule.filter(m => m.round === roundNum).map(match => (
-                                                <div key={match.id} className={`${panelClasses} p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4`}>
-                                                    <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
-                                                    <div className="flex flex-col items-center justify-center my-2 md:my-0">
-                                                        {!!currentUser ? (
-                                                            <div className="flex items-center space-x-2">
-                                                                <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
-                                                                <span className="font-bold text-lg text-textSecondary">-</span>
-                                                                <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
-                                                        )}
-                                                    </div>
-                                                    <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
-                                                </div>
+                            <div className={`${panelClasses} overflow-hidden`}>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full">
+                                        <thead className="bg-slate-100 dark:bg-slate-800">
+                                            <tr>
+                                                <th scope="col" className="w-1/3 pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-textPrimary sm:pl-6">{translate('standingsTable.team')}</th>
+                                                <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
+                                                <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.wins')}>{translate('standingsTable.wins')}</th>
+                                                <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.draws')}>{translate('standingsTable.draws')}</th>
+                                                <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.losses')}>{translate('standingsTable.losses')}</th>
+                                                <th scope="col" className="hidden lg:table-cell px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.gf')}>{translate('standingsTable.gf')}</th>
+                                                <th scope="col" className="hidden lg:table-cell px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.ga')}>{translate('standingsTable.ga')}</th>
+                                                <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.gd')}>{translate('standingsTable.gd')}</th>
+                                                <th scope="col" className="px-4 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.points')}>{translate('standingsTable.points')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border bg-surface">
+                                            {standings?.map((s, index) => (
+                                                <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
+                                                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                                                        <div className="flex items-center">
+                                                            <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>
+                                                            <div style={{ backgroundColor: s.teamColor || '#a1a1aa' }} className="w-1.5 h-6 rounded-full mr-4 flex-shrink-0 shadow-sm"></div>
+                                                            <div className="font-semibold text-base text-textPrimary">{s.teamName}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="whitespace-nowrap px-2 py-4 text-center text-base font-medium text-textSecondary">{s.played}</td>
+                                                    <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-green-600 dark:text-green-500">{s.wins}</td>
+                                                    <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-yellow-600 dark:text-yellow-500">{s.draws}</td>
+                                                    <td className="whitespace-nowrap px-2 py-4 text-center text-base font-semibold text-red-600 dark:text-red-500">{s.losses}</td>
+                                                    <td className="whitespace-nowrap hidden lg:table-cell px-2 py-4 text-center text-sm text-textSecondary">{s.goalsFor}</td>
+                                                    <td className="whitespace-nowrap hidden lg:table-cell px-2 py-4 text-center text-sm text-textSecondary">{s.goalsAgainst}</td>
+                                                    <td className="whitespace-nowrap px-2 py-4 text-center text-base font-bold text-textPrimary">{s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}</td>
+                                                    <td className="whitespace-nowrap px-4 py-4 text-center"><span className="inline-block bg-primary text-white text-base font-bold px-3 py-1 rounded-md shadow-md">{s.points}</span></td>
+                                                </tr>
                                             ))}
-                                        </div>
-                                    </div>
-                                )) : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
-                            </div>
-                        </section>
-                    </div>
-                    <aside className="lg:col-span-1 space-y-6">
-                        <h2 className="text-2xl font-semibold flex items-center text-textPrimary"><UsersIcon className="w-6 h-6 mr-2 text-primary" />{translate('tournament.teams')}</h2>
-                        {teams?.map(team => (
-                            <div key={team.id} className={panelClasses}>
-                                <div className="p-4">
-                                    <h3 className="font-bold text-lg text-primary mb-2 flex items-center gap-3"><div style={{ backgroundColor: team.color || '#a1a1aa' }} className="w-1 h-4 rounded-full flex-shrink-0"></div>{team.name}</h3>
-                                    <h4 className="font-semibold text-sm text-textPrimary mb-1">{translate('teamList.members')}</h4>
-                                    <ul className="space-y-1">
-                                        {team.members?.map(memberRef => {
-                                            const player = availablePlayersForTournament.find(p => p.id === memberRef.playerId);
-                                            return (
-                                                <li key={memberRef.playerId} className="flex items-center text-sm p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary">
-                                                    <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2"/>
-                                                    {player ? (
-                                                        <span>{player.name} (#{player.jerseyNumber})</span>
-                                                    ) : (
-                                                        <span className="italic text-textSecondary text-xs">(Cầu thủ đã bị xóa)</span>
-                                                    )}
-                                                </li>
-                                            );
-                                        })}
-                                        {(!team.members || team.members.length === 0) && <p className="text-xs text-textSecondary italic">{translate('teamList.noMembers')}</p>}
-                                    </ul>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        ))}
-                    </aside>
+                        </section>
+                    )}
+                    {activeTab === 'schedule' && (
+                        <section className="space-y-6">
+                            {schedule?.length > 0 ? [...new Set(schedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
+                                <div key={roundNum}>
+                                    <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
+                                    <div className="space-y-3">
+                                        {schedule.filter(m => m.round === roundNum).map(match => (
+                                            <div key={match.id} className={`${panelClasses} p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4`}>
+                                                <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
+                                                <div className="flex flex-col items-center justify-center my-2 md:my-0">
+                                                    {!!currentUser ? (
+                                                        <div className="flex items-center space-x-2">
+                                                            <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
+                                                            <span className="font-bold text-lg text-textSecondary">-</span>
+                                                            <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
+                                                    )}
+                                                </div>
+                                                <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )) : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
+                        </section>
+                    )}
+                    {activeTab === 'teams' && (
+                         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {teams?.map(team => (
+                                <div key={team.id} className={panelClasses}>
+                                    <div className="p-4">
+                                        <h3 className="font-bold text-lg text-primary mb-2 flex items-center gap-3"><div style={{ backgroundColor: team.color || '#a1a1aa' }} className="w-1 h-4 rounded-full flex-shrink-0"></div>{team.name}</h3>
+                                        <h4 className="font-semibold text-sm text-textPrimary mb-1">{translate('teamList.members')}</h4>
+                                        <ul className="space-y-1">
+                                            {team.members?.map(memberRef => {
+                                                const player = availablePlayersForTournament.find(p => p.id === memberRef.playerId);
+                                                return (
+                                                    <li key={memberRef.playerId} className="flex items-center text-sm p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary">
+                                                        <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2"/>
+                                                        {player ? (
+                                                            <span>{player.name} (#{player.jerseyNumber})</span>
+                                                        ) : (
+                                                            <span className="italic text-textSecondary text-xs">(Cầu thủ đã bị xóa)</span>
+                                                        )}
+                                                    </li>
+                                                );
+                                            })}
+                                            {(!team.members || team.members.length === 0) && <p className="text-xs text-textSecondary italic">{translate('teamList.noMembers')}</p>}
+                                        </ul>
+                                    </div>
+                                </div>
+                            ))}
+                        </section>
+                    )}
+                    {activeTab === 'topScorers' && (
+                        <section><div className={panelClasses}><TopScorersList scorers={topScorers} teams={teams} /></div></section>
+                    )}
                 </div>
                 <style>{`
                     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

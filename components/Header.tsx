@@ -1,13 +1,10 @@
-
-
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { APP_TITLE } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { UserRole } from '../types';
-import { VnfcLogoStatic, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon, TrophyIcon } from './icons';
+import { VnfcLogoStatic, HomeIcon, ShieldCheckIcon, UserGroupIcon, ArrowsRightLeftIcon, TrophyIcon, UsersIcon } from './icons';
 import { ThemeToggleButton } from './ThemeToggleButton';
 import { LanguageToggleButton } from './LanguageToggleButton';
 
@@ -50,6 +47,7 @@ export const Header: React.FC = () => {
             <NavLink to="/home" icon={<HomeIcon className="w-5 h-5" />}>{translate('header.home')}</NavLink>
             <NavLink to="/team-divider" icon={<ArrowsRightLeftIcon className="w-5 h-5" />}>{translate('header.teamDivider')}</NavLink>
             <NavLink to="/tournament" icon={<TrophyIcon className="w-5 h-5" />}>{translate('header.tournament')}</NavLink>
+            <NavLink to="/player-info" icon={<UsersIcon className="w-5 h-5" />}>{translate('header.playerInfo')}</NavLink>
             {currentUser?.role === UserRole.ADMIN && (
               <NavLink to="/admin" icon={<ShieldCheckIcon className="w-5 h-5" />}>{translate('header.adminDashboard')}</NavLink>
             )}
