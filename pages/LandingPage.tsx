@@ -24,7 +24,8 @@ const platinumSponsors = [
 
 const goldSponsors = [
     "Giám đốc VNext Software\nAnh Hoàng Hải",
-    "Phòng kinh doanh\nChị Nguyễn Thị Thu Huyền"
+    "Phòng kinh doanh\nChị Nguyễn Thị Thu Huyền",
+    "Phòng phát triển\nAnh Nguyễn Thanh Tùng"
 ];
 
 export const LandingPage: React.FC = () => {

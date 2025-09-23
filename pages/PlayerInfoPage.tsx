@@ -20,7 +20,7 @@ const defaultSkills: PlayerSkills = {
 
 export const PlayerInfoPage: React.FC = () => {
     const { translate } = useLanguage();
-    const { addToast, isFirebaseReady } = useAppContext();
+    const { addToast, isFirebaseReady, canEdit } = useAppContext();
     const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -128,20 +128,22 @@ export const PlayerInfoPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Player List & Add Form */}
                 <div className="lg:col-span-1 space-y-4">
-                    <div className={panelClasses}>
-                        <h3 className="text-lg font-semibold mb-3 text-textPrimary">{translate('playerInfo.addPlayer')}</h3>
-                        <form onSubmit={handleAddPlayer} className="flex flex-col sm:flex-row items-end gap-3">
-                            <div className="w-full sm:flex-grow">
-                                <label htmlFor="new-player-name" className="block text-sm font-medium text-textPrimary mb-1">{translate('playerDetailModal.name')}</label>
-                                <input id="new-player-name" type="text" value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder={translate('manageTournament.players.add.namePlaceholder')} className={inputClasses} required />
-                            </div>
-                            <div className="w-full sm:w-32">
-                                <label htmlFor="new-player-jersey" className="block text-sm font-medium text-textPrimary mb-1">{translate('playerDetailModal.jersey')}</label>
-                                <input id="new-player-jersey" type="number" value={newPlayerJersey} onChange={e => setNewPlayerJersey(e.target.value)} placeholder={translate('manageTournament.players.add.jerseyPlaceholder')} className={`${inputClasses} text-center`} required />
-                            </div>
-                            <Button type="submit" className="w-full sm:w-auto"><PlusIcon className="w-5 h-5"/></Button>
-                        </form>
-                    </div>
+                    {canEdit && (
+                        <div className={panelClasses}>
+                            <h3 className="text-lg font-semibold mb-3 text-textPrimary">{translate('playerInfo.addPlayer')}</h3>
+                            <form onSubmit={handleAddPlayer} className="flex flex-col sm:flex-row items-end gap-3">
+                                <div className="w-full sm:flex-grow">
+                                    <label htmlFor="new-player-name" className="block text-sm font-medium text-textPrimary mb-1">{translate('playerDetailModal.name')}</label>
+                                    <input id="new-player-name" type="text" value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder={translate('manageTournament.players.add.namePlaceholder')} className={inputClasses} required />
+                                </div>
+                                <div className="w-full sm:w-32">
+                                    <label htmlFor="new-player-jersey" className="block text-sm font-medium text-textPrimary mb-1">{translate('playerDetailModal.jersey')}</label>
+                                    <input id="new-player-jersey" type="number" value={newPlayerJersey} onChange={e => setNewPlayerJersey(e.target.value)} placeholder={translate('manageTournament.players.add.jerseyPlaceholder')} className={`${inputClasses} text-center`} required />
+                                </div>
+                                <Button type="submit" className="w-full sm:w-auto"><PlusIcon className="w-5 h-5"/></Button>
+                            </form>
+                        </div>
+                    )}
 
                     <div className={panelClasses}>
                         <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder={translate('playerInfo.searchPlaceholder')} className={inputClasses} />
@@ -177,7 +179,7 @@ export const PlayerInfoPage: React.FC = () => {
                                             <p className="text-lg text-textSecondary">Jersey #{editedPlayer?.jerseyNumber}</p>
                                         </div>
                                     </div>
-                                    {!isEditing && (
+                                    {!isEditing && canEdit && (
                                         <Button variant="outline" onClick={() => setIsEditing(true)}>
                                             <PencilIcon className="w-4 h-4 mr-2" />{translate('playerInfo.editDetails')}
                                         </Button>
@@ -212,7 +214,7 @@ export const PlayerInfoPage: React.FC = () => {
                                         <PlayerSkillChart skills={editedPlayer?.skills || defaultSkills} size={600} />
                                     </div>
                                 </div>
-                                {isEditing && (
+                                {isEditing && canEdit && (
                                     <div className="flex justify-between items-center pt-4 border-t border-border">
                                         <Button variant="danger" onClick={handleDeletePlayer}><TrashIcon className="w-4 h-4 mr-2" />{translate('playerInfo.deletePlayer')}</Button>
                                         <div className="flex gap-2">

@@ -51,7 +51,7 @@ export const Header: React.FC = () => {
             {currentUser?.role === UserRole.ADMIN && (
               <NavLink to="/admin" icon={<ShieldCheckIcon className="w-5 h-5" />}>{translate('header.adminDashboard')}</NavLink>
             )}
-            {isBettingEnabled && <NavLink to="/leaderboard" icon={<UserGroupIcon className="w-5 h-5" />}>{translate('header.leaderboard')}</NavLink>}
+            {isBettingEnabled && currentUser && <NavLink to="/leaderboard" icon={<UserGroupIcon className="w-5 h-5" />}>{translate('header.leaderboard')}</NavLink>}
           </nav>
           <ThemeToggleButton />
           <LanguageToggleButton />

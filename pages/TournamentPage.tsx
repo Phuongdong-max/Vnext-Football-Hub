@@ -40,7 +40,7 @@ const TeamDisplay = ({ teamId, alignment = 'start', teams }: { teamId: string, a
 
 export const TournamentPage: React.FC = () => {
     const { translate, language } = useLanguage();
-    const { currentUser, isFirebaseReady, addToast } = useAppContext();
+    const { currentUser, isFirebaseReady, addToast, canEdit } = useAppContext();
 
     const [allTournaments, setAllTournaments] = useState<{ id: string; name: string }[]>([]);
     const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
@@ -247,7 +247,7 @@ export const TournamentPage: React.FC = () => {
     };
 
     const handleOpenGoalscorerModal = (match: TournamentMatch, teamType: 'home' | 'away') => {
-        if (!currentUser) return;
+        if (!canEdit) return;
         setEditingMatchInfo({ match, teamType });
         setIsGoalscorerModalOpen(true);
     };
@@ -324,7 +324,7 @@ export const TournamentPage: React.FC = () => {
             return (
                 <div className="text-center py-10">
                     <p className="text-textSecondary">{translate('tournament.noData')}</p>
-                    {currentUser && (
+                    {canEdit && (
                          <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} className="mt-4">
                             <PlusCircleIcon className="w-5 h-5 mr-2" />
                             {translate('tournament.button.new')}
@@ -354,7 +354,7 @@ export const TournamentPage: React.FC = () => {
                         )}
                     </div>
                 </header>
-                 {!!currentUser && (
+                 {canEdit && (
                     <div className={`${panelClasses} p-3`}>
                         <h2 className="text-lg font-semibold mb-2 text-textPrimary">{translate('tournament.generateScheduleSectionTitle')}</h2>
                         <div className="flex flex-wrap gap-2">
@@ -447,7 +447,7 @@ export const TournamentPage: React.FC = () => {
                                             <div key={match.id} className={`${panelClasses} p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4`}>
                                                 <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
                                                 <div className="flex flex-col items-center justify-center my-2 md:my-0">
-                                                    {!!currentUser ? (
+                                                    {canEdit ? (
                                                         <div className="flex items-center space-x-2">
                                                             <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
                                                             <span className="font-bold text-lg text-textSecondary">-</span>
@@ -523,7 +523,7 @@ export const TournamentPage: React.FC = () => {
                             ))}
                         </select>
                     </div>
-                    {currentUser && (
+                    {canEdit && (
                         <div className="flex items-center gap-2">
                              <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} size="sm"><PlusSmallIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.new')}</Button>
                              <Button onClick={() => { setModalMode('edit'); setIsCreateEditModalOpen(true); }} size="sm" variant="outline" disabled={!tournament}><PencilIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.edit')}</Button>
@@ -536,7 +536,7 @@ export const TournamentPage: React.FC = () => {
 
             {renderContent()}
 
-            {isManageModalOpen && currentUser && tournament && (
+            {isManageModalOpen && canEdit && tournament && (
                 <ManageTournamentModal 
                     isOpen={isManageModalOpen} 
                     onClose={() => setIsManageModalOpen(false)} 
@@ -545,7 +545,7 @@ export const TournamentPage: React.FC = () => {
                     availablePlayersForLookup={availablePlayersForTournament}
                 />
             )}
-            {isCreateEditModalOpen && currentUser && (
+            {isCreateEditModalOpen && canEdit && (
                  <CreateEditTournamentModal isOpen={isCreateEditModalOpen} onClose={() => setIsCreateEditModalOpen(false)} mode={modalMode} initialName={modalMode === 'edit' ? tournament?.name : ''} onSubmit={modalMode === 'create' ? handleCreateTournament : handleEditTournament} />
             )}
             {isGeneratorModalOpen && tournament && (
@@ -554,7 +554,7 @@ export const TournamentPage: React.FC = () => {
             {isJerseyDrawModalOpen && tournament && (
                 <TournamentJerseyDrawModal isOpen={isJerseyDrawModalOpen} onClose={() => setIsJerseyDrawModalOpen(false)} teams={tournament.teams} onSave={handleSaveJerseys} />
             )}
-            {isGoalscorerModalOpen && editingMatchInfo && tournament && (
+            {isGoalscorerModalOpen && editingMatchInfo && tournament && canEdit && (
                 <GoalscorerModal isOpen={isGoalscorerModalOpen} onClose={() => setIsGoalscorerModalOpen(false)} match={editingMatchInfo.match} teamType={editingMatchInfo.teamType} allTeams={tournament.teams} allPlayers={availablePlayersForTournament} onSave={handleSaveGoals} />
             )}
         </div>
