@@ -135,6 +135,15 @@ export interface MatchAnalysis {
   summary?: string; 
 }
 
+export interface TeamAnalysis {
+  strengths: string[];
+  weaknesses: string[];
+  keyPlayers: { name: string; reason: string; }[];
+  tacticalStyle: string;
+  funnyPrediction: string;
+  summary: string;
+}
+
 // --- Team Divider Types ---
 export type PlayerSeed = 'GK' | 'A' | 'B' | 'C' | 'D' | 'E';
 
@@ -224,6 +233,7 @@ export interface TournamentMatch {
   status: 'scheduled' | 'finished' | 'postponed';
   homeTeamGoals?: Goal[];
   awayTeamGoals?: Goal[];
+  matchLabel?: string;
 }
 
 export interface TeamStanding {
@@ -253,6 +263,33 @@ export interface Tournament {
     id: string;
     name: string;
   };
+}
+
+export interface TournamentMatchAnalysis {
+  predictedWinner: string; // 'home', 'away', or 'draw'
+  predictedScore: string; // e.g., "2-1"
+  winProbability: {
+    home: number;
+    away: number;
+    draw: number;
+  };
+  matchSummary: string;
+  keyMatchups: {
+    player1: string;
+    player2: string;
+    description: string;
+  }[];
+  homeTeamAnalysis: {
+    strengths: string[];
+    weaknesses: string[];
+    suggestedTactics: string;
+  };
+  awayTeamAnalysis: {
+    strengths: string[];
+    weaknesses: string[];
+    suggestedTactics: string;
+  };
+  funnyCommentary: string;
 }
 
 export interface AppSettings {

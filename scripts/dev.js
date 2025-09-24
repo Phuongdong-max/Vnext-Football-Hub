@@ -9,6 +9,7 @@ const projectRoot = path.join(__dirname, '..');
 const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
 // Read GEMINI_API_KEY from .env, but we will define it as process.env.API_KEY for the client
 const geminiApiKeyFromEnv = process.env.GEMINI_API_KEY || ""; 
+const geminiApiKey2FromEnv = process.env.GEMINI_API_KEY_2 || "";
 
 esbuild.serve({
   servedir: projectRoot, // Serve files from the project root
@@ -25,7 +26,8 @@ esbuild.serve({
   define: {
     'process.env.NODE_ENV': '"development"',
     'process.env.FOOTBALL_DATA_API_KEY': JSON.stringify(footballApiKey),
-    'process.env.API_KEY': JSON.stringify(geminiApiKeyFromEnv) // Define process.env.API_KEY for client
+    'process.env.API_KEY': JSON.stringify(geminiApiKeyFromEnv), // Define process.env.API_KEY for client
+    'process.env.API_KEY_2': JSON.stringify(geminiApiKey2FromEnv)
   },
   external: ['react', 'react/*', 'react-dom/*', 'react-router-dom'],
   absWorkingDir: projectRoot, // Set working directory to project root

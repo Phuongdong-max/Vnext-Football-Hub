@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAppContext } from '../contexts/AppContext';
+import { onTournamentUpdate, onAllPlayersUpdate } from '../services/firebaseService';
+import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
+import { TOURNAMENT_DOC_ID, getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
+import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
+import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 
-const teamData = [
-  { name: 'Fukuoka Kamikaze', image: 'assets/phoenix.png' },
-  { name: 'Magical Feet', image: 'assets/dragon.png' },
-  { name: 'V - All Star', image: 'assets/tiger.png' },
-  { name: 'Không thể cản phá', image: 'assets/turtle.png' },
-];
 
 const diamondSponsors = [
    "Chủ tịch VNext Holdings\nAnh Trần Ngọc Sơn",
@@ -24,17 +24,36 @@ const platinumSponsors = [
 
 const goldSponsors = [
     "Giám đốc VNext Software\nAnh Hoàng Hải",
-    "Phòng kinh doanh\nChị Nguyễn Thị Thu Huyền"
+    "Phòng kinh doanh\nChị Nguyễn Thị Thu Huyền",
+    "Phòng phát triển\nAnh Nguyễn Thanh Tùng"
 ];
 
 export const LandingPage: React.FC = () => {
     const { translate } = useLanguage();
+    const { isFirebaseReady, addToast } = useAppContext();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [isThankYouModalOpen, setIsThankYouModalOpen] = useState(false);
     const [selectedSponsor, setSelectedSponsor] = useState('');
+    
+    const [tournament, setTournament] = useState<Tournament | null>(null);
+    const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
+    const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+    const [selectedTeam, setSelectedTeam] = useState<TournamentTeam | null>(null);
+    const [isPlayerDetailModalOpen, setIsPlayerDetailModalOpen] = useState(false);
+    const [selectedPlayer, setSelectedPlayer] = useState<TournamentPlayer | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isFirebaseReady) return;
+        const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
+        const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
+        return () => {
+            unsubTournament();
+            unsubPlayers();
+        };
+    }, [isFirebaseReady]);
 
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
@@ -63,6 +82,32 @@ export const LandingPage: React.FC = () => {
         setIsThankYouModalOpen(true);
     };
 
+    const handleTeamClick = (teamName: string) => {
+        if (!tournament || !tournament.teams || tournament.teams.length === 0) {
+            addToast('tournament.loading', 'info');
+            return;
+        }
+
+        const liveTeam = tournament.teams.find(t => {
+            const styleForClickedName = getTeamStyle(teamName);
+            const styleForLiveTeam = getTeamStyle(t.name);
+            return styleForClickedName.imageSrc === styleForLiveTeam.imageSrc;
+        });
+
+        if (liveTeam) {
+            setSelectedTeam(liveTeam);
+            setIsTeamModalOpen(true);
+        } else {
+            console.warn(`Could not find live data for team: ${teamName}`);
+        }
+    };
+
+    const handlePlayerSelect = (player: TournamentPlayer) => {
+        setSelectedPlayer(player);
+        setIsTeamModalOpen(false); // Close team modal
+        setIsPlayerDetailModalOpen(true); // Open player detail modal
+    };
+
     const mailtoHref = `mailto:manhnv@vnext.vn?subject=${encodeURIComponent(
         'V/v: Đề Nghị Hợp Tác Tài Trợ Giải Bóng Đá VNEXT JAPAN OPEN CUP'
     )}&body=${encodeURIComponent(
@@ -83,6 +128,14 @@ Trân trọng,
 [Tên công ty/Tổ chức]
 [Thông tin liên hệ (Số điện thoại, email)]`
     )}`;
+    
+    const teamDataForDisplay = FALLBACK_TEAMS_FOR_DISPLAY.map(fallbackTeam => {
+        const style = getTeamStyle(fallbackTeam.name);
+        return {
+            ...fallbackTeam,
+            image: style.imageSrc,
+        };
+    });
 
   return (
     <>
@@ -136,15 +189,15 @@ Trân trọng,
                 className="flex flex-wrap justify-center items-start gap-x-4 gap-y-8 sm:gap-x-8 mt-12 will-animate"
                 style={{ animation: 'fadeInUp 0.6s ease-out 0.4s forwards' }}
               >
-                {teamData.map(team => (
-                  <div key={team.name} className="flex flex-col items-center gap-3 group">
+                {teamDataForDisplay.map(team => (
+                  <button key={team.id} onClick={() => handleTeamClick(team.name)} className="flex flex-col items-center gap-3 group">
                     <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-orange-400 p-2 transform transition-all duration-300 group-hover:scale-110 group-hover:shadow-2xl group-hover:[filter:drop-shadow(0_0_15px_rgba(255,193,7,0.6))]">
                       <div className="w-full h-full rounded-full bg-white/20 flex items-center justify-center">
                           <img src={team.image} alt={team.name} className="w-[170%] h-[170%] object-contain" />
                       </div>
                     </div>
                     <p className="font-bold text-lg bg-black/30 px-3 py-1 rounded-md transition-colors duration-300 group-hover:bg-black/60">{team.name}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
                 
@@ -305,6 +358,20 @@ Trân trọng,
             </div>
         </div>
       )}
+
+       <TeamDetailModal
+            isOpen={isTeamModalOpen}
+            onClose={() => setIsTeamModalOpen(false)}
+            team={selectedTeam}
+            allPlayers={allPlayers}
+            onSelectPlayer={handlePlayerSelect}
+        />
+        <PlayerDetailModal
+            isOpen={isPlayerDetailModalOpen}
+            onClose={() => setIsPlayerDetailModalOpen(false)}
+            player={selectedPlayer}
+        />
+      
       <style>{`
           .will-animate {
             opacity: 0;

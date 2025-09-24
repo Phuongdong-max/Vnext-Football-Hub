@@ -39,4 +39,48 @@ export const ODDS_API_DEFAULT_REGIONS = 'eu'; // eu, us, uk, au
 export const ODDS_API_DEFAULT_MARKETS = 'h2h'; // h2h (head-to-head/moneyline), spreads, totals
 
 // Main tournament document ID - now used as a default/fallback
-export const TOURNAMENT_DOC_ID = 'vleague_season_1';
+export const TOURNAMENT_DOC_ID = 'vnext_open_cup_s1';
+
+// --- Centralized Team Styling ---
+interface TeamStyle {
+  imageSrc: string;
+  borderColor: string;
+  aliases?: string[];
+}
+
+type TeamStyleMap = { [key: string]: TeamStyle };
+
+const TEAM_STYLES: TeamStyleMap = {
+    'Fukuoka Kamikaze': { imageSrc: 'assets/phoenix.png', borderColor: '#CB3737', aliases: ['FKO Kamikaze'] },
+    'Magical Feet': { imageSrc: 'assets/dragon.png', borderColor: '#4685A3', aliases: ['Magical feet'] },
+    'V - All Star': { imageSrc: 'assets/tiger.png', borderColor: '#D9D9D9', aliases: [] },
+    'Không thể cản phá': { imageSrc: 'assets/turtle.png', borderColor: '#6A8A6F', aliases: ['Không Thể Cản Phá'] },
+};
+
+export const getTeamStyle = (teamName: string): TeamStyle => {
+  const lowerCaseTeamName = teamName.toLowerCase().trim();
+  
+  // Direct match
+  const directMatchKey = Object.keys(TEAM_STYLES).find(k => k.toLowerCase().trim() === lowerCaseTeamName);
+  if (directMatchKey) return TEAM_STYLES[directMatchKey];
+
+  // Alias match
+  for (const key in TEAM_STYLES) {
+    if (TEAM_STYLES[key].aliases?.some(alias => alias.toLowerCase().trim() === lowerCaseTeamName)) {
+      return TEAM_STYLES[key];
+    }
+  }
+  
+  // Fallback style if no match is found
+  return { imageSrc: 'assets/VFLogo-fix.png', borderColor: '#cccccc' };
+};
+
+// This static list is used for immediate display on landing pages
+// to prevent the UI from being empty while live data is fetched.
+// Use the canonical names from TEAM_STYLES keys.
+export const FALLBACK_TEAMS_FOR_DISPLAY = [
+    { id: 'fallback_1', name: 'Fukuoka Kamikaze' },
+    { id: 'fallback_2', name: 'Magical Feet' },
+    { id: 'fallback_3', name: 'V - All Star' },
+    { id: 'fallback_4', name: 'Không thể cản phá' },
+];

@@ -13,6 +13,7 @@ import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole, Go
 import { TOURNAMENT_DOC_ID } from '../constants';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
+import { Modal } from '../components/shared/Modal';
 import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon, TShirtIcon, StarIcon, PlusIcon as PlusSmallIcon, TrashIcon, PencilIcon } from '../components/icons';
 import { ManageTournamentModal } from '../components/Tournament/ManageTournamentModal';
 import { TournamentScheduleGeneratorModal } from '../components/Tournament/TournamentScheduleGeneratorModal';
@@ -20,9 +21,81 @@ import { TournamentJerseyDrawModal } from '../components/Tournament/TournamentJe
 import { GoalscorerModal } from '../components/Tournament/GoalscorerModal';
 import { TopScorersList } from '../components/Tournament/TopScorersList';
 import { CreateEditTournamentModal } from '../components/Tournament/CreateEditTournamentModal';
+import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
+import { TeamAnalysisModal } from '../components/Tournament/TeamAnalysisModal';
+import { TournamentMatchAnalysisModal } from '../components/Tournament/TournamentMatchAnalysisModal';
+
+// --- Edit Match Modal (defined inside TournamentPage) ---
+interface EditMatchModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    match: TournamentMatch;
+    teams: TournamentTeam[];
+    onSave: (updatedMatch: TournamentMatch) => Promise<void>;
+}
+
+const EditMatchModal: React.FC<EditMatchModalProps> = ({ isOpen, onClose, match, teams, onSave }) => {
+    const { translate } = useLanguage();
+    const [editedMatch, setEditedMatch] = useState<TournamentMatch>(match);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setEditedMatch(match);
+            setError('');
+        }
+    }, [isOpen, match]);
+
+    const handleSave = async () => {
+        if (editedMatch.homeTeamId === editedMatch.awayTeamId && editedMatch.homeTeamId !== '' && !editedMatch.homeTeamId.startsWith('TBD-')) {
+            setError(translate('schedule.error.teamsCannotBeSame'));
+            return;
+        }
+        setError('');
+        setIsSaving(true);
+        await onSave(editedMatch);
+        setIsSaving(false);
+        onClose();
+    };
+    
+    const inputClasses = "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400";
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={translate('schedule.editMatchTitle')}>
+            <div className="space-y-4">
+                <div>
+                    <label htmlFor="homeTeam" className="block text-sm font-medium text-textPrimary mb-1">{teams.find(t => t.id === match.homeTeamId)?.name || match.homeTeamId}</label>
+                    <select id="homeTeam" value={editedMatch.homeTeamId} onChange={e => setEditedMatch(m => ({ ...m, homeTeamId: e.target.value }))} className={inputClasses}>
+                        <option value={match.homeTeamId.startsWith('TBD-') ? match.homeTeamId : ''}>{translate('schedule.tbd')}</option>
+                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor="awayTeam" className="block text-sm font-medium text-textPrimary mb-1">{teams.find(t => t.id === match.awayTeamId)?.name || match.awayTeamId}</label>
+                     <select id="awayTeam" value={editedMatch.awayTeamId} onChange={e => setEditedMatch(m => ({ ...m, awayTeamId: e.target.value }))} className={inputClasses}>
+                        <option value={match.awayTeamId.startsWith('TBD-') ? match.awayTeamId : ''}>{translate('schedule.tbd')}</option>
+                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                </div>
+                {error && <p className="text-sm text-danger">{error}</p>}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+                    <Button onClick={onClose} variant="secondary">{translate('common.button.cancel')}</Button>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? <LoadingSpinner size="sm" /> : translate('common.button.save')}
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
 
 
 const TeamDisplay = ({ teamId, alignment = 'start', teams }: { teamId: string, alignment?: 'start' | 'end', teams: TournamentTeam[] }) => {
+    const { translate } = useLanguage();
+    if (teamId.startsWith('TBD-')) {
+         return <div className="w-full md:w-2/5 text-center font-semibold text-textSecondary italic">{translate('schedule.tbd')}</div>;
+    }
     const team = teams.find(t => t.id === teamId);
     if (!team) return <div className="w-full md:w-2/5 text-center font-semibold text-textPrimary">Unknown Team</div>;
 
@@ -40,7 +113,7 @@ const TeamDisplay = ({ teamId, alignment = 'start', teams }: { teamId: string, a
 
 export const TournamentPage: React.FC = () => {
     const { translate, language } = useLanguage();
-    const { currentUser, isFirebaseReady, addToast } = useAppContext();
+    const { currentUser, isFirebaseReady, addToast, canEdit } = useAppContext();
 
     const [allTournaments, setAllTournaments] = useState<{ id: string; name: string }[]>([]);
     const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
@@ -57,9 +130,15 @@ export const TournamentPage: React.FC = () => {
     const [isJerseyDrawModalOpen, setIsJerseyDrawModalOpen] = useState(false);
     const [isGoalscorerModalOpen, setIsGoalscorerModalOpen] = useState(false);
     const [isCreateEditModalOpen, setIsCreateEditModalOpen] = useState(false);
+    const [isPlayerDetailModalOpen, setIsPlayerDetailModalOpen] = useState(false);
+    const [isEditMatchModalOpen, setIsEditMatchModalOpen] = useState(false);
     
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [editingMatchInfo, setEditingMatchInfo] = useState<{ match: TournamentMatch; teamType: 'home' | 'away' } | null>(null);
+    const [matchToEdit, setMatchToEdit] = useState<TournamentMatch | null>(null);
+    const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<TournamentPlayer | null>(null);
+    const [teamForAnalysis, setTeamForAnalysis] = useState<TournamentTeam | null>(null);
+    const [matchForAnalysis, setMatchForAnalysis] = useState<TournamentMatch | null>(null);
 
     // Effect for fetching the list of all tournaments
     const fetchAllTournaments = useCallback(async () => {
@@ -247,9 +326,26 @@ export const TournamentPage: React.FC = () => {
     };
 
     const handleOpenGoalscorerModal = (match: TournamentMatch, teamType: 'home' | 'away') => {
-        if (!currentUser) return;
+        if (!canEdit) return;
         setEditingMatchInfo({ match, teamType });
         setIsGoalscorerModalOpen(true);
+    };
+
+    const handleOpenPlayerDetailModal = (player: TournamentPlayer) => {
+        setSelectedPlayerForDetail(player);
+        setIsPlayerDetailModalOpen(true);
+    };
+
+    const handleOpenEditMatchModal = (match: TournamentMatch) => {
+        setMatchToEdit(match);
+        setIsEditMatchModalOpen(true);
+    };
+
+    const handleSaveEditedMatch = async (updatedMatch: TournamentMatch) => {
+        if (!currentUser || !tournament) return;
+        const newSchedule = tournament.schedule.map(m => m.id === updatedMatch.id ? updatedMatch : m);
+        await updateTournament(tournament.id, { schedule: newSchedule }, currentUser);
+        addToast('tournament.success.updateMatch', 'success');
     };
 
     const handleSaveGoals = async (matchId: string, teamType: 'home' | 'away', goals: Goal[]) => {
@@ -324,7 +420,7 @@ export const TournamentPage: React.FC = () => {
             return (
                 <div className="text-center py-10">
                     <p className="text-textSecondary">{translate('tournament.noData')}</p>
-                    {currentUser && (
+                    {canEdit && (
                          <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} className="mt-4">
                             <PlusCircleIcon className="w-5 h-5 mr-2" />
                             {translate('tournament.button.new')}
@@ -354,7 +450,7 @@ export const TournamentPage: React.FC = () => {
                         )}
                     </div>
                 </header>
-                 {!!currentUser && (
+                 {canEdit && (
                     <div className={`${panelClasses} p-3`}>
                         <h2 className="text-lg font-semibold mb-2 text-textPrimary">{translate('tournament.generateScheduleSectionTitle')}</h2>
                         <div className="flex flex-wrap gap-2">
@@ -438,31 +534,47 @@ export const TournamentPage: React.FC = () => {
                         </section>
                     )}
                     {activeTab === 'schedule' && (
-                        <section className="space-y-6">
-                            {schedule?.length > 0 ? [...new Set(schedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
-                                <div key={roundNum}>
-                                    <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
-                                    <div className="space-y-3">
-                                        {schedule.filter(m => m.round === roundNum).map(match => (
-                                            <div key={match.id} className={`${panelClasses} p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4`}>
-                                                <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
-                                                <div className="flex flex-col items-center justify-center my-2 md:my-0">
-                                                    {!!currentUser ? (
-                                                        <div className="flex items-center space-x-2">
-                                                            <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
-                                                            <span className="font-bold text-lg text-textSecondary">-</span>
-                                                            <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
-                                                    )}
-                                                </div>
-                                                <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
+                        <section className="space-y-4">
+                            {schedule?.length > 0 ? (
+                                schedule.sort((a,b) => a.round - b.round).map((match, index) => (
+                                    <div key={match.id} className={`${panelClasses} p-3`}>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-sm font-semibold text-textSecondary">
+                                                {match.matchLabel || translate('schedule.match', { matchNumber: index + 1 })}
+                                            </h4>
+                                            <div className="flex items-center gap-1">
+                                                {!match.homeTeamId.startsWith('TBD-') && !match.awayTeamId.startsWith('TBD-') && (
+                                                     <Button size="sm" variant="ghost" className="!p-1.5 h-7 w-7" onClick={() => setMatchForAnalysis(match)} title="AI Analysis">
+                                                        <span className="font-bold text-sm bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-500 to-orange-500">
+                                                            AI
+                                                        </span>
+                                                    </Button>
+                                                )}
+                                                {canEdit && (
+                                                    <Button size="sm" variant="ghost" className="!p-1.5 h-7 w-7" onClick={() => handleOpenEditMatchModal(match)}>
+                                                        <PencilIcon className="w-4 h-4" />
+                                                    </Button>
+                                                )}
                                             </div>
-                                        ))}
+                                        </div>
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+                                            <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
+                                            <div className="flex flex-col items-center justify-center my-2 md:my-0">
+                                                {canEdit ? (
+                                                    <div className="flex items-center space-x-2">
+                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
+                                                        <span className="font-bold text-lg text-textSecondary">-</span>
+                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
+                                                )}
+                                            </div>
+                                            <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
+                                        </div>
                                     </div>
-                                </div>
-                            )) : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
+                                ))
+                            ) : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
                         </section>
                     )}
                     {activeTab === 'teams' && (
@@ -470,18 +582,39 @@ export const TournamentPage: React.FC = () => {
                             {teams?.map(team => (
                                 <div key={team.id} className={panelClasses}>
                                     <div className="p-4">
-                                        <h3 className="font-bold text-lg text-primary mb-2 flex items-center gap-3"><div style={{ backgroundColor: team.color || '#a1a1aa' }} className="w-1 h-4 rounded-full flex-shrink-0"></div>{team.name}</h3>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="font-bold text-lg text-primary flex items-center gap-3">
+                                                <div style={{ backgroundColor: team.color || '#a1a1aa' }} className="w-1 h-4 rounded-full flex-shrink-0"></div>
+                                                {team.name}
+                                            </h3>
+                                            <Button
+                                                onClick={() => setTeamForAnalysis(team)}
+                                                variant="ghost"
+                                                size="sm"
+                                                className="!p-1.5 h-8 w-8"
+                                                title={translate('teamAnalysis.aiButton')}
+                                            >
+                                                <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-500 to-orange-500">
+                                                    AI
+                                                </span>
+                                            </Button>
+                                        </div>
                                         <h4 className="font-semibold text-sm text-textPrimary mb-1">{translate('teamList.members')}</h4>
                                         <ul className="space-y-1">
                                             {team.members?.map(memberRef => {
                                                 const player = availablePlayersForTournament.find(p => p.id === memberRef.playerId);
                                                 return (
-                                                    <li key={memberRef.playerId} className="flex items-center text-sm p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary">
-                                                        <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2"/>
+                                                    <li key={memberRef.playerId} className="p-1 rounded">
                                                         {player ? (
-                                                            <span>{player.name} (#{player.jerseyNumber})</span>
+                                                            <button onClick={() => handleOpenPlayerDetailModal(player)} className="flex items-center text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary p-1 rounded transition-colors duration-150">
+                                                                <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2 flex-shrink-0"/>
+                                                                <span className="hover:underline">{player.name} (#{player.jerseyNumber})</span>
+                                                            </button>
                                                         ) : (
-                                                            <span className="italic text-textSecondary text-xs">(Cầu thủ đã bị xóa)</span>
+                                                            <div className="flex items-center text-sm p-1 text-textPrimary">
+                                                                <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2 flex-shrink-0"/>
+                                                                <span className="italic text-textSecondary text-xs">({translate('tournament.playerDeleted')})</span>
+                                                            </div>
                                                         )}
                                                     </li>
                                                 );
@@ -523,7 +656,7 @@ export const TournamentPage: React.FC = () => {
                             ))}
                         </select>
                     </div>
-                    {currentUser && (
+                    {canEdit && (
                         <div className="flex items-center gap-2">
                              <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} size="sm"><PlusSmallIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.new')}</Button>
                              <Button onClick={() => { setModalMode('edit'); setIsCreateEditModalOpen(true); }} size="sm" variant="outline" disabled={!tournament}><PencilIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.edit')}</Button>
@@ -536,7 +669,7 @@ export const TournamentPage: React.FC = () => {
 
             {renderContent()}
 
-            {isManageModalOpen && currentUser && tournament && (
+            {isManageModalOpen && canEdit && tournament && (
                 <ManageTournamentModal 
                     isOpen={isManageModalOpen} 
                     onClose={() => setIsManageModalOpen(false)} 
@@ -545,7 +678,7 @@ export const TournamentPage: React.FC = () => {
                     availablePlayersForLookup={availablePlayersForTournament}
                 />
             )}
-            {isCreateEditModalOpen && currentUser && (
+            {isCreateEditModalOpen && canEdit && (
                  <CreateEditTournamentModal isOpen={isCreateEditModalOpen} onClose={() => setIsCreateEditModalOpen(false)} mode={modalMode} initialName={modalMode === 'edit' ? tournament?.name : ''} onSubmit={modalMode === 'create' ? handleCreateTournament : handleEditTournament} />
             )}
             {isGeneratorModalOpen && tournament && (
@@ -554,8 +687,35 @@ export const TournamentPage: React.FC = () => {
             {isJerseyDrawModalOpen && tournament && (
                 <TournamentJerseyDrawModal isOpen={isJerseyDrawModalOpen} onClose={() => setIsJerseyDrawModalOpen(false)} teams={tournament.teams} onSave={handleSaveJerseys} />
             )}
-            {isGoalscorerModalOpen && editingMatchInfo && tournament && (
+            {isGoalscorerModalOpen && editingMatchInfo && tournament && canEdit && (
                 <GoalscorerModal isOpen={isGoalscorerModalOpen} onClose={() => setIsGoalscorerModalOpen(false)} match={editingMatchInfo.match} teamType={editingMatchInfo.teamType} allTeams={tournament.teams} allPlayers={availablePlayersForTournament} onSave={handleSaveGoals} />
+            )}
+            {isPlayerDetailModalOpen && (
+                <PlayerDetailModal 
+                    isOpen={isPlayerDetailModalOpen}
+                    onClose={() => setIsPlayerDetailModalOpen(false)}
+                    player={selectedPlayerForDetail}
+                />
+            )}
+            {isEditMatchModalOpen && matchToEdit && tournament && canEdit && (
+                 <EditMatchModal isOpen={isEditMatchModalOpen} onClose={() => setIsEditMatchModalOpen(false)} match={matchToEdit} teams={tournament.teams} onSave={handleSaveEditedMatch} />
+            )}
+            {matchForAnalysis && tournament && (
+                <TournamentMatchAnalysisModal
+                    isOpen={!!matchForAnalysis}
+                    onClose={() => setMatchForAnalysis(null)}
+                    match={matchForAnalysis}
+                    teams={tournament.teams}
+                    allPlayersForLookup={availablePlayersForTournament}
+                />
+            )}
+            {teamForAnalysis && (
+                <TeamAnalysisModal
+                    isOpen={!!teamForAnalysis}
+                    onClose={() => setTeamForAnalysis(null)}
+                    team={teamForAnalysis}
+                    allPlayersForLookup={availablePlayersForTournament}
+                />
             )}
         </div>
     );

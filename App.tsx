@@ -192,6 +192,8 @@ const AppCore: React.FC = () => {
         addToast("error.failedToUpdateUserPoints", "error");
     }
   }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported, translate]);
+  
+  const canEdit = currentUser?.role === UserRole.ADMIN || (currentUser?.email?.endsWith('@vnext.vn') ?? false);
 
   const appContextValue: AppContextType = {
     currentUser,
@@ -206,6 +208,7 @@ const AppCore: React.FC = () => {
     refreshAllUsers: () => {}, // Placeholder
     isBettingEnabled,
     updateAppSettings: handleUpdateAppSettings,
+    canEdit,
   };
 
   // Combined loading state management
@@ -258,7 +261,7 @@ const AppCore: React.FC = () => {
                 ? <AdminDashboardPage /> 
                 : <Navigate to="/home" replace />
             } />
-            {isBettingEnabled && <Route path="/leaderboard" element={<LeaderboardPage />} />}
+            {isBettingEnabled && <Route path="/leaderboard" element={currentUser?.role === UserRole.MEMBER ? <LeaderboardPage /> : <Navigate to="/home" replace />} />}
             <Route path="/team-divider" element={<TeamDividerPage />} />
             <Route path="/tournament" element={<TournamentPage />} />
             <Route path="/player-info" element={<PlayerInfoPage />} />

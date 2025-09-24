@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { StarIcon } from '../components/icons';
+import { useAppContext } from '../contexts/AppContext';
+import { onTournamentUpdate, onAllPlayersUpdate } from '../services/firebaseService';
+import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
+import { TOURNAMENT_DOC_ID, getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
+import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
+import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
+
 
 // --- SVG & Asset Components (Embedded for portability) ---
 
@@ -72,14 +79,15 @@ interface TeamEmblemProps {
     name: string;
     imageSrc: string;
     borderColor: string;
+    onClick: () => void;
 }
-const TeamEmblem: React.FC<TeamEmblemProps> = ({ name, imageSrc, borderColor }) => (
-    <div className="flex flex-col items-center gap-2 text-center w-36">
-        <div className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-[8px] transition-all duration-300 ease-in-out hover:border-opacity-50 `} style={{ borderColor }}>
-            <img src={imageSrc} alt={name} className="absolute inset-0 w-full h-full object-contain transition-transform duration-300 ease-in-out hover:scale-110 " style={{ transform: 'scale(1.25)' }} />
+const TeamEmblem: React.FC<TeamEmblemProps> = ({ name, imageSrc, borderColor, onClick }) => (
+    <button className="flex flex-col items-center gap-2 text-center w-36 group" onClick={onClick}>
+        <div className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-[8px] transition-all duration-300 ease-in-out group-hover:border-opacity-50 group-hover:scale-105`} style={{ borderColor }}>
+            <img src={imageSrc} alt={name} className="absolute inset-0 w-full h-full object-contain transition-transform duration-300 ease-in-out group-hover:scale-110 " style={{ transform: 'scale(1.25)' }} />
         </div>
         <span className="font-semibold text-sm sm:text-base text-black h-10 flex items-center justify-center">{name}</span>
-    </div>
+    </button>
 );
 
 
@@ -115,11 +123,68 @@ const CountdownDisplay: React.FC<{ time: number; label: string }> = ({ time, lab
 
 export const CountdownPage: React.FC = () => {
     const { translate } = useLanguage();
+    const { isFirebaseReady, addToast } = useAppContext();
     const eventDate = "2025-10-04T15:00:00+09:00"; // Target date: Oct 4th, 3:00 PM GMT+9
     const { days, hours, minutes, seconds, isFinished } = useCountdown(eventDate);
     
+    // --- Dynamic Data Logic ---
+    const [tournament, setTournament] = useState<Tournament | null>(null);
+    const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
+    const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+    const [selectedTeam, setSelectedTeam] = useState<TournamentTeam | null>(null);
+    const [isPlayerDetailModalOpen, setIsPlayerDetailModalOpen] = useState(false);
+    const [selectedPlayer, setSelectedPlayer] = useState<TournamentPlayer | null>(null);
+
+    useEffect(() => {
+        if (!isFirebaseReady) return;
+        const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
+        const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
+        return () => {
+            unsubTournament();
+            unsubPlayers();
+        };
+    }, [isFirebaseReady]);
+
+    const handleTeamClick = (teamName: string) => {
+        if (!tournament || !tournament.teams || tournament.teams.length === 0) {
+            addToast('tournament.loading', 'info');
+            return;
+        }
+
+        const liveTeam = tournament.teams.find(t => {
+            const styleForClickedName = getTeamStyle(teamName);
+            const styleForLiveTeam = getTeamStyle(t.name);
+            // Compare by a unique style property like imageSrc to handle name aliases
+            return styleForClickedName.imageSrc === styleForLiveTeam.imageSrc;
+        });
+
+        if (liveTeam) {
+            setSelectedTeam(liveTeam);
+            setIsTeamModalOpen(true);
+        } else {
+            console.warn(`Could not find live data for team: ${teamName}`);
+        }
+    };
+
+    const handlePlayerSelect = (player: TournamentPlayer) => {
+        setSelectedPlayer(player);
+        setIsTeamModalOpen(false); // Close team modal
+        setIsPlayerDetailModalOpen(true); // Open player detail modal
+    };
+    
+    // Use the fallback list for immediate display to ensure emblems are always visible.
+    const teamDataForDisplay = FALLBACK_TEAMS_FOR_DISPLAY.map(fallbackTeam => {
+        const style = getTeamStyle(fallbackTeam.name);
+        return {
+            ...fallbackTeam,
+            imageSrc: style.imageSrc,
+            borderColor: style.borderColor,
+        };
+    });
+
     return (
-      <div className="flex-grow w-full bg-[#f4efe8] flex items-center justify-center relative overflow-hidden p-4">
+      <>
+        <div className="flex-grow w-full bg-[#f4efe8] flex items-center justify-center relative overflow-hidden p-4">
             <DotPatternAccent position="top-left" />
             <DotPatternAccent position="top-right" />
             <DotPatternAccent position="bottom-left" />
@@ -168,10 +233,15 @@ export const CountdownPage: React.FC = () => {
 
                 {/* Team Emblems */}
                 <div className="w-full flex flex-wrap justify-center items-start gap-x-8 sm:gap-x-12 gap-y-6 mt-12 mb-8">
-                    <TeamEmblem name="V - All Star" imageSrc="assets/tiger.png" borderColor="#D9D9D9" />
-                    <TeamEmblem name="Không Thể Cản Phá" imageSrc="assets/turtle.png" borderColor="#6A8A6F" />
-                    <TeamEmblem name="FKO Kamikaze" imageSrc="assets/phoenix.png" borderColor="#CB3737" />
-                    <TeamEmblem name="Magical feet" imageSrc="assets/dragon.png" borderColor="#4685A3" />
+                   {teamDataForDisplay.map(team => (
+                        <TeamEmblem
+                            key={team.id}
+                            name={team.name}
+                            imageSrc={team.imageSrc}
+                            borderColor={team.borderColor}
+                            onClick={() => handleTeamClick(team.name)}
+                        />
+                    ))}
                 </div>
                 
                 {/* Decorative Stars */}
@@ -181,6 +251,19 @@ export const CountdownPage: React.FC = () => {
                     <StarIcon className="w-5 h-5 text-[#4B4B4B]" />
                 </div>
             </div>
-      </div>
+        </div>
+        <TeamDetailModal
+            isOpen={isTeamModalOpen}
+            onClose={() => setIsTeamModalOpen(false)}
+            team={selectedTeam}
+            allPlayers={allPlayers}
+            onSelectPlayer={handlePlayerSelect}
+        />
+        <PlayerDetailModal
+            isOpen={isPlayerDetailModalOpen}
+            onClose={() => setIsPlayerDetailModalOpen(false)}
+            player={selectedPlayer}
+        />
+      </>
     );
 };
