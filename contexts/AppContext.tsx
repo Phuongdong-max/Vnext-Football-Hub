@@ -14,6 +14,7 @@ export interface AppContextType {
   refreshAllUsers: () => void;
   isBettingEnabled: boolean;
   updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
+  canEdit: boolean;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);

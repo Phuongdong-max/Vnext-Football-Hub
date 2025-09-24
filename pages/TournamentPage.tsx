@@ -534,6 +534,7 @@ export const TournamentPage: React.FC = () => {
                         </section>
                     )}
                     {activeTab === 'schedule' && (
+<<<<<<< HEAD
                         <section className="space-y-4">
                             {schedule?.length > 0 ? (
                                 schedule.sort((a,b) => a.round - b.round).map((match, index) => (
@@ -555,6 +556,28 @@ export const TournamentPage: React.FC = () => {
                                                         <PencilIcon className="w-4 h-4" />
                                                     </Button>
                                                 )}
+=======
+                        <section className="space-y-6">
+                            {schedule?.length > 0 ? [...new Set(schedule.map(m => m.round))].sort((a,b) => a-b).map(roundNum => (
+                                <div key={roundNum}>
+                                    <h3 className="text-lg font-semibold text-textSecondary mb-2">{translate('schedule.round', { round: roundNum })}</h3>
+                                    <div className="space-y-3">
+                                        {schedule.filter(m => m.round === roundNum).map(match => (
+                                            <div key={match.id} className={`${panelClasses} p-3 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4`}>
+                                                <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
+                                                <div className="flex flex-col items-center justify-center my-2 md:my-0">
+                                                    {canEdit ? (
+                                                        <div className="flex items-center space-x-2">
+                                                            <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
+                                                            <span className="font-bold text-lg text-textSecondary">-</span>
+                                                            <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
+                                                    )}
+                                                </div>
+                                                <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
+>>>>>>> aa4c61e9211f5ee112c7a478539dce50b5c24ff4
                                             </div>
                                         </div>
                                         <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
