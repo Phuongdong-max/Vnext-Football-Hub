@@ -21,7 +21,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ id, label, checked, 
             onChange={(e) => !disabled && onChange(e.target.checked)}
             disabled={disabled}
           />
-          <div className={`block ${checked ? 'bg-primary' : 'bg-gray-300 dark:bg-slate-600'} w-14 h-8 rounded-full transition`}></div>
+          <div className={`block ${checked ? 'bg-primary shadow-md shadow-primary/40' : 'bg-border'} w-14 h-8 rounded-full transition-all duration-200`}></div>
           <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${checked ? 'translate-x-6' : ''}`}></div>
         </div>
         <div className="ml-3 text-textPrimary font-medium">{label}</div>
