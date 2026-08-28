@@ -66,7 +66,8 @@ esbuild.build({
   entryPoints: [path.join(projectRoot, 'index.tsx')],
   
   bundle: true,
-  outfile: path.join(distDir, 'index.js'),
+  outdir: distDir,
+  splitting: true,
   platform: 'browser',
   format: 'esm',
   jsx: 'automatic',

@@ -14,14 +14,14 @@ const geminiApiKey2FromEnv = process.env.QWEN_API_KEY_2 || "";
 // esbuild >= 0.17 removed the old two-argument esbuild.serve(). The build is
 // now described by a context, and serving hangs off that context.
 //
-// write: false keeps the bundle in memory instead of dropping a 4 MB index.js
-// into the project root; serve() overlays the in-memory result on servedir, so
-// index.html can still request /index.js.
+// splitting requires outdir (incompatible with a single outfile), so chunks
+// are written to disk under projectRoot; serve() overlays servedir on top of
+// that, so index.html can still request /index.js (and any chunk-*.js).
 esbuild.context({
   entryPoints: [path.join(projectRoot, 'index.tsx')],
   bundle: true,
-  write: false,
-  outfile: path.join(projectRoot, 'index.js'), // Served at /index.js from servedir root
+  outdir: projectRoot,
+  splitting: true,
   platform: 'browser',
   format: 'esm',
   jsx: 'automatic',
