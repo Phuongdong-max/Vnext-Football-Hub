@@ -108,10 +108,10 @@ export const PlayerInfoPage: React.FC = () => {
     }, [allPlayers, searchTerm]);
     
     const inputClasses = "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400";
-    const panelClasses = "bg-surface shadow-lg rounded-lg p-4 sm:p-6";
+    const panelClasses = "bg-surface shadow-lg rounded-2xl p-4 sm:p-6";
 
     const PlayerDetailPlaceholder = () => (
-        <div className="flex flex-col items-center justify-center h-full text-center text-textSecondary p-8 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+        <div className="flex flex-col items-center justify-center h-full text-center text-textSecondary p-8 bg-black/5 dark:bg-white/5 rounded-2xl">
             <UserCircleIcon className="w-24 h-24 text-gray-300 dark:text-slate-600 mb-4" />
             <h3 className="text-xl font-semibold text-textPrimary">{translate('playerInfo.noPlayerSelected')}</h3>
             <p>{translate('playerInfo.selectPlayerPrompt')}</p>
@@ -150,7 +150,7 @@ export const PlayerInfoPage: React.FC = () => {
                         <div className="mt-4 space-y-2 max-h-[60vh] overflow-y-auto">
                             {filteredPlayers.length > 0 ? (
                                 filteredPlayers.map(player => (
-                                    <button key={player.id} onClick={() => handleSelectPlayer(player)} className={`w-full text-left flex items-center gap-4 p-3 rounded-md transition-colors ${selectedPlayer?.id === player.id ? 'bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-slate-800'}`}>
+                                    <button key={player.id} onClick={() => handleSelectPlayer(player)} className={`w-full text-left flex items-center gap-4 p-3 rounded-2xl transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 ${selectedPlayer?.id === player.id ? 'bg-primary/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}>
                                         <span className={`font-mono text-lg w-8 text-center ${selectedPlayer?.id === player.id ? 'text-primary font-bold' : 'text-textSecondary'}`}>#{player.jerseyNumber}</span>
                                         <span className={`font-semibold ${selectedPlayer?.id === player.id ? 'text-primary' : 'text-textPrimary'}`}>{player.name}</span>
                                     </button>
@@ -203,7 +203,7 @@ export const PlayerInfoPage: React.FC = () => {
                                 ) : (
                                     <div>
                                         <h3 className="text-lg font-semibold text-textPrimary">{translate('playerInfo.bio')}</h3>
-                                        <p className="mt-1 text-textSecondary whitespace-pre-wrap bg-gray-50 dark:bg-slate-800/50 p-3 rounded-md min-h-[80px]">{selectedPlayer.bio || 'N/A'}</p>
+                                        <p className="mt-1 text-textSecondary whitespace-pre-wrap bg-black/5 dark:bg-white/5 p-3 rounded-2xl min-h-[80px]">{selectedPlayer.bio || 'N/A'}</p>
                                     </div>
                                 )}
                                 
@@ -217,7 +217,7 @@ export const PlayerInfoPage: React.FC = () => {
                                                     <span>{translate(`playerSkills.${key as keyof PlayerSkills}`)}</span>
                                                     <span className="font-bold text-primary">{editedPlayer?.skills?.[key as keyof PlayerSkills] || 50}</span>
                                                 </label>
-                                                <input type="range" min="1" max="99" value={editedPlayer?.skills?.[key as keyof PlayerSkills] || 50} onChange={e => isEditing && setEditedPlayer(p => p ? {...p, skills: {...p.skills!, [key]: parseInt(e.target.value)}} : null)} disabled={!isEditing} className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50" />
+                                                <input type="range" min="1" max="99" value={editedPlayer?.skills?.[key as keyof PlayerSkills] || 50} onChange={e => isEditing && setEditedPlayer(p => p ? {...p, skills: {...p.skills!, [key]: parseInt(e.target.value)}} : null)} disabled={!isEditing} className="w-full h-2 bg-black/10 dark:bg-white/10 rounded-2xl appearance-none cursor-pointer accent-primary disabled:opacity-50" />
                                             </div>
                                         ))}
                                     </div>
