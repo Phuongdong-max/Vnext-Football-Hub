@@ -150,7 +150,7 @@ export const PlayerInfoPage: React.FC = () => {
                         <div className="mt-4 space-y-2 max-h-[60vh] overflow-y-auto">
                             {filteredPlayers.length > 0 ? (
                                 filteredPlayers.map(player => (
-                                    <button key={player.id} onClick={() => handleSelectPlayer(player)} className={`w-full text-left flex items-center gap-4 p-3 rounded-2xl transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 ${selectedPlayer?.id === player.id ? 'bg-primary/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}>
+                                    <button key={player.id} onClick={() => handleSelectPlayer(player)} className={`w-full text-left flex items-center gap-4 p-3 rounded-2xl transition-colors duration-150 ${selectedPlayer?.id === player.id ? 'bg-primary/20' : 'hover:bg-primary/10'}`}>
                                         <span className={`font-mono text-lg w-8 text-center ${selectedPlayer?.id === player.id ? 'text-primary font-bold' : 'text-textSecondary'}`}>#{player.jerseyNumber}</span>
                                         <span className={`font-semibold ${selectedPlayer?.id === player.id ? 'text-primary' : 'text-textPrimary'}`}>{player.name}</span>
                                     </button>
