@@ -24,6 +24,9 @@ import { CreateEditTournamentModal } from '../components/Tournament/CreateEditTo
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 import { TeamAnalysisModal } from '../components/Tournament/TeamAnalysisModal';
 import { TournamentMatchAnalysisModal } from '../components/Tournament/TournamentMatchAnalysisModal';
+import { Scene3DBoundary } from '../components/three/Scene3DBoundary';
+
+const TrophyScene = React.lazy(() => import('../components/three/TrophyScene'));
 
 // --- Edit Match Modal (defined inside TournamentPage) ---
 interface EditMatchModalProps {
@@ -409,7 +412,7 @@ export const TournamentPage: React.FC = () => {
         return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4 text-textPrimary">{translate('tournament.loading')}</p></div>;
     }
 
-    const panelClasses = "bg-surface shadow-lg rounded-lg";
+    const panelClasses = "bg-surface shadow-lg rounded-2xl";
 
     const renderContent = () => {
         if (isSwitchingTournament) {
@@ -491,6 +494,20 @@ export const TournamentPage: React.FC = () => {
                 <div className="mt-4">
                     {activeTab === 'standings' && (
                         <section>
+                            {standings && standings.length > 0 && (
+                                <div className="mb-4 rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 to-slate-800 shadow-lg">
+                                    <Scene3DBoundary
+                                        className="h-56 relative"
+                                        fallback={<div className="h-56 flex items-center justify-center"><TrophyIcon className="w-24 h-24 text-accentGold" /></div>}
+                                    >
+                                        <TrophyScene />
+                                    </Scene3DBoundary>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4 text-center">
+                                        <span className="text-xs font-semibold text-white/70 uppercase tracking-widest">Champion</span>
+                                        <span className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg mt-1">{standings[0].teamName}</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className={`${panelClasses} overflow-hidden`}>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full">
@@ -537,7 +554,7 @@ export const TournamentPage: React.FC = () => {
                         <section className="space-y-4">
                             {schedule?.length > 0 ? (
                                 schedule.sort((a,b) => a.round - b.round).map((match, index) => (
-                                    <div key={match.id} className={`${panelClasses} p-3`}>
+                                    <div key={match.id} className={`${panelClasses} p-3 transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10`}>
                                         <div className="flex justify-between items-center mb-2">
                                             <h4 className="text-sm font-semibold text-textSecondary">
                                                 {match.matchLabel || translate('schedule.match', { matchNumber: index + 1 })}
