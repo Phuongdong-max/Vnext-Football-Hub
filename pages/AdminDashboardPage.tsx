@@ -189,8 +189,8 @@ export const AdminDashboardPage: React.FC = () => {
           />
           <p className="text-xs text-textSecondary mt-2">
             {isBettingEnabled
-              ? "Users can view leaderboards, place bets, and see betting-related content."
-              : "All betting features, points, and leaderboards are hidden for all users."}
+              ? "Users can place bets and see betting-related content."
+              : "All betting features and points are hidden for all users."}
           </p>
       </section>
       
