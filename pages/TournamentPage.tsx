@@ -526,7 +526,7 @@ export const TournamentPage: React.FC = () => {
                                         </thead>
                                         <tbody className="divide-y divide-border bg-surface">
                                             {standings?.map((s, index) => (
-                                                <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
+                                                <tr key={s.teamId} className="hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-200">
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                                                         <div className="flex items-center">
                                                             <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>
@@ -579,9 +579,9 @@ export const TournamentPage: React.FC = () => {
                                             <div className="flex flex-col items-center justify-center my-2 md:my-0">
                                                 {canEdit ? (
                                                     <div className="flex items-center space-x-2">
-                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
+                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
                                                         <span className="font-bold text-lg text-textSecondary">-</span>
-                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
+                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
                                                     </div>
                                                 ) : (
                                                     <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
@@ -623,7 +623,7 @@ export const TournamentPage: React.FC = () => {
                                                 return (
                                                     <li key={memberRef.playerId} className="p-1 rounded">
                                                         {player ? (
-                                                            <button onClick={() => handleOpenPlayerDetailModal(player)} className="flex items-center text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary p-1 rounded transition-colors duration-150">
+                                                            <button onClick={() => handleOpenPlayerDetailModal(player)} className="flex items-center text-sm w-full text-left hover:bg-black/10 dark:hover:bg-white/10 text-textPrimary p-1 rounded transition-colors duration-150">
                                                                 <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2 flex-shrink-0"/>
                                                                 <span className="hover:underline">{player.name} (#{player.jerseyNumber})</span>
                                                             </button>
