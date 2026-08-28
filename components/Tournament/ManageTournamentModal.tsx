@@ -224,11 +224,11 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
 
     const renderPlayersTab = () => (
         <div className="space-y-4">
-             <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-lg text-sm flex items-start gap-2">
+             <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-2xl text-sm flex items-start gap-2">
                 <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <span>{translate('manageTournament.players.liveSaveInfo')}</span>
             </div>
-            <div className="p-3 bg-gray-100 dark:bg-slate-900/50 rounded-lg">
+            <div className="p-3 bg-black/5 dark:bg-white/5 rounded-2xl">
                 <h4 className="font-semibold mb-2 text-textPrimary">{translate('manageTournament.button.addPlayer')}</h4>
                 <div className="flex items-center space-x-2">
                     <input type="text" value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder={translate('manageTournament.players.add.namePlaceholder')} className={inputClasses} />
@@ -238,7 +238,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
             </div>
              <div className="space-y-2">
                 {allPlayers.map(player => (
-                    <div key={player.id} className="flex items-center justify-between p-2 bg-surface dark:bg-slate-700/50 rounded-md gap-2">
+                    <div key={player.id} className="flex items-center justify-between p-2 bg-surface dark:bg-white/5 rounded-2xl gap-2">
                         <input
                             type="text"
                             defaultValue={player.name}
@@ -260,7 +260,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
     
     const renderTeamsTab = () => (
         <div className="space-y-4">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-lg text-sm flex items-start gap-2">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded-2xl text-sm flex items-start gap-2">
                 <InformationCircleIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <span>{translate('manageTournament.players.liveSaveInfo')}</span>
             </div>
@@ -274,7 +274,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                      const availablePlayersForDropdown = availablePlayersForLookup.filter(p => !teamMemberIds.has(p.id));
 
                     return (
-                        <div key={team.id} className="p-3 bg-background dark:bg-slate-800 rounded-lg">
+                        <div key={team.id} className="p-3 bg-background dark:bg-white/5 rounded-2xl">
                             <div className="flex justify-between items-center mb-2">
                                  <div className="flex items-center gap-3 flex-grow">
                                     <input
@@ -296,9 +296,9 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                             <div className="space-y-2 mb-2">
                                 {team.members.map(memberRef => {
                                     const member = availablePlayersForLookup.find(p => p.id === memberRef.playerId);
-                                    if (!member) return <div key={memberRef.playerId} className="flex items-center justify-between text-sm bg-surface dark:bg-slate-700 p-2 rounded text-red-500 italic">Cầu thủ đã bị xóa</div>;
+                                    if (!member) return <div key={memberRef.playerId} className="flex items-center justify-between text-sm bg-surface dark:bg-white/5 p-2 rounded text-red-500 italic">Cầu thủ đã bị xóa</div>;
                                     return (
-                                        <div key={member.id} className="flex items-center justify-between text-sm bg-surface dark:bg-slate-700 p-2 rounded">
+                                        <div key={member.id} className="flex items-center justify-between text-sm bg-surface dark:bg-white/5 p-2 rounded">
                                             <span>{member.name} (#{member.jerseyNumber})</span>
                                             <Button type="button" onClick={() => handleRemoveMemberFromTeam(team.id, member.id)} variant="ghost" size="sm" className="!p-1"><XIcon className="w-4 h-4 text-danger"/></Button>
                                         </div>

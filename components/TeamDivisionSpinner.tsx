@@ -188,7 +188,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
     const wheelRadius = wheelSize / 2;
 
     return (
-        <div className="flex flex-col items-center justify-start p-4 min-h-[80vh] bg-background dark:bg-slate-900/50 rounded-2xl">
+        <div className="flex flex-col items-center justify-start p-4 min-h-[80vh] bg-background dark:bg-white/5 rounded-2xl">
             {flyingPlayer && (
                  <div
                     className="player-fly-animation"
