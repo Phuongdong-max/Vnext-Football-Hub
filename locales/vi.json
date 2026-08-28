@@ -36,7 +36,6 @@
   "lang.english": "English",
   "lang.vietnamese": "Tiếng Việt",
   "footer.copyright": "© {{year}} {{appTitle}}. Bảo lưu mọi quyền (cho vui).",
-
   "adminDashboard.loading": "Đang tải Trang Quản Trị...",
   "adminDashboard.accessDenied": "Truy cập bị từ chối. Bạn phải là quản trị viên.",
   "adminDashboard.title": "Trang Quản Trị",
@@ -61,11 +60,9 @@
   "error.liveApiUnavailable": "API trực tiếp không khả dụng để tìm nạp trận đấu.",
   "info.noMatchesFound": "Không tìm thấy trận đấu nào cho {{leagueCode}} vào ngày {{date}}.",
   "error.failedToFetchMatches": "Không thể tìm nạp trận đấu: {{errorMessage}}",
-
   "page.leaderboard.title": "Bảng Xếp Hạng",
   "page.leaderboard.button.refresh": "Làm mới Bảng Xếp Hạng",
   "page.leaderboard.emptyMessage": "Bảng xếp hạng hiện đang trống. Cần có kết quả cược để điểm số xuất hiện.",
-
   "memberHomePage.loadingRounds": "Đang tải các Vòng Cược...",
   "memberHomePage.availableRoundsTitle": "Các Vòng Cược Hiện Có",
   "memberHomePage.button.refreshData": "Làm mới dữ liệu",
@@ -84,7 +81,6 @@
   "success.appSettingsUpdated": "Cài đặt ứng dụng đã được cập nhật thành công.",
   "error.appSettingsUpdateFailed": "Không thể cập nhật cài đặt ứng dụng: {{errorMessage}}",
   "error.unauthorized": "Bạn không được phép thực hiện hành động này.",
-
   "createBettingRoundModal.title": "Tạo Vòng Cược Mới",
   "createBettingRoundModal.api.selectSourceLabel": "Chọn Nguồn API:",
   "createBettingRoundModal.warning.noApisConfigured": "Không có API nào được cấu hình. Vui lòng thiết lập ít nhất một API (Football-Data.org hoặc The Odds API) để tải trận đấu.",
@@ -132,23 +128,19 @@
   "createBettingRoundModal.button.selectFromListTitle": "Chọn từ danh sách",
   "createBettingRoundModal.button.enterManually": "Nhập Thủ Công",
   "createBettingRoundModal.button.createRound": "Tạo Vòng",
-
   "updateResultModal.title": "Cập Nhật Kết Quả: {{homeTeam}} vs {{awayTeam}}",
   "updateResultModal.instruction": "Chọn đội thắng hoặc nếu trận đấu hòa.",
   "updateResultModal.button.homeWin": "{{teamName}} (Nhà) Thắng",
   "updateResultModal.button.awayWin": "{{teamName}} (Khách) Thắng",
   "updateResultModal.button.draw": "Trận Đấu Hòa",
   "updateResultModal.button.confirmResult": "Xác Nhận Kết Quả",
-  
   "common.button.cancel": "Hủy",
   "common.button.save": "Lưu",
   "button.viewAiAnalysis": "Xem phân tích AI",
-
   "bettingRoundStatus.open": "Mở",
   "bettingRoundStatus.closedAwaitingResult": "Đóng (Chờ Kết Quả)",
   "bettingRoundStatus.awaitingResult": "Chờ Kết Quả",
   "bettingRoundStatus.finished": "Kết thúc",
-
   "matchCard.versus": "đấu với",
   "matchCard.resultLabel": "Kết quả:",
   "matchCard.yourBet": "Cược của bạn:",
@@ -170,11 +162,9 @@
   "matchCard.loginToBet": "Đăng nhập để đặt cược.",
   "matchResult.draw": "Hòa",
   "matchResult.won": "Thắng",
-  
   "adminMatchCard.betsPlaced": "{{count}} Cược Đã Đặt",
   "adminMatchCard.button.updateResult": "Cập Nhật Kết Quả",
   "adminMatchCard.resultsRecorded": "Kết quả đã được ghi nhận cho trận này.",
-
   "bettingModal.title": "Đặt Cược Cho: {{homeTeam}} vs {{awayTeam}}",
   "bettingModal.availablePoints": "Điểm hiện có của bạn",
   "bettingModal.selectTeamLabel": "Chọn Đội",
@@ -185,7 +175,6 @@
   "bettingModal.error.pointsGreaterThanZero": "Điểm cược phải lớn hơn không.",
   "bettingModal.error.insufficientPoints": "Bạn không thể cược nhiều hơn {{points}} điểm hiện có.",
   "bettingModal.button.confirmBet": "Xác Nhận Cược",
-
   "leaderboardTable.header.rank": "Hạng",
   "leaderboardTable.header.player": "Người Chơi",
   "leaderboardTable.header.points": "Điểm",
@@ -193,7 +182,6 @@
   "leaderboardTable.header.betsMade": "Số Cược",
   "leaderboardTable.header.wins": "Thắng",
   "leaderboardTable.header.winRate": "Tỉ Lệ Thắng",
-
   "aiAnalysisModal.title": "Phân tích AI: {{homeTeam}} vs {{awayTeam}}",
   "aiAnalysisModal.subTitle": "Thông tin chuyên sâu từ AI (Gemini)",
   "aiAnalysisModal.loading": "Đang tải phân tích AI...",
@@ -219,7 +207,6 @@
   "error.aiCannotGetAnalysis": "Không thể lấy phân tích trận đấu từ AI. {{errorMessage}}",
   "error.aiCannotGetMatchAnalysis": "Không thể lấy phân tích trận đấu từ AI. Lỗi: {{errorMessage}}",
   "error.aiQuotaExceeded": "Bạn đã dùng hết lượt phân tích AI miễn phí. Vui lòng kiểm tra gói dịch vụ và thanh toán của bạn.",
-
   "matchCard.odds.viewButton": "Xem Kèo",
   "matchCard.odds.loading": "Đang tải kèo...",
   "matchCard.odds.unavailable": "Kèo không có sẵn cho trận này.",
@@ -231,7 +218,6 @@
   "matchCard.odds.homeTeamWinShort": "Chủ Nhà",
   "matchCard.odds.awayTeamWinShort": "Khách",
   "matchCard.odds.drawShort": "Hòa",
-
   "teamDivider.title": "Trình Chia Đội Bóng Đá",
   "teamDivider.subtitle": "Nhập danh sách cầu thủ theo nhóm hạt giống và chia thành các đội cân bằng.",
   "teamDivider.inputTitle": "Nhập Danh Sách Cầu Thủ",
@@ -269,13 +255,17 @@
   "teamDivider.newDivisionButton": "Chia Đội Mới",
   "teamDivider.spinner.title": "Quay Vòng Quay Để Chia Đội!",
   "teamDivider.spinner.spinButton": "QUAY",
+  "teamDivider.spinner.spinAllButton": "Quay Tất Cả - Ra Đội Ngay",
+  "teamDivider.spinner.spinningAll": "Đang bốc toàn bộ cầu thủ...",
+  "teamDivider.spinner.winnerLabel": "Anh",
+  "teamDivider.spinner.remaining": "Còn {{count}} cầu thủ trên vòng quay",
+  "teamDivider.spinner.unbalancedSummary": "{{count}} cầu thủ phải xếp bằng logic dự phòng vì đội nào cũng đã có người cùng hạng.",
   "teamDivider.spinner.waiting": "Nhấn QUAY để chọn cầu thủ tiếp theo",
   "teamDivider.spinner.spinning": "Đang quay...",
   "teamDivider.spinner.selected": "Đã chọn: {{playerName}} ({{playerSeed}})! Đang xếp vào đội...",
   "teamDivider.spinner.allAssigned": "Tất cả cầu thủ đã được xếp đội!",
   "teamDivider.spinner.completed": "Chia Đội Hoàn Tất!",
   "teamDivider.spinner.unbalancedWarning": "Hạt giống không cân bằng! Cầu thủ {{playerName}} đã được xếp bằng logic dự phòng.",
-
   "tournament.title": "Giải Đấu Nội Bộ",
   "tournament.loading": "Đang tải dữ liệu giải đấu...",
   "tournament.noData": "Không có dữ liệu giải đấu nào được tìm thấy. Quản trị viên cần tạo một giải đấu.",
@@ -359,7 +349,6 @@
   "tournament.matchAnalysis.weaknesses": "Điểm Yếu",
   "tournament.matchAnalysis.tactics": "Chiến Thuật Đề Xuất",
   "tournament.matchAnalysis.funnyCommentary": "Góc Bình Luận Cà Khịa",
-
   "standingsTable.team": "Đội",
   "standingsTable.played": "ST",
   "standingsTable.wins": "T",
@@ -369,7 +358,6 @@
   "standingsTable.ga": "BB",
   "standingsTable.gd": "HS",
   "standingsTable.points": "Điểm",
-
   "schedule.match": "Trận {{matchNumber}}",
   "schedule.tbd": "Chưa xác định",
   "schedule.status.finished": "Kết thúc",
@@ -382,11 +370,9 @@
   "schedule.error.invalidScore": "Tỷ số không hợp lệ. Vui lòng nhập số hợp lệ.",
   "schedule.editMatchTitle": "Chỉnh sửa Trận đấu",
   "schedule.error.teamsCannotBeSame": "Đội nhà và đội khách không được trùng nhau.",
-
   "teamList.captain": "Đội trưởng",
   "teamList.members": "Thành viên",
   "teamList.noMembers": "Chưa có thành viên",
-
   "manageTournament.title": "Quản lý Dữ liệu Giải đấu",
   "manageTournament.createTitle": "Thiết lập Giải đấu Mới",
   "manageTournament.tab.teams": "Các Đội",
@@ -425,25 +411,21 @@
   "manageTournament.migration.button": "Di chuyển Cầu thủ",
   "manageTournament.migration.success": "Di chuyển dữ liệu cầu thủ thành công! Trình quản lý đã được cập nhật.",
   "manageTournament.migration.error": "Di chuyển dữ liệu cầu thủ thất bại: {{error}}",
-
   "goalscorerModal.title": "Quản lý Bàn thắng cho {{teamName}}",
   "goalscorerModal.currentScore": "Tỷ số hiện tại",
   "goalscorerModal.noGoals": "Chưa có bàn thắng.",
   "goalscorerModal.addGoalFromTeam": "Thêm bàn thắng từ Thành viên Đội",
   "goalscorerModal.addGuestScorer": "Thêm cầu thủ ghi bàn (Khách)",
   "goalscorerModal.guestNamePlaceholder": "Tên cầu thủ khách...",
-
   "topScorersList.goals": "Bàn thắng",
   "topScorersList.team": "Đội",
   "topScorersList.noScorers": "Chưa có bàn thắng nào được ghi.",
   "topScorersList.guest": " (Khách)",
-  
   "countdown.days": "Ngày",
   "countdown.hours": "Giờ",
   "countdown.minutes": "Phút",
   "countdown.seconds": "Giây",
   "countdown.eventStarted": "Sự Kiện Đã Bắt Đầu!",
-
   "playerInfo.title": "Thông tin Cầu thủ",
   "playerInfo.addPlayer": "Thêm cầu thủ mới",
   "playerInfo.searchPlaceholder": "Tìm theo tên hoặc số áo",
@@ -464,19 +446,16 @@
   "playerInfo.bioPlaceholder": "Nhập mô tả ngắn...",
   "playerInfo.noPlayerSelected": "Chưa chọn Cầu thủ",
   "playerInfo.editing": "Đang chỉnh sửa",
-
   "playerDetailModal.title": "Chi tiết Cầu thủ",
   "playerDetailModal.name": "Tên",
   "playerDetailModal.jersey": "Số áo",
   "playerDetailModal.skillsTitle": "Kỹ năng Cầu thủ",
-  
   "playerSkills.speed": "Tốc độ",
   "playerSkills.shooting": "Sút",
   "playerSkills.passing": "Chuyền",
   "playerSkills.dribbling": "Rê bóng",
   "playerSkills.defending": "Phòng ngự",
   "playerSkills.physical": "Thể chất",
-
   "teamAnalysis.title": "Phân Tích AI: {{teamName}}",
   "teamAnalysis.loading": "AI đang khởi động... Phân tích chiến thuật, chỉ số cầu thủ, và có thể là cả món ăn vặt ưa thích của họ. Vui lòng chờ trong giây lát!",
   "teamAnalysis.error": "AI có vẻ đang đi uống nước. Vui lòng thử lại sau.",
