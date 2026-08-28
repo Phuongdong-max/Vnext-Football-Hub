@@ -47,9 +47,11 @@ service cloud.firestore {
     }
 
     // TEAM DIVISION
-    // The 'latest' document can be read and written to by any authenticated user.
+    // Every signed-in user reads the roster and the published division, but only
+    // an admin owns it: members may spin locally, that result is never written.
     match /teamDivision/latest {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // GLOBAL PLAYERS

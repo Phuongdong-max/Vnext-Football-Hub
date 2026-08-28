@@ -181,11 +181,7 @@ export const PlayerInfoPage: React.FC = () => {
                                         </div>
                                     </div>
                                     {!isEditing && canEdit && (
-<<<<<<< HEAD
                                         <Button variant="outline" onClick={() => setIsEditing(true)} className="flex-shrink-0">
-=======
-                                        <Button variant="outline" onClick={() => setIsEditing(true)}>
->>>>>>> aa4c61e9211f5ee112c7a478539dce50b5c24ff4
                                             <PencilIcon className="w-4 h-4 mr-2" />{translate('playerInfo.editDetails')}
                                         </Button>
                                     )}
@@ -229,10 +225,7 @@ export const PlayerInfoPage: React.FC = () => {
                                         <PlayerSkillChart skills={editedPlayer?.skills || defaultSkills} size={400} />
                                     </div>
                                 </div>
-<<<<<<< HEAD
-                                
-=======
->>>>>>> aa4c61e9211f5ee112c7a478539dce50b5c24ff4
+
                                 {isEditing && canEdit && (
                                     <div className="flex justify-between items-center pt-4 border-t border-border">
                                         <Button variant="danger" onClick={handleDeletePlayer}><TrashIcon className="w-4 h-4 mr-2" />{translate('playerInfo.deletePlayer')}</Button>

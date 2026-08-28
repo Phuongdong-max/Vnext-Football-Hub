@@ -40,7 +40,11 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
     const [flyingPlayer, setFlyingPlayer] = useState<{ player: Player; startPos: DOMRect; endPos: DOMRect; } | null>(null);
 
     const wheelRef = useRef<HTMLDivElement>(null);
-    const teamsRef = useRef(teams); 
+    const teamsRef = useRef(teams);
+    // onComplete is a fresh closure on every parent render, so it is a changing
+    // effect dependency. Without this latch the completion effect can re-run and
+    // schedule a second onComplete, saving the division twice.
+    const hasCompletedRef = useRef(false);
 
     const createConicGradient = (playersList: Player[]) => {
         if (playersList.length <= 0) return 'transparent';
@@ -72,7 +76,8 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
      useEffect(() => {
         if (!isSpinning && unassignedPlayers.length === 0 && teams.length > 0) {
             const totalAssigned = teams.reduce((acc, team) => acc + team.playerCount, 0);
-            if (totalAssigned === players.length) {
+            if (totalAssigned === players.length && !hasCompletedRef.current) {
+                hasCompletedRef.current = true;
                 setAnnouncement(translate('teamDivider.spinner.completed'));
                 setTimeout(() => onComplete(teamsRef.current), 1500);
             }
@@ -169,8 +174,11 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                 
                 if (remainingPlayers.length > 0) {
                     setAnnouncement(translate('teamDivider.spinner.waiting'));
-                    setIsSpinning(false);
                 }
+                // Must run for the final player too. The completion effect is
+                // gated on !isSpinning, so leaving this set strands the result
+                // and the division is never persisted.
+                setIsSpinning(false);
             }, 1000); 
 
         }, 4100); 

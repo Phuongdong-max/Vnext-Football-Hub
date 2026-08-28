@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
-import { TeamDivisionData, DividedTeam, PlayerSeed, Player } from '../types';
+import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole } from '../types';
 import { onTeamDivisionUpdate, updateTeamDivision } from '../services/firebaseService';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
@@ -14,7 +14,11 @@ import { TeamDivisionSpinner } from '../components/TeamDivisionSpinner';
 export const TeamDividerPage: React.FC = () => {
     const { translate, language } = useLanguage();
     const { currentUser, isFirebaseReady, addToast } = useAppContext();
-    
+
+    // Only admins own the roster: they edit it and their division is the one
+    // that gets published. Everyone else reads it and may spin locally.
+    const isAdmin = currentUser?.role === UserRole.ADMIN;
+
     type DivisionState = 'idle' | 'spinning' | 'finished';
 
     const [divisionState, setDivisionState] = useState<DivisionState>('idle');
@@ -24,24 +28,39 @@ export const TeamDividerPage: React.FC = () => {
     const [numberOfTeams, setNumberOfTeams] = useState<number>(3);
     const [dividedTeams, setDividedTeams] = useState<DividedTeam[]>([]);
     const [lastUpdateInfo, setLastUpdateInfo] = useState<string | null>(null);
-    
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingPlayers, setIsSavingPlayers] = useState(false);
     const [message, setMessage] = useState('');
+
+    // Set while the admin has typed changes that are not written yet, so an
+    // incoming snapshot does not wipe the edit in progress. Held in a ref too
+    // because the snapshot callback closes over the value from subscribe time.
+    const [hasUnsavedPlayers, setHasUnsavedPlayers] = useState(false);
+    const hasUnsavedPlayersRef = useRef(false);
+    useEffect(() => { hasUnsavedPlayersRef.current = hasUnsavedPlayers; }, [hasUnsavedPlayers]);
+
+    const editSeedPlayers = (updater: (prev: typeof seedPlayers) => typeof seedPlayers) => {
+        setSeedPlayers(updater);
+        setHasUnsavedPlayers(true);
+    };
 
     useEffect(() => {
         if (!isFirebaseReady) return;
 
         const unsubscribe = onTeamDivisionUpdate((data) => {
             if (data) {
-                setSeedPlayers({
-                    GK: data.seedPlayers.GK || '',
-                    A: data.seedPlayers.A || '',
-                    B: data.seedPlayers.B || '',
-                    C: data.seedPlayers.C || '',
-                    D: data.seedPlayers.D || '',
-                    E: data.seedPlayers.E || '',
-                });
+                if (!hasUnsavedPlayersRef.current) {
+                    setSeedPlayers({
+                        GK: data.seedPlayers.GK || '',
+                        A: data.seedPlayers.A || '',
+                        B: data.seedPlayers.B || '',
+                        C: data.seedPlayers.C || '',
+                        D: data.seedPlayers.D || '',
+                        E: data.seedPlayers.E || '',
+                    });
+                }
                 if (data.dividedTeams && data.dividedTeams.length > 0) {
                     setDividedTeams(data.dividedTeams);
                     setNumberOfTeams(data.dividedTeams.length);
@@ -114,13 +133,37 @@ export const TeamDividerPage: React.FC = () => {
         setDivisionState('spinning');
     };
 
+    const handleSavePlayers = async () => {
+        if (!isAdmin) return;
+        setMessage('');
+        setIsSavingPlayers(true);
+        try {
+            await updateTeamDivision({ seedPlayers }, currentUser);
+            setHasUnsavedPlayers(false);
+            addToast('teamDivider.message.playersSaved', 'success');
+        } catch (error) {
+            console.error(error);
+            addToast('teamDivider.message.playersSaveError', 'error');
+        } finally {
+            setIsSavingPlayers(false);
+        }
+    };
+
     const handleDivisionComplete = async (finalTeams: DividedTeam[]) => {
         setDividedTeams(finalTeams);
         setDivisionState('finished');
 
+        // Non-admins can spin to preview a split, but only an admin's result is
+        // published to everyone.
+        if (!isAdmin) {
+            addToast('teamDivider.message.resultNotSaved', 'info');
+            return;
+        }
+
         setIsSaving(true);
         try {
             await updateTeamDivision({ seedPlayers, dividedTeams: finalTeams }, currentUser);
+            setHasUnsavedPlayers(false);
             addToast('teamDivider.message.saveSuccess', 'success');
         } catch (error) {
             console.error(error);
@@ -129,7 +172,7 @@ export const TeamDividerPage: React.FC = () => {
             setIsSaving(false);
         }
     };
-    
+
     const textareaBaseClasses = "w-full p-3 rounded-md shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm bg-background dark:bg-slate-800 border border-border dark:border-slate-700 text-textPrimary placeholder-gray-400 dark:placeholder-slate-400 custom-scrollbar-thin";
 
     if (isLoading) {
@@ -159,44 +202,93 @@ export const TeamDividerPage: React.FC = () => {
             </header>
 
             <main className="space-y-8">
-                {divisionState !== 'finished' && (
+                {/* Admins keep the old flow where the editor collapses once a division
+                    is published and comes back via "New Division". For everyone else
+                    the roster is read-only, so it stays visible next to the result. */}
+                {(divisionState !== 'finished' || !isAdmin) && (
                     <section className="p-4 sm:p-6 bg-surface rounded-lg shadow-md">
-                        <h2 className="text-2xl font-semibold mb-6 text-textPrimary">{translate('teamDivider.inputTitle')}</h2>
-                        <div className="space-y-6">
-                            <div>
-                                <label htmlFor="seedGK" className="block text-sm font-medium text-textPrimary mb-1">
-                                    {translate('teamDivider.seedGK')}
-                                </label>
-                                <textarea
-                                    id="seedGK"
-                                    rows={3}
-                                    value={seedPlayers.GK}
-                                    onChange={(e) => setSeedPlayers(prev => ({ ...prev, GK: e.target.value }))}
-                                    className={textareaBaseClasses}
-                                    placeholder={translate('teamDivider.playerPlaceholder')}
-                                />
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+                            <h2 className="text-2xl font-semibold text-textPrimary">
+                                {isAdmin ? translate('teamDivider.inputTitle') : translate('teamDivider.rosterTitle')}
+                            </h2>
+                            {isAdmin ? (
+                                <div className="flex items-center gap-3">
+                                    {hasUnsavedPlayers && (
+                                        <span className="text-xs font-medium text-warning">{translate('teamDivider.unsavedIndicator')}</span>
+                                    )}
+                                    <Button
+                                        onClick={handleSavePlayers}
+                                        disabled={isSavingPlayers || !hasUnsavedPlayers}
+                                        variant="secondary"
+                                        size="sm"
+                                    >
+                                        {isSavingPlayers ? <LoadingSpinner size="sm" /> : translate('teamDivider.savePlayersButton')}
+                                    </Button>
+                                </div>
+                            ) : (
+                                <span className="text-xs text-textSecondary italic">{translate('teamDivider.rosterAdminOnly')}</span>
+                            )}
+                        </div>
+                        {isAdmin ? (
+                            <div className="space-y-6">
+                                <div>
+                                    <label htmlFor="seedGK" className="block text-sm font-medium text-textPrimary mb-1">
+                                        {translate('teamDivider.seedGK')}
+                                    </label>
+                                    <textarea
+                                        id="seedGK"
+                                        rows={3}
+                                        value={seedPlayers.GK}
+                                        onChange={(e) => editSeedPlayers(prev => ({ ...prev, GK: e.target.value }))}
+                                        className={textareaBaseClasses}
+                                        placeholder={translate('teamDivider.playerPlaceholder')}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                                    {(['A', 'B', 'C', 'D', 'E'] as PlayerSeed[]).map(seed => {
+                                        if (seed === 'GK') return null;
+                                        return (
+                                            <div key={seed}>
+                                                <label htmlFor={`seed${seed}`} className="block text-sm font-medium text-textPrimary mb-1">
+                                                    {translate(`teamDivider.seed${seed}`)}
+                                                </label>
+                                                <textarea
+                                                    id={`seed${seed}`}
+                                                    rows={5}
+                                                    value={seedPlayers[seed as Exclude<PlayerSeed, 'GK'>]}
+                                                    onChange={(e) => editSeedPlayers(prev => ({ ...prev, [seed]: e.target.value }))}
+                                                    className={textareaBaseClasses}
+                                                    placeholder={translate('teamDivider.playerPlaceholder')}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                                {(['A', 'B', 'C', 'D', 'E'] as PlayerSeed[]).map(seed => {
-                                    if (seed === 'GK') return null;
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                {(['GK', 'A', 'B', 'C', 'D', 'E'] as PlayerSeed[]).map(seed => {
+                                    const names = seedPlayers[seed].split('\n').map(n => n.trim()).filter(Boolean);
                                     return (
-                                        <div key={seed}>
-                                            <label htmlFor={`seed${seed}`} className="block text-sm font-medium text-textPrimary mb-1">
+                                        <div key={seed} className="bg-background dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md p-3">
+                                            <h3 className="text-sm font-medium text-textPrimary mb-2 pb-2 border-b border-border">
                                                 {translate(`teamDivider.seed${seed}`)}
-                                            </label>
-                                            <textarea
-                                                id={`seed${seed}`}
-                                                rows={5}
-                                                value={seedPlayers[seed as Exclude<PlayerSeed, 'GK'>]}
-                                                onChange={(e) => setSeedPlayers(prev => ({ ...prev, [seed]: e.target.value }))}
-                                                className={textareaBaseClasses}
-                                                placeholder={translate('teamDivider.playerPlaceholder')}
-                                            />
+                                                <span className="ml-1 text-xs text-textSecondary font-normal">({names.length})</span>
+                                            </h3>
+                                            {names.length > 0 ? (
+                                                <ul className="space-y-1">
+                                                    {names.map((name, i) => (
+                                                        <li key={`${seed}-${i}`} className="text-sm text-textPrimary">{name}</li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-xs text-textSecondary italic">{translate('teamDivider.noPlayersYet')}</p>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
-                        </div>
+                        )}
                         <div className="mt-8 text-center">
                             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
                                 <div>

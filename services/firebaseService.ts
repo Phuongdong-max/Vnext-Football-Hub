@@ -503,7 +503,9 @@ export const onTeamDivisionUpdate = (callback: (data: TeamDivisionData | null) =
 };
 
 // Updates the team division document in Firestore.
-export const updateTeamDivision = async (dataToSave: Omit<TeamDivisionData, 'id' | 'lastUpdated' | 'updatedBy'>, user: User | null): Promise<void> => {
+// dataToSave is partial so the roster can be saved on its own, without a
+// division attached (set(..., { merge: true }) leaves untouched fields alone).
+export const updateTeamDivision = async (dataToSave: Partial<Pick<TeamDivisionData, 'seedPlayers' | 'dividedTeams'>>, user: User | null): Promise<void> => {
   if (!db) {
     throw new Error("Firestore not initialized.");
   }
