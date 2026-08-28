@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, DividedTeam, PlayerSeed } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -15,6 +13,15 @@ interface TeamDivisionSpinnerProps {
 
 const seedValues: Record<PlayerSeed, number> = { GK: 0, A: 5, B: 4, C: 3, D: 2, E: 1 };
 
+// One source of truth for the choreography. The CSS transition, the CSS
+// keyframe and the setTimeout that follows each of them have to agree; when
+// they were separate literals a change to one silently desynced the others.
+const SPIN_MS = 4000;
+const SPIN_ALL_MS = 2600;   // one flourish for the whole draw, not one per player
+const SETTLE_MS = 100;      // let the wheel come to rest before reading its position
+const FLY_MS = 1000;        // must match .player-fly-animation in index.html
+const CONFETTI_MS = 2600;   // longest piece lifetime, after which the burst unmounts
+
 const sliceColors = [
   '#F97316', // primary (orange)
   '#3b82f6', // blue-500
@@ -27,17 +34,90 @@ const sliceColors = [
   '#64748b', // slate-500
 ];
 
+// The wheel is a ring, so the last slice touches the first one. Plain
+// `i % length` gives them the same colour whenever the player count is one more
+// than a multiple of the palette (10, 19, 28...), which reads as one fat slice.
+const sliceColorAt = (index: number, total: number) => {
+  const n = sliceColors.length;
+  if (total > 1 && total % n === 1 && index === total - 1) return sliceColors[1 % n];
+  return sliceColors[index % n];
+};
+
+// Picking a team is pure so that the one-at-a-time spin and the spin-all draw
+// run the exact same rule; spin-all folds it over a local working copy of the
+// teams instead of waiting for a state update between players.
+const pickTargetTeam = (player: Player, teams: DividedTeam[]): { team: DividedTeam; usedFallback: boolean } => {
+    // Ideal candidates are teams that DO NOT have this player's seed yet.
+    const idealCandidates = teams.filter(t => !t.players.some(p => p.seed === player.seed));
+    const usedFallback = idealCandidates.length === 0;
+    const candidates = usedFallback ? [...teams] : idealCandidates;
+
+    candidates.sort((a, b) => {
+        // 1. Primary sort: fewest players
+        const playerCountDiff = a.playerCount - b.playerCount;
+        if (playerCountDiff !== 0) return playerCountDiff;
+
+        // 2. Secondary sort: lowest total seed value
+        const seedValueDiff = a.totalSeedValue - b.totalSeedValue;
+        if (seedValueDiff !== 0) return seedValueDiff;
+
+        // 3. Tertiary sort: random tie-breaker
+        return Math.random() - 0.5;
+    });
+
+    return { team: candidates[0], usedFallback };
+};
+
+const assignToTeams = (teams: DividedTeam[], player: Player, teamId: number): DividedTeam[] =>
+    teams.map(team => team.id !== teamId ? team : {
+        ...team,
+        players: [...team.players, player].sort((a, b) => seedValues[b.seed] - seedValues[a.seed]),
+        // Keepers are deliberately worth 0, so they never skew the strength balance.
+        totalSeedValue: team.totalSeedValue + seedValues[player.seed],
+        playerCount: team.playerCount + 1,
+    });
+
+const shuffled = <T,>(items: T[]): T[] => {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+};
+
+interface ConfettiPiece {
+    left: number; delay: number; duration: number;
+    drift: number; fall: number; spin: number;
+    color: string; size: number;
+}
+
+const makeConfetti = (count: number): ConfettiPiece[] =>
+    Array.from({ length: count }, () => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 260,
+        duration: 1500 + Math.random() * 900,
+        drift: (Math.random() - 0.5) * 220,
+        fall: 320 + Math.random() * 220,
+        spin: 180 + Math.random() * 540,
+        color: sliceColors[Math.floor(Math.random() * sliceColors.length)],
+        size: 6 + Math.random() * 7,
+    }));
+
 
 export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, onComplete }) => {
     const { translate } = useLanguage();
     const { addToast } = useAppContext();
-    
+
     const [unassignedPlayers, setUnassignedPlayers] = useState<Player[]>(players);
     const [teams, setTeams] = useState<DividedTeam[]>([]);
     const [isSpinning, setIsSpinning] = useState(false);
     const [wheelRotation, setWheelRotation] = useState(0);
+    const [spinDuration, setSpinDuration] = useState(SPIN_MS);
     const [announcement, setAnnouncement] = useState(translate('teamDivider.spinner.waiting'));
     const [flyingPlayer, setFlyingPlayer] = useState<{ player: Player; startPos: DOMRect; endPos: DOMRect; } | null>(null);
+    const [lastWinner, setLastWinner] = useState<{ player: Player; teamId: number } | null>(null);
+    const [confetti, setConfetti] = useState<{ id: number; pieces: ConfettiPiece[] } | null>(null);
 
     const wheelRef = useRef<HTMLDivElement>(null);
     const teamsRef = useRef(teams);
@@ -45,12 +125,35 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
     // effect dependency. Without this latch the completion effect can re-run and
     // schedule a second onComplete, saving the division twice.
     const hasCompletedRef = useRef(false);
+    const confettiIdRef = useRef(0);
+    const confettiTimerRef = useRef<number | null>(null);
+
+    // The wheel is sized off the viewport. Reading window.innerWidth straight in
+    // the render body froze that size at mount, so rotating a phone left the
+    // wheel at its portrait width until some other state change forced a redraw.
+    const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    useEffect(() => () => {
+        if (confettiTimerRef.current !== null) window.clearTimeout(confettiTimerRef.current);
+    }, []);
+
+    const fireConfetti = (count = 46) => {
+        confettiIdRef.current += 1;
+        setConfetti({ id: confettiIdRef.current, pieces: makeConfetti(count) });
+        if (confettiTimerRef.current !== null) window.clearTimeout(confettiTimerRef.current);
+        confettiTimerRef.current = window.setTimeout(() => setConfetti(null), CONFETTI_MS);
+    };
 
     const createConicGradient = (playersList: Player[]) => {
         if (playersList.length <= 0) return 'transparent';
         const angleStep = 360 / playersList.length;
         const gradientParts = playersList.map((_, i) => {
-            const color = sliceColors[i % sliceColors.length];
+            const color = sliceColorAt(i, playersList.length);
             const startAngle = i * angleStep;
             const endAngle = (i + 1) * angleStep;
             return `${color} ${startAngle}deg ${endAngle}deg`;
@@ -68,7 +171,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
         setTeams(initialTeams);
         teamsRef.current = initialTeams;
     }, [numberOfTeams]);
-    
+
     useEffect(() => {
         teamsRef.current = teams;
     }, [teams]);
@@ -84,61 +187,42 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
         }
      }, [isSpinning, unassignedPlayers.length, teams, players.length, onComplete, translate]);
 
-    const findTargetTeam = (player: Player): DividedTeam => {
-        const currentTeams = [...teamsRef.current];
-
-        // Ideal candidates are teams that DO NOT have this player's seed yet.
-        const idealCandidates = currentTeams.filter(t => !t.players.some(p => p.seed === player.seed));
-        
-        // If there are ideal teams, we MUST pick from them. Otherwise, we consider all teams.
-        const candidatesToConsider = idealCandidates.length > 0 ? idealCandidates : currentTeams;
-        
-        if (idealCandidates.length === 0 && currentTeams.length > 0 && player.seed !== 'GK') {
-             addToast('teamDivider.spinner.unbalancedWarning', 'warning', { playerName: player.name });
-        }
-        
-        // Sort the chosen candidates to find the single best fit
-        candidatesToConsider.sort((a, b) => {
-            // 1. Primary sort: fewest players
-            const playerCountDiff = a.playerCount - b.playerCount;
-            if (playerCountDiff !== 0) return playerCountDiff;
-            
-            // 2. Secondary sort: lowest total seed value
-            const seedValueDiff = a.totalSeedValue - b.totalSeedValue;
-            if (seedValueDiff !== 0) return seedValueDiff;
-            
-            // 3. Tertiary sort: random tie-breaker
-            return Math.random() - 0.5;
-        });
-        
-        return candidatesToConsider[0];
-    };
-    
+    // Spin one player at a time - the default, driven by the hub button.
     const handleSpin = () => {
         if (isSpinning || unassignedPlayers.length === 0) return;
 
         setIsSpinning(true);
+        setSpinDuration(SPIN_MS);
+        setLastWinner(null);
         setAnnouncement(translate('teamDivider.spinner.spinning'));
 
         const selectedPlayerIndex = Math.floor(Math.random() * unassignedPlayers.length);
         const selectedPlayer = unassignedPlayers[selectedPlayerIndex];
-        
+
         const sliceAngle = 360 / unassignedPlayers.length;
         const targetAngleOnWheel = (selectedPlayerIndex * sliceAngle) + (sliceAngle / 2);
         const targetRotation = -targetAngleOnWheel;
 
         const randomSpins = 5 + Math.floor(Math.random() * 3);
         const finalRotation = (wheelRotation - (wheelRotation % 360)) + (randomSpins * 360) + targetRotation;
-        
+
         setWheelRotation(finalRotation);
 
         setTimeout(() => {
             setAnnouncement(translate('teamDivider.spinner.selected', { playerName: selectedPlayer.name, playerSeed: selectedPlayer.seed }));
 
-            const targetTeam = findTargetTeam(selectedPlayer);
-            
-            // We use the wrapper div for positioning as it is more stable
-            const wheelItemElement = document.getElementById(`wheel-player-wrapper-${selectedPlayer.name}`);
+            const { team: targetTeam, usedFallback } = pickTargetTeam(selectedPlayer, teamsRef.current);
+            if (usedFallback && selectedPlayer.seed !== 'GK') {
+                addToast('teamDivider.spinner.unbalancedWarning', 'warning', { playerName: selectedPlayer.name });
+            }
+
+            setLastWinner({ player: selectedPlayer, teamId: targetTeam.id });
+            fireConfetti();
+
+            // Keyed by slice index, not by name: two players called the same
+            // thing produced one id, so getElementById returned the first slice
+            // and the name flew out of the wrong wedge.
+            const wheelItemElement = document.getElementById(`wheel-player-wrapper-${selectedPlayerIndex}`);
             const teamBoxElement = document.getElementById(`team-box-${targetTeam.id}`);
 
             if (wheelItemElement && teamBoxElement) {
@@ -151,18 +235,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
 
             setTimeout(() => {
                 setTeams(prevTeams => {
-                    const newTeams = prevTeams.map(team => {
-                        if (team.id === targetTeam.id) {
-                            const newPlayers = [...team.players, selectedPlayer].sort((a,b) => seedValues[b.seed] - seedValues[a.seed]);
-                            return {
-                                ...team,
-                                players: newPlayers,
-                                totalSeedValue: team.totalSeedValue + (selectedPlayer.seed === 'GK' ? 0 : seedValues[selectedPlayer.seed]),
-                                playerCount: team.playerCount + 1,
-                            };
-                        }
-                        return team;
-                    });
+                    const newTeams = assignToTeams(prevTeams, selectedPlayer, targetTeam.id);
                     teamsRef.current = newTeams;
                     return newTeams;
                 });
@@ -171,7 +244,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
 
                 const remainingPlayers = unassignedPlayers.filter((_, index) => index !== selectedPlayerIndex);
                 setUnassignedPlayers(remainingPlayers);
-                
+
                 if (remainingPlayers.length > 0) {
                     setAnnouncement(translate('teamDivider.spinner.waiting'));
                 }
@@ -179,16 +252,77 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                 // gated on !isSpinning, so leaving this set strands the result
                 // and the division is never persisted.
                 setIsSpinning(false);
-            }, 1000); 
+            }, FLY_MS);
 
-        }, 4100); 
+        }, SPIN_MS + SETTLE_MS);
     };
-    
-    const wheelSize = Math.min(window.innerWidth * 0.9, 500);
+
+    // Draw everyone in a single spin. Same placement rule as handleSpin, just
+    // folded over every remaining player at once instead of one per click.
+    const handleSpinAll = () => {
+        if (isSpinning || unassignedPlayers.length === 0) return;
+
+        setIsSpinning(true);
+        setSpinDuration(SPIN_ALL_MS);
+        setLastWinner(null);
+        setAnnouncement(translate('teamDivider.spinner.spinningAll'));
+
+        const turns = 4 + Math.floor(Math.random() * 2);
+        setWheelRotation(prev => (prev - (prev % 360)) + turns * 360);
+
+        setTimeout(() => {
+            let workingTeams = teamsRef.current;
+            let fallbackCount = 0;
+
+            // Random draw order, so spin-all is not just "input order".
+            shuffled(unassignedPlayers).forEach(player => {
+                const { team, usedFallback } = pickTargetTeam(player, workingTeams);
+                if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
+                workingTeams = assignToTeams(workingTeams, player, team.id);
+            });
+
+            teamsRef.current = workingTeams;
+            setTeams(workingTeams);
+            setUnassignedPlayers([]);
+            setAnnouncement(translate('teamDivider.spinner.allAssigned'));
+            fireConfetti(90);
+
+            // One summary instead of one toast per forced duplicate seed.
+            if (fallbackCount > 0) {
+                addToast('teamDivider.spinner.unbalancedSummary', 'warning', { count: fallbackCount });
+            }
+
+            setIsSpinning(false);
+        }, SPIN_ALL_MS + SETTLE_MS);
+    };
+
+    const wheelSize = Math.min(viewportWidth * 0.9, 500);
     const wheelRadius = wheelSize / 2;
+    const sliceCount = unassignedPlayers.length;
+    const sliceAngle = sliceCount > 0 ? 360 / sliceCount : 360;
+    const hubSize = Math.max(96, Math.round(wheelSize * 0.26));
 
     return (
         <div className="flex flex-col items-center justify-start p-4 min-h-[80vh] bg-background dark:bg-white/5 rounded-2xl">
+            <style>{`
+              @keyframes tds-confetti-fall {
+                0%   { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
+                100% { transform: translate3d(var(--tds-drift), var(--tds-fall), 0) rotate(var(--tds-spin)); opacity: 0; }
+              }
+              @keyframes tds-winner-pop {
+                0%   { transform: scale(0.7); opacity: 0; }
+                60%  { transform: scale(1.06); opacity: 1; }
+                100% { transform: scale(1); opacity: 1; }
+              }
+              @keyframes tds-pointer-tick {
+                0%, 100% { transform: translateX(-50%) rotate(0deg); }
+                50%      { transform: translateX(-50%) rotate(-9deg); }
+              }
+              .tds-confetti-piece { position: absolute; top: 0; border-radius: 2px; animation-name: tds-confetti-fall; animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1); animation-fill-mode: forwards; }
+              .tds-winner-card { animation: tds-winner-pop 420ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+              .tds-pointer-ticking { animation: tds-pointer-tick 260ms ease-in-out infinite; }
+            `}</style>
+
             {flyingPlayer && (
                  <div
                     className="player-fly-animation"
@@ -202,36 +336,107 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                     {flyingPlayer.player.name}
                  </div>
             )}
+
             <h1 className="text-3xl font-bold text-textPrimary mb-2 text-center">{translate('teamDivider.spinner.title')}</h1>
-            <p className="text-lg text-textSecondary h-8 mb-6 text-center transition-all duration-300">{announcement}</p>
-            
+            <p role="status" aria-live="polite" className="text-lg text-textSecondary h-8 text-center transition-all duration-300">{announcement}</p>
+
+            {/* Winner reveal - fixed height so the wheel never jumps when it
+                appears, and enough bottom margin to clear the wheel's pointer. */}
+            <div className="h-[72px] mb-9 flex items-center justify-center">
+                {lastWinner && (
+                    <div className="tds-winner-card flex items-center gap-3 rounded-xl border border-primary/40 bg-surface px-5 py-2.5 shadow-lg">
+                        <span className="text-xs uppercase tracking-wider text-textSecondary">{translate('teamDivider.spinner.winnerLabel')}</span>
+                        <span className="text-2xl font-extrabold text-primary">{lastWinner.player.name}</span>
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">{lastWinner.player.seed}</span>
+                        <span className="text-sm font-semibold text-textPrimary">→ {translate('teamDivider.teamLabel', { id: lastWinner.teamId })}</span>
+                    </div>
+                )}
+            </div>
+
             <div className="relative flex items-center justify-center" style={{ height: `${wheelSize}px`, width: `${wheelSize}px`}}>
-                <div 
-                    className="absolute top-[-25px] left-1/2 -translate-x-1/2 z-20 transition-transform duration-200"
+                {/* Decorative rim behind the wheel. */}
+                <div
+                    aria-hidden="true"
+                    className="absolute rounded-full"
                     style={{
-                        clipPath: 'polygon(50% 100%, 0 0, 100% 0)',
-                        width: '30px', height: '40px',
-                        transform: isSpinning ? 'scale(1.1)' : 'scale(1)',
+                        height: `${wheelSize + 20}px`,
+                        width: `${wheelSize + 20}px`,
+                        background: 'conic-gradient(from 0deg, #fbbf24, #F97316, #fb923c, #F97316, #fbbf24)',
+                        boxShadow: '0 12px 34px rgba(0,0,0,0.28)',
                     }}
+                />
+
+                {confetti && (
+                    <div key={confetti.id} aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-visible">
+                        {confetti.pieces.map((p, i) => (
+                            <span
+                                key={i}
+                                className="tds-confetti-piece"
+                                style={{
+                                    left: `${p.left}%`,
+                                    width: `${p.size}px`,
+                                    height: `${p.size * 1.6}px`,
+                                    backgroundColor: p.color,
+                                    animationDuration: `${p.duration}ms`,
+                                    animationDelay: `${p.delay}ms`,
+                                    '--tds-drift': `${p.drift}px`,
+                                    '--tds-fall': `${p.fall}px`,
+                                    '--tds-spin': `${p.spin}deg`,
+                                } as React.CSSProperties}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                <div
+                    className={`absolute top-[-22px] left-1/2 z-20 ${isSpinning ? 'tds-pointer-ticking' : ''}`}
+                    style={{ transform: 'translateX(-50%)', transformOrigin: '50% 15%' }}
                 >
-                    <div className="w-full h-full bg-primary shadow-lg"/>
+                    <div
+                        style={{
+                            clipPath: 'polygon(50% 100%, 0 0, 100% 0)',
+                            width: '34px',
+                            height: '46px',
+                            background: 'linear-gradient(180deg, #fff 0%, #F97316 55%)',
+                            filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.45))',
+                        }}
+                    />
                 </div>
 
-                <div 
+                <div
                     ref={wheelRef}
-                    className="relative rounded-full list-none m-0 p-0"
-                    style={{ 
+                    className="relative rounded-full list-none m-0 p-0 overflow-hidden"
+                    style={{
                         transform: `rotate(${wheelRotation}deg)`,
                         height: `${wheelSize}px`,
                         width: `${wheelSize}px`,
-                        border: `8px solid var(--color-secondary)`,
-                        boxShadow: `0 0 20px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.2)`,
-                        transition: 'transform 4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                        border: `6px solid rgba(255,255,255,0.85)`,
+                        boxShadow: `0 0 24px rgba(0,0,0,0.32), inset 0 0 26px rgba(0,0,0,0.28)`,
+                        transition: `transform ${spinDuration}ms cubic-bezier(0.2, 0.8, 0.2, 1)`,
                         background: createConicGradient(unassignedPlayers),
                     }}
                 >
+                   {/* Slice separators: the conic gradient alone leaves flat colour
+                       boundaries that are hard to read as distinct wedges. */}
+                   {sliceCount > 1 && sliceCount <= 40 && unassignedPlayers.map((_, index) => (
+                        <div
+                            key={`separator-${index}`}
+                            aria-hidden="true"
+                            style={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: 0,
+                                height: `${wheelRadius}px`,
+                                width: sliceCount > 24 ? '1px' : '2px',
+                                background: 'rgba(255,255,255,0.45)',
+                                transform: `translateX(-50%) rotate(${index * sliceAngle}deg)`,
+                                transformOrigin: 'bottom center',
+                                pointerEvents: 'none',
+                            }}
+                        />
+                   ))}
+
                    {unassignedPlayers.map((player, index) => {
-                        const sliceAngle = 360 / unassignedPlayers.length;
                         const textAngle = sliceAngle * index + (sliceAngle / 2);
 
                         // This is the invisible "spoke" of the wheel, rotated to the middle of the slice.
@@ -244,39 +449,43 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                             transform: `translateX(-50%) rotate(${textAngle}deg)`,
                             transformOrigin: 'bottom center',
                         };
-                        
+
                         // This div sits on the spoke and is responsible for positioning the text block.
                         const textPositionerStyle: React.CSSProperties = {
                             position: 'absolute',
                             // Position the block halfway along the radius
-                            top: `${wheelRadius * 0.5}px`, 
+                            top: `${wheelRadius * 0.5}px`,
                             left: '0.5px', // Center on the 1px spoke
                             // Center the block itself on the spoke line, and move its own center up to its position
-                            transform: 'translate(-50%, -50%)', 
+                            transform: 'translate(-50%, -50%)',
                             pointerEvents: 'none',
                         };
-                        
+
                         // This handles the text's own rotation to make it vertical and readable.
                         const textRotation = textAngle > 90 && textAngle < 270 ? 90 : -90;
-                        
-                        let fontSize = '13px';
-                        if (unassignedPlayers.length > 15) fontSize = '12px';
-                        if (unassignedPlayers.length > 25) fontSize = '11px';
-                        if (player.name.length > 12) fontSize = '10px';
-                        if (unassignedPlayers.length > 35) fontSize = '9px';
+
+                        // Slice count sets the ceiling; a long name may only shrink
+                        // it further. Previously the name rule sat between two count
+                        // rules, so it applied at 26-35 players but was overwritten
+                        // at 36+ and ignored below 26.
+                        let fontSize = 13;
+                        if (sliceCount > 35) fontSize = 9;
+                        else if (sliceCount > 25) fontSize = 11;
+                        else if (sliceCount > 15) fontSize = 12;
+                        if (player.name.length > 12) fontSize = Math.min(fontSize, 10);
 
                         const textSpanStyle: React.CSSProperties = {
                             display: 'block',
                             transform: `rotate(${textRotation}deg)`,
                             color: 'white',
                             fontWeight: 'bold',
-                            fontSize: fontSize,
+                            fontSize: `${fontSize}px`,
                             textShadow: '1px 1px 2px rgba(0,0,0,0.7)',
                             whiteSpace: 'nowrap',
                         };
 
                         return (
-                            <div key={`${player.name}-${index}`} id={`wheel-player-wrapper-${player.name}`} style={spokeStyle}>
+                            <div key={`${player.name}-${index}`} id={`wheel-player-wrapper-${index}`} style={spokeStyle}>
                                 <div style={textPositionerStyle}>
                                     <span style={textSpanStyle}>
                                         {player.name}
@@ -286,23 +495,58 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                         );
                     })}
                 </div>
+
+                {/* Hub plate sitting under the spin button. */}
+                <div
+                    aria-hidden="true"
+                    className="absolute z-[5] rounded-full"
+                    style={{
+                        height: `${hubSize + 16}px`,
+                        width: `${hubSize + 16}px`,
+                        background: 'radial-gradient(circle at 32% 28%, #ffffff 0%, #e2e8f0 55%, #94a3b8 100%)',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.38)',
+                    }}
+                />
+
                 <Button
                     onClick={handleSpin}
                     disabled={isSpinning || unassignedPlayers.length === 0}
-                    className="w-28 h-28 absolute z-10 rounded-full !p-0 flex items-center justify-center flex-col text-white shadow-lg bg-secondary hover:bg-opacity-90 transition-transform duration-200 active:scale-95 border-4 border-slate-300 dark:border-slate-500"
+                    // borderRadius inline: Button's base class carries rounded-md,
+                    // and a rounded-full in className does not reliably beat it -
+                    // equal specificity means stylesheet order decides, not class order.
+                    style={{ height: `${hubSize}px`, width: `${hubSize}px`, borderRadius: '50%' }}
+                    className="absolute z-10 !p-0 flex items-center justify-center flex-col text-white shadow-lg bg-secondary hover:bg-opacity-90 transition-transform duration-200 active:scale-95 border-4 border-white/80"
                 >
-                    <PlayIcon className="w-8 h-8" />
-                    <span className="font-bold text-lg uppercase tracking-wider">{translate('teamDivider.spinner.spinButton')}</span>
+                    <PlayIcon className="w-7 h-7" />
+                    <span className="font-bold text-base uppercase tracking-wider">{translate('teamDivider.spinner.spinButton')}</span>
                 </Button>
+            </div>
+
+            <div className="mt-6 flex flex-col items-center gap-2">
+                <Button
+                    onClick={handleSpinAll}
+                    disabled={isSpinning || unassignedPlayers.length === 0}
+                    variant="outline"
+                    size="lg"
+                >
+                    {translate('teamDivider.spinner.spinAllButton')}
+                </Button>
+                <span className="text-xs text-textSecondary">
+                    {translate('teamDivider.spinner.remaining', { count: unassignedPlayers.length })}
+                </span>
             </div>
 
             <div className="w-full max-w-6xl mx-auto grid gap-4 mt-10" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))` }}>
                 {teams.map(team => (
-                    <div key={team.id} id={`team-box-${team.id}`} className="bg-surface rounded-2xl shadow-md p-4 min-h-[150px] transition-all duration-300 flex flex-col">
+                    <div
+                        key={team.id}
+                        id={`team-box-${team.id}`}
+                        className={`bg-surface rounded-2xl shadow-md p-4 min-h-[150px] transition-all duration-300 flex flex-col ${lastWinner?.teamId === team.id ? 'ring-2 ring-primary' : ''}`}
+                    >
                         <h3 className="text-lg font-semibold text-primary mb-2 text-center border-b border-border pb-2">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
                         <ul className="space-y-1 flex-grow">
-                            {team.players.map(p => (
-                                <li key={`${p.name}-${team.id}`} className="text-sm text-textPrimary text-center bg-black/5 dark:bg-white/5 p-1.5 rounded-md shadow-sm">
+                            {team.players.map((p, i) => (
+                                <li key={`${p.name}-${team.id}-${i}`} className="text-sm text-textPrimary text-center bg-black/5 dark:bg-white/5 p-1.5 rounded-md shadow-sm">
                                     {p.name} <span className="text-xs text-textSecondary">({p.seed})</span>
                                 </li>
                             ))}

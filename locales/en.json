@@ -34,7 +34,6 @@
   "lang.english": "English",
   "lang.vietnamese": "Tiếng Việt",
   "footer.copyright": "© {{year}} {{appTitle}}. All rights reserved (for fun).",
-
   "adminDashboard.loading": "Loading Admin Dashboard...",
   "adminDashboard.accessDenied": "Access Denied. You must be an admin.",
   "adminDashboard.title": "Admin Dashboard",
@@ -59,7 +58,6 @@
   "error.liveApiUnavailable": "Live API is not available to fetch matches.",
   "info.noMatchesFound": "No matches found for {{leagueCode}} on {{date}}.",
   "error.failedToFetchMatches": "Failed to fetch matches: {{errorMessage}}",
-
   "memberHomePage.loadingRounds": "Loading Betting Rounds...",
   "memberHomePage.availableRoundsTitle": "Available Betting Rounds",
   "memberHomePage.button.refreshData": "Refresh Data",
@@ -78,8 +76,6 @@
   "success.appSettingsUpdated": "App settings updated successfully.",
   "error.appSettingsUpdateFailed": "Failed to update app settings: {{errorMessage}}",
   "error.unauthorized": "You are not authorized to perform this action.",
-
-
   "createBettingRoundModal.title": "Create New Betting Round",
   "createBettingRoundModal.api.selectSourceLabel": "Select API Source:",
   "createBettingRoundModal.warning.noApisConfigured": "No APIs configured. Please set up at least one API (Football-Data.org or The Odds API) to fetch matches.",
@@ -127,23 +123,19 @@
   "createBettingRoundModal.button.selectFromListTitle": "Select from list",
   "createBettingRoundModal.button.enterManually": "Enter Manually",
   "createBettingRoundModal.button.createRound": "Create Round",
-
   "updateResultModal.title": "Update Result: {{homeTeam}} vs {{awayTeam}}",
   "updateResultModal.instruction": "Select the winner or if the match was a draw.",
   "updateResultModal.button.homeWin": "{{teamName}} (Home) Won",
   "updateResultModal.button.awayWin": "{{teamName}} (Away) Won",
   "updateResultModal.button.draw": "Match was a Draw",
   "updateResultModal.button.confirmResult": "Confirm Result",
-  
   "common.button.cancel": "Cancel",
   "common.button.save": "Save",
   "button.viewAiAnalysis": "View AI Analysis",
-
   "bettingRoundStatus.open": "Open",
   "bettingRoundStatus.closedAwaitingResult": "Closed (Awaiting Result)",
   "bettingRoundStatus.awaitingResult": "Awaiting Result",
   "bettingRoundStatus.finished": "Finished",
-
   "matchCard.versus": "vs",
   "matchCard.resultLabel": "Result:",
   "matchCard.yourBet": "Your bet:",
@@ -165,11 +157,9 @@
   "matchCard.loginToBet": "Login to place a bet.",
   "matchResult.draw": "Draw",
   "matchResult.won": "Won",
-  
   "adminMatchCard.betsPlaced": "{{count}} Bet(s) Placed",
   "adminMatchCard.button.updateResult": "Update Result",
   "adminMatchCard.resultsRecorded": "Results have been recorded for this match.",
-
   "bettingModal.title": "Place Bet on: {{homeTeam}} vs {{awayTeam}}",
   "bettingModal.availablePoints": "Your available points",
   "bettingModal.selectTeamLabel": "Select Team",
@@ -180,7 +170,6 @@
   "bettingModal.error.pointsGreaterThanZero": "Points bet must be greater than zero.",
   "bettingModal.error.insufficientPoints": "You cannot bet more than your available {{points}} points.",
   "bettingModal.button.confirmBet": "Confirm Bet",
-
   "aiAnalysisModal.title": "AI Analysis: {{homeTeam}} vs {{awayTeam}}",
   "aiAnalysisModal.subTitle": "Insights from AI (Gemini)",
   "aiAnalysisModal.loading": "Loading AI analysis...",
@@ -206,7 +195,6 @@
   "error.aiCannotGetAnalysis": "Could not retrieve match analysis from AI. {{errorMessage}}",
   "error.aiCannotGetMatchAnalysis": "Could not retrieve match analysis from AI. Error: {{errorMessage}}",
   "error.aiQuotaExceeded": "You have exceeded your free AI analysis quota. Please check your plan and billing details.",
-
   "matchCard.odds.viewButton": "View Odds",
   "matchCard.odds.loading": "Loading Odds...",
   "matchCard.odds.unavailable": "Odds not available for this match.",
@@ -218,7 +206,6 @@
   "matchCard.odds.homeTeamWinShort": "Home",
   "matchCard.odds.awayTeamWinShort": "Away",
   "matchCard.odds.drawShort": "Draw",
-
   "teamDivider.title": "Football Team Divider",
   "teamDivider.subtitle": "Enter players by seed group and divide them into balanced teams.",
   "teamDivider.inputTitle": "Enter Player List",
@@ -256,13 +243,17 @@
   "teamDivider.newDivisionButton": "New Division",
   "teamDivider.spinner.title": "Spin the Wheel to Divide Teams!",
   "teamDivider.spinner.spinButton": "SPIN",
+  "teamDivider.spinner.spinAllButton": "Spin All - Draw Everyone at Once",
+  "teamDivider.spinner.spinningAll": "Drawing every player...",
+  "teamDivider.spinner.winnerLabel": "Just drawn",
+  "teamDivider.spinner.remaining": "{{count}} players left on the wheel",
+  "teamDivider.spinner.unbalancedSummary": "{{count}} players were placed by the fallback rule because their seed was already taken in every team.",
   "teamDivider.spinner.waiting": "Click SPIN to select the next player",
   "teamDivider.spinner.spinning": "Spinning...",
   "teamDivider.spinner.selected": "Selected: {{playerName}} ({{playerSeed}})! Assigning to a team...",
   "teamDivider.spinner.allAssigned": "All players have been assigned!",
   "teamDivider.spinner.completed": "Division Complete!",
   "teamDivider.spinner.unbalancedWarning": "Unbalanced seeds! Player {{playerName}} was assigned using fallback logic.",
-
   "tournament.title": "League Tournament",
   "tournament.loading": "Loading tournament data...",
   "tournament.noData": "No tournament data found. An admin needs to set one up.",
@@ -346,7 +337,6 @@
   "tournament.matchAnalysis.weaknesses": "Weaknesses",
   "tournament.matchAnalysis.tactics": "Suggested Tactics",
   "tournament.matchAnalysis.funnyCommentary": "Commentator's Hot Take",
-
   "standingsTable.team": "Team",
   "standingsTable.played": "P",
   "standingsTable.wins": "W",
@@ -356,7 +346,6 @@
   "standingsTable.ga": "GA",
   "standingsTable.gd": "GD",
   "standingsTable.points": "Pts",
-
   "schedule.match": "Match {{matchNumber}}",
   "schedule.tbd": "To be determined",
   "schedule.status.finished": "Finished",
@@ -369,11 +358,9 @@
   "schedule.error.invalidScore": "Invalid score. Please enter a valid number.",
   "schedule.editMatchTitle": "Edit Match",
   "schedule.error.teamsCannotBeSame": "The home and away teams cannot be the same.",
-
   "teamList.captain": "Captain",
   "teamList.members": "Members",
   "teamList.noMembers": "No members yet",
-
   "manageTournament.title": "Manage Tournament Data",
   "manageTournament.createTitle": "Set Up New Tournament",
   "manageTournament.tab.teams": "Teams",
@@ -412,25 +399,21 @@
   "manageTournament.migration.button": "Migrate Players",
   "manageTournament.migration.success": "Player migration successful! The manager has been updated.",
   "manageTournament.migration.error": "Player migration failed: {{error}}",
-
   "goalscorerModal.title": "Manage Goals for {{teamName}}",
   "goalscorerModal.currentScore": "Current Score",
   "goalscorerModal.noGoals": "No goals yet.",
   "goalscorerModal.addGoalFromTeam": "Add Goal from Team Members",
   "goalscorerModal.addGuestScorer": "Add Guest Scorer",
   "goalscorerModal.guestNamePlaceholder": "Guest scorer name...",
-
   "topScorersList.goals": "Goals",
   "topScorersList.team": "Team",
   "topScorersList.noScorers": "No goals have been scored yet.",
   "topScorersList.guest": " (Guest)",
-
   "countdown.days": "Days",
   "countdown.hours": "Hours",
   "countdown.minutes": "Minutes",
   "countdown.seconds": "Seconds",
   "countdown.eventStarted": "The Event Has Begun!",
-  
   "playerInfo.title": "Player Information",
   "playerInfo.addPlayer": "Add New Player",
   "playerInfo.searchPlaceholder": "Search by name or jersey #",
@@ -451,19 +434,16 @@
   "playerInfo.bioPlaceholder": "Enter a short description...",
   "playerInfo.noPlayerSelected": "No Player Selected",
   "playerInfo.editing": "Editing",
-
   "playerDetailModal.title": "Player Details",
   "playerDetailModal.name": "Name",
   "playerDetailModal.jersey": "Jersey",
   "playerDetailModal.skillsTitle": "Player Skills",
-  
   "playerSkills.speed": "Speed",
   "playerSkills.shooting": "Shooting",
   "playerSkills.passing": "Passing",
   "playerSkills.dribbling": "Dribbling",
   "playerSkills.defending": "Defending",
   "playerSkills.physical": "Physical",
-
   "teamAnalysis.title": "AI Analysis: {{teamName}}",
   "teamAnalysis.loading": "The AI is warming up... Analyzing team strategy, player stats, and probably their favorite pre-game snacks. This might take a moment!",
   "teamAnalysis.error": "The AI seems to have taken a water break. Please try again later.",

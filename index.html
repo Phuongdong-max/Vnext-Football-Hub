@@ -111,6 +111,11 @@
       }
       .player-fly-animation {
         position: fixed;
+        /* Pin to the viewport origin. Without these the element keeps its static
+           position in the flow, so flyToTeam's translate() was added on top of
+           that offset and the name flew in from beside the wheel. */
+        top: 0;
+        left: 0;
         z-index: 1000;
         font-size: 1.5rem;
         font-weight: bold;
