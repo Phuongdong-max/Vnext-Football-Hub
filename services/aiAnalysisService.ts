@@ -1,98 +1,98 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { FootballMatch, MatchAnalysis, TournamentTeam, TournamentPlayer, TeamAnalysis, TournamentMatchAnalysis } from '../types';
 
 // Read API keys from environment variables defined at build time.
 const PRIMARY_API_KEY = process.env.API_KEY;
 const SECONDARY_API_KEY = process.env.API_KEY_2;
 
-// Initialize AI clients. They will be null if the key is not provided.
-const ai1 = PRIMARY_API_KEY ? new GoogleGenAI({ apiKey: PRIMARY_API_KEY }) : null;
-const ai2 = SECONDARY_API_KEY ? new GoogleGenAI({ apiKey: SECONDARY_API_KEY }) : null;
-
-if (!ai1) {
-  console.warn("Primary AI API Key (GEMINI_API_KEY) is not defined.");
+if (!PRIMARY_API_KEY) {
+  console.warn("Primary AI API Key (QWEN_API_KEY) is not defined.");
 }
-if (!ai2) {
-  console.warn("Secondary AI API Key (GEMINI_API_KEY_2) is not defined. Fallback key will not be available.");
+if (!SECONDARY_API_KEY) {
+  console.warn("Secondary AI API Key (QWEN_API_KEY_2) is not defined. Fallback key will not be available.");
 }
 
-const PRIMARY_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+// Qwen Cloud (Alibaba DashScope), OpenAI-compatible mode.
+const QWEN_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+const QWEN_MODEL = 'qwen3.6-flash';
 
-// Checks for errors that warrant a fallback (quota exhausted or invalid key)
+// Checks for errors that warrant switching to the other API key (quota exhausted or invalid key).
 const isRecoverableError = (error: unknown): boolean => {
     if (!(error instanceof Error)) return false;
     const msg = error.message;
-    return msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota") || msg.includes("API key not valid");
+    return msg.includes('429') || msg.includes('quota') || msg.includes('401') || msg.includes('invalid_api_key') || msg.includes('Unauthorized');
 };
 
 /**
- * Attempts analysis with a specific client, trying the primary model then the fallback model.
+ * Calls the Qwen Cloud chat completions endpoint with a given API key and returns the raw text content.
  */
-const performAnalysisWithClient = async (
-    aiClient: GoogleGenAI,
-    clientName: string,
-    contents: any,
-    config: any
-): Promise<GenerateContentResponse> => {
-    try {
-        return await aiClient.models.generateContent({ model: PRIMARY_MODEL, contents, config });
-    } catch (primaryError) {
-        // Fallback to the lite model only on recoverable errors.
-        if (isRecoverableError(primaryError)) {
-            console.warn(`[${clientName}] '${PRIMARY_MODEL}' failed. Trying fallback '${FALLBACK_MODEL}'.`);
-            try {
-                return await aiClient.models.generateContent({ model: FALLBACK_MODEL, contents, config });
-            } catch (fallbackError) {
-                console.error(`[${clientName}] Fallback model '${FALLBACK_MODEL}' also failed.`, fallbackError);
-                throw fallbackError; // Re-throw error from the fallback model
-            }
-        }
-        // For non-recoverable errors on the primary model, fail fast.
-        throw primaryError;
+const callQwenChatCompletion = async (apiKey: string, clientName: string, prompt: string): Promise<string> => {
+    const response = await fetch(`${QWEN_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: QWEN_MODEL,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' },
+        }),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        throw new Error(`[${clientName}] Qwen request failed with status ${response.status}: ${errorBody}`);
     }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+        throw new Error(`[${clientName}] Qwen response did not contain any content.`);
+    }
+    return content;
 };
 
 /**
- * Orchestrates the full analysis process, using the primary key (with model fallback)
- * and then the secondary key (with model fallback) if the first fails.
+ * Orchestrates the analysis request, using the primary key and then the secondary key
+ * (if configured) when the primary attempt fails with a recoverable error.
  */
-const generateContentOrchestrator = async (
-    contents: any,
-    config: any
-): Promise<GenerateContentResponse> => {
-    if (ai1) {
+const generateContentOrchestrator = async (prompt: string): Promise<string> => {
+    if (PRIMARY_API_KEY) {
         try {
-            return await performAnalysisWithClient(ai1, 'Primary Client', contents, config);
+            return await callQwenChatCompletion(PRIMARY_API_KEY, 'Primary Client', prompt);
         } catch (primaryError) {
-            // If the primary client fails with a recoverable error, try the secondary client.
-            if (isRecoverableError(primaryError) && ai2) {
-                console.warn(`Primary client failed with a recoverable error. Switching to secondary client.`);
+            if (isRecoverableError(primaryError) && SECONDARY_API_KEY) {
+                console.warn('Primary client failed with a recoverable error. Switching to secondary client.');
                 try {
-                    return await performAnalysisWithClient(ai2, 'Secondary Client', contents, config);
+                    return await callQwenChatCompletion(SECONDARY_API_KEY, 'Secondary Client', prompt);
                 } catch (secondaryError) {
-                     // If the secondary client also fails, throw a final, user-friendly error.
-                     throw new Error("Cả hai khóa API chính và phụ đều không thành công. Vui lòng kiểm tra lại hạn ngạch và cấu hình khóa API.");
+                    throw new Error("Cả hai khóa API chính và phụ đều không thành công. Vui lòng kiểm tra lại hạn ngạch và cấu hình khóa API.");
                 }
             }
-            // Re-throw if the error was not recoverable or if there's no secondary client.
-            throw primaryError; 
+            throw primaryError;
         }
-    } else if (ai2) {
-        // If no primary client, use the secondary one directly.
-        console.warn("Primary client not configured. Using secondary client.");
-        return await performAnalysisWithClient(ai2, 'Secondary Client', contents, config);
+    } else if (SECONDARY_API_KEY) {
+        console.warn('Primary client not configured. Using secondary client.');
+        return await callQwenChatCompletion(SECONDARY_API_KEY, 'Secondary Client', prompt);
     } else {
-        // If no clients are available at all.
         throw new Error("Dịch vụ AI chưa được khởi tạo vì không có khóa API nào được cấu hình.");
     }
 };
 
+const parseJsonResponse = <T>(rawText: string): T => {
+    let jsonText = rawText.trim();
+    const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+    const matchFence = jsonText.match(fenceRegex);
+    if (matchFence && matchFence[2]) {
+        jsonText = matchFence[2].trim();
+    }
+    return JSON.parse(jsonText) as T;
+};
 
 export const getMatchAnalysisFromAI = async (
   match: FootballMatch
 ): Promise<MatchAnalysis | null> => {
-  if (!ai1 && !ai2) {
+  if (!PRIMARY_API_KEY && !SECONDARY_API_KEY) {
     throw new Error("Dịch vụ AI không khả dụng. Vui lòng kiểm tra cấu hình.");
   }
   if (!match) {
@@ -129,28 +129,17 @@ export const getMatchAnalysisFromAI = async (
   `;
 
   try {
-    const response: GenerateContentResponse = await generateContentOrchestrator(
-        [{ role: "user", parts: [{text: prompt}] }],
-        { responseMimeType: "application/json" }
-    );
-    
-    let jsonText = response.text.trim();
-    
-    const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
-    const matchFence = jsonText.match(fenceRegex);
-    if (matchFence && matchFence[2]) {
-      jsonText = matchFence[2].trim();
-    }
+    const rawText = await generateContentOrchestrator(prompt);
 
     try {
-      const analysisResult = JSON.parse(jsonText) as MatchAnalysis;
+      const analysisResult = parseJsonResponse<MatchAnalysis>(rawText);
       if (!analysisResult.predictedWinner) {
         console.error("Parsed AI analysis is missing 'predictedWinner'", analysisResult);
         throw new Error("Phản hồi phân tích AI thiếu các trường quan trọng.");
       }
       return analysisResult;
     } catch (parseError) {
-      console.error("Failed to parse JSON response from AI:", parseError, "Raw text:", jsonText);
+      console.error("Failed to parse JSON response from AI:", parseError, "Raw text:", rawText);
       throw new Error("AI trả về định dạng phân tích không hợp lệ.");
     }
 
@@ -164,7 +153,7 @@ export const getTeamAnalysisFromAI = async (
   team: TournamentTeam,
   players: TournamentPlayer[]
 ): Promise<TeamAnalysis | null> => {
-  if (!ai1 && !ai2) {
+  if (!PRIMARY_API_KEY && !SECONDARY_API_KEY) {
     throw new Error("Dịch vụ AI không khả dụng.");
   }
 
@@ -202,18 +191,12 @@ export const getTeamAnalysisFromAI = async (
   `;
 
   try {
-    const response: GenerateContentResponse = await generateContentOrchestrator(
-        [{ role: "user", parts: [{ text: prompt }] }],
-        { responseMimeType: "application/json" }
-    );
+    const rawText = await generateContentOrchestrator(prompt);
 
-    const jsonText = response.text.trim();
-    
     try {
-      const analysisResult = JSON.parse(jsonText) as TeamAnalysis;
-      return analysisResult;
+      return parseJsonResponse<TeamAnalysis>(rawText);
     } catch (parseError) {
-      console.error("Failed to parse JSON response from AI for team analysis:", parseError, "Raw text:", jsonText);
+      console.error("Failed to parse JSON response from AI for team analysis:", parseError, "Raw text:", rawText);
       throw new Error("AI returned an invalid analysis format for the team.");
     }
 
@@ -229,7 +212,7 @@ export const getTournamentMatchAnalysisFromAI = async (
   homePlayers: TournamentPlayer[],
   awayPlayers: TournamentPlayer[]
 ): Promise<TournamentMatchAnalysis | null> => {
-  if (!ai1 && !ai2) {
+  if (!PRIMARY_API_KEY && !SECONDARY_API_KEY) {
     throw new Error("Dịch vụ AI không khả dụng.");
   }
 
@@ -273,18 +256,12 @@ export const getTournamentMatchAnalysisFromAI = async (
   `;
 
   try {
-    const response: GenerateContentResponse = await generateContentOrchestrator(
-        [{ role: "user", parts: [{ text: prompt }] }],
-        { responseMimeType: "application/json" }
-    );
+    const rawText = await generateContentOrchestrator(prompt);
 
-    const jsonText = response.text.trim();
-    
     try {
-      const analysisResult = JSON.parse(jsonText) as TournamentMatchAnalysis;
-      return analysisResult;
+      return parseJsonResponse<TournamentMatchAnalysis>(rawText);
     } catch (parseError) {
-      console.error("Failed to parse JSON response from AI for match analysis:", parseError, "Raw text:", jsonText);
+      console.error("Failed to parse JSON response from AI for match analysis:", parseError, "Raw text:", rawText);
       throw new Error("AI returned an invalid analysis format for the match.");
     }
 

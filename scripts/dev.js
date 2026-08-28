@@ -7,9 +7,9 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const projectRoot = path.join(__dirname, '..');
 const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
-// Read GEMINI_API_KEY from .env, but we will define it as process.env.API_KEY for the client
-const geminiApiKeyFromEnv = process.env.GEMINI_API_KEY || ""; 
-const geminiApiKey2FromEnv = process.env.GEMINI_API_KEY_2 || "";
+// Read QWEN_API_KEY from .env, but we will define it as process.env.API_KEY for the client
+const geminiApiKeyFromEnv = process.env.QWEN_API_KEY || "";
+const geminiApiKey2FromEnv = process.env.QWEN_API_KEY_2 || "";
 
 // esbuild >= 0.17 removed the old two-argument esbuild.serve(). The build is
 // now described by a context, and serving hangs off that context.
