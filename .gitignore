@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# esbuild dev server output (scripts/dev.js writes split chunks to repo root
+# so ctx.serve() can serve them at /index.js, /chunk-*.js)
+/index.js
+/chunk-*.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

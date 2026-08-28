@@ -37,7 +37,7 @@ export const PlayerInfoTab: React.FC<PlayerInfoTabProps> = ({ players, onAddPlay
     }, [players, searchTerm]);
 
     const inputClasses = "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400";
-    const panelClasses = "bg-surface shadow-lg rounded-lg p-4 sm:p-6";
+    const panelClasses = "bg-surface shadow-lg rounded-2xl p-4 sm:p-6";
 
     return (
         <div className="space-y-6">
@@ -67,7 +67,7 @@ export const PlayerInfoTab: React.FC<PlayerInfoTabProps> = ({ players, onAddPlay
                 <div className="space-y-2">
                     {filteredPlayers.length > 0 ? (
                         filteredPlayers.map(player => (
-                            <div key={player.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                            <div key={player.id} className="flex items-center justify-between p-3 bg-black/5 dark:bg-white/5 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                                 <div className="flex items-center gap-4 cursor-pointer flex-grow" onClick={() => onSelectPlayer(player)}>
                                     <span className="font-mono text-primary text-lg w-8 text-center">#{player.jerseyNumber}</span>
                                     <span className="font-semibold text-textPrimary">{player.name}</span>

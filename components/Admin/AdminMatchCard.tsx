@@ -85,7 +85,7 @@ export const AdminMatchCard: React.FC<AdminMatchCardProps> = ({ round, onUpdateR
         </div>
         
         {(status === BettingRoundStatus.OPEN || status === BettingRoundStatus.CLOSED) && ( 
-          <div className="p-4 bg-gray-50 dark:bg-slate-800/60 border-t border-border">
+          <div className="p-4 bg-black/5 dark:bg-white/5 border-t border-border">
             <Button onClick={() => onUpdateResult(round.id)} variant="warning" fullWidth disabled={!isBettingEnabled}>
               <PencilAltIcon className="w-5 h-5 mr-2"/> {translate('adminMatchCard.button.updateResult')}
             </Button>

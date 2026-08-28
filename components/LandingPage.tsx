@@ -274,7 +274,7 @@ Trân trọng,
             style={{ animation: 'fadeIn 0.3s ease-out forwards' }}
         >
             <div 
-                className="bg-white text-black rounded-lg shadow-2xl max-w-lg w-full m-4 p-6 relative max-h-[90vh] overflow-y-auto"
+                className="bg-white text-black rounded-2xl shadow-2xl max-w-lg w-full m-4 p-6 relative max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
                 style={{ animation: 'scaleIn 0.3s ease-out forwards' }}
             >

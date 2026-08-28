@@ -303,7 +303,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
     const hubSize = Math.max(96, Math.round(wheelSize * 0.26));
 
     return (
-        <div className="flex flex-col items-center justify-start p-4 min-h-[80vh] bg-background dark:bg-slate-900/50 rounded-lg">
+        <div className="flex flex-col items-center justify-start p-4 min-h-[80vh] bg-background dark:bg-white/5 rounded-2xl">
             <style>{`
               @keyframes tds-confetti-fall {
                 0%   { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
@@ -541,12 +541,12 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                     <div
                         key={team.id}
                         id={`team-box-${team.id}`}
-                        className={`bg-surface rounded-lg shadow-md p-4 min-h-[150px] transition-all duration-300 flex flex-col ${lastWinner?.teamId === team.id ? 'ring-2 ring-primary' : ''}`}
+                        className={`bg-surface rounded-2xl shadow-md p-4 min-h-[150px] transition-all duration-300 flex flex-col ${lastWinner?.teamId === team.id ? 'ring-2 ring-primary' : ''}`}
                     >
                         <h3 className="text-lg font-semibold text-primary mb-2 text-center border-b border-border pb-2">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
                         <ul className="space-y-1 flex-grow">
                             {team.players.map((p, i) => (
-                                <li key={`${p.name}-${team.id}-${i}`} className="text-sm text-textPrimary text-center bg-gray-100 dark:bg-slate-700 p-1.5 rounded-md shadow-sm">
+                                <li key={`${p.name}-${team.id}-${i}`} className="text-sm text-textPrimary text-center bg-black/5 dark:bg-white/5 p-1.5 rounded-md shadow-sm">
                                     {p.name} <span className="text-xs text-textSecondary">({p.seed})</span>
                                 </li>
                             ))}

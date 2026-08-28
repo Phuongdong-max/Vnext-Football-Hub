@@ -18,7 +18,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
     };
   }, [toast.id, onDismiss]);
 
-  const baseClasses = "flex items-center p-4 mb-3 rounded-lg shadow-lg text-sm font-medium transition-all duration-300 ease-in-out";
+  const baseClasses = "flex items-center p-4 mb-3 rounded-2xl shadow-lg text-sm font-medium transition-all duration-300 ease-in-out";
   const typeClasses = {
     success: "bg-green-500 text-white",
     error: "bg-danger text-white",

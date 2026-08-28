@@ -28,7 +28,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             <li key={player.id}>
                                 <button 
                                     onClick={() => onSelectPlayer(player)}
-                                    className="w-full flex items-center p-2 rounded-md text-left transition-colors hover:bg-gray-100 dark:hover:bg-slate-700"
+                                    className="w-full flex items-center p-2 rounded-md text-left transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                                 >
                                     {player.avatarUrl ? (
                                         <img src={player.avatarUrl} alt={player.name} className="w-10 h-10 rounded-full mr-3 object-cover" />

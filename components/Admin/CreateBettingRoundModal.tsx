@@ -257,7 +257,7 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
         )}
       </div>
 
-      <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-md space-y-3 bg-gray-50 dark:bg-slate-800/60">
+      <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-2xl space-y-3 bg-black/5 dark:bg-white/5">
         <h4 className="text-md font-semibold text-textPrimary">
           {translate(selectedApiSource === 'football-data.org' ? 'createBettingRoundModal.api.titleFootballData' : 'createBettingRoundModal.api.titleTheOddsApi')}
         </h4>
@@ -357,12 +357,12 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
           </label>
           {(isLoadingApiMatches) && <div className="text-center py-2 text-textSecondary"><LoadingSpinner /> <span className="ml-2">{translate('createBettingRoundModal.api.loadingMatches')}</span></div>}
           {(!isLoadingApiMatches && apiSelectableMatches.length === 0 && !apiSelectionError && !isLoadingLeagues) && ( 
-            <p className="text-sm text-textSecondary text-center py-2 italic p-3 bg-gray-50 dark:bg-slate-700/50 rounded-md">
+            <p className="text-sm text-textSecondary text-center py-2 italic p-3 bg-black/5 dark:bg-white/5 rounded-2xl">
                 {selectedLeagueId ? translate('createBettingRoundModal.api.noMatchesLoadedOrFound') : translate('createBettingRoundModal.api.selectLeagueFirst') }
             </p>
           )}
           {(!isLoadingApiMatches && apiSelectableMatches.length > 0 && filteredMatchesForSelection.length === 0 && searchTerm) && (
-            <p className="text-sm text-textSecondary text-center py-2 italic p-3 bg-gray-50 dark:bg-slate-700/50 rounded-md">
+            <p className="text-sm text-textSecondary text-center py-2 italic p-3 bg-black/5 dark:bg-white/5 rounded-2xl">
                 {translate('createBettingRoundModal.api.noMatchesFoundForSearch', { searchTerm })}
             </p>
           )}
@@ -388,7 +388,7 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
   );
 
   const renderManualMode = () => (
-    <div className="space-y-3 p-4 border border-gray-200 dark:border-slate-700 rounded-md bg-gray-50 dark:bg-slate-800/60">
+    <div className="space-y-3 p-4 border border-gray-200 dark:border-slate-700 rounded-2xl bg-black/5 dark:bg-white/5">
       <h4 className="text-md font-semibold text-textPrimary mb-2">{translate('createBettingRoundModal.manual.title')}</h4>
       <div>
         <label htmlFor="manualHomeTeam" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.manual.homeTeamLabel')}</label>

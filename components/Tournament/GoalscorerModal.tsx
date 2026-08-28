@@ -72,9 +72,9 @@ export const GoalscorerModal: React.FC<GoalscorerModalProps> = ({ isOpen, onClos
                 {/* Current Scorers */}
                 <div>
                     <h3 className="text-lg font-semibold text-textPrimary mb-2">{translate('goalscorerModal.currentScore')}: {goals.length}</h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 bg-background dark:bg-slate-800 p-2 rounded-md">
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 bg-background dark:bg-white/5 p-2 rounded-2xl">
                         {goals.length > 0 ? goals.map((goal) => (
-                            <div key={goal.goalId} className="flex items-center justify-between p-2 bg-surface dark:bg-slate-700 rounded-md shadow-sm">
+                            <div key={goal.goalId} className="flex items-center justify-between p-2 bg-surface dark:bg-white/5 rounded-2xl shadow-sm">
                                 <span className="text-textPrimary">{goal.scorerName}</span>
                                 <Button onClick={() => removeGoal(goal.goalId)} size="sm" variant="ghost" className="!p-1">
                                     <XIcon className="w-4 h-4 text-danger" />

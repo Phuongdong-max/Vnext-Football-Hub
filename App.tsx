@@ -16,7 +16,6 @@ import { Header } from './components/Header';
 import { AuthComponent } from './components/Auth';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MemberHomePage } from './pages/MemberHomePage';
-import { LeaderboardPage } from './pages/LeaderboardPage';
 import { TeamDividerPage } from './pages/TeamDividerPage';
 import { TournamentPage } from './pages/TournamentPage';
 import { PlayerInfoPage } from './pages/PlayerInfoPage';
@@ -261,7 +260,6 @@ const AppCore: React.FC = () => {
                 ? <AdminDashboardPage /> 
                 : <Navigate to="/home" replace />
             } />
-            {isBettingEnabled && <Route path="/leaderboard" element={currentUser?.role === UserRole.MEMBER ? <LeaderboardPage /> : <Navigate to="/home" replace />} />}
             <Route path="/team-divider" element={<TeamDividerPage />} />
             <Route path="/tournament" element={<TournamentPage />} />
             <Route path="/player-info" element={<PlayerInfoPage />} />

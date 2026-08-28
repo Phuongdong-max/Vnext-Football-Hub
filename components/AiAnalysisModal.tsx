@@ -103,7 +103,7 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
         title={translate('aiAnalysisModal.title', { homeTeam: matchDetails.homeTeam, awayTeam: matchDetails.awayTeam })}
         size="lg"
     >
-      <div className="p-1 bg-slate-50 dark:bg-slate-800/70 rounded-md space-y-2 text-sm min-h-[200px]">
+      <div className="p-1 bg-black/5 dark:bg-white/5 rounded-2xl space-y-2 text-sm min-h-[200px]">
         <h4 className="text-md font-semibold text-textPrimary flex items-center mb-3 p-2 border-b border-border">
             <LightBulbIcon className="w-6 h-6 mr-2 text-yellow-400" />
             {translate('aiAnalysisModal.subTitle')}

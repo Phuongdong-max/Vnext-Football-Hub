@@ -24,6 +24,9 @@ import { CreateEditTournamentModal } from '../components/Tournament/CreateEditTo
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 import { TeamAnalysisModal } from '../components/Tournament/TeamAnalysisModal';
 import { TournamentMatchAnalysisModal } from '../components/Tournament/TournamentMatchAnalysisModal';
+import { Scene3DBoundary } from '../components/three/Scene3DBoundary';
+
+const TrophyScene = React.lazy(() => import('../components/three/TrophyScene'));
 
 // --- Edit Match Modal (defined inside TournamentPage) ---
 interface EditMatchModalProps {
@@ -409,7 +412,7 @@ export const TournamentPage: React.FC = () => {
         return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4 text-textPrimary">{translate('tournament.loading')}</p></div>;
     }
 
-    const panelClasses = "bg-surface shadow-lg rounded-lg";
+    const panelClasses = "bg-surface shadow-lg rounded-2xl";
 
     const renderContent = () => {
         if (isSwitchingTournament) {
@@ -431,7 +434,14 @@ export const TournamentPage: React.FC = () => {
         }
         
         const { name, teams, schedule, standings, lastUpdated, updatedBy } = tournament;
-        
+
+        // The tournament is "decided" only once every scheduled match has actually been played:
+        // all non-postponed matches must be finished, and at least one match must have been
+        // played at all (otherwise an all-postponed schedule would still trigger the banner).
+        const isTournamentFinished = !!schedule && schedule.length > 0
+            && schedule.every(m => m.status === 'finished' || m.status === 'postponed')
+            && schedule.some(m => m.status === 'finished');
+
         const tabs = [
             { id: 'standings', label: 'tournament.tab.standings', icon: <TableCellsIcon className="w-5 h-5" /> },
             { id: 'schedule', label: 'tournament.tab.schedule', icon: <CalendarIcon className="w-5 h-5" /> },
@@ -491,10 +501,24 @@ export const TournamentPage: React.FC = () => {
                 <div className="mt-4">
                     {activeTab === 'standings' && (
                         <section>
+                            {standings && standings.length > 0 && isTournamentFinished && (
+                                <div className="mb-4 rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 to-slate-800 shadow-lg">
+                                    <Scene3DBoundary
+                                        className="h-56 relative"
+                                        fallback={<div className="h-56 flex items-center justify-center"><TrophyIcon className="w-24 h-24 text-accentGold" /></div>}
+                                    >
+                                        <TrophyScene />
+                                    </Scene3DBoundary>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4 text-center">
+                                        <span className="text-xs font-semibold text-white/70 uppercase tracking-widest">Champion</span>
+                                        <span className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg mt-1">{standings[0].teamName}</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className={`${panelClasses} overflow-hidden`}>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full">
-                                        <thead className="bg-slate-100 dark:bg-slate-800">
+                                        <thead className="bg-black/5 dark:bg-white/5">
                                             <tr>
                                                 <th scope="col" className="w-1/3 pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-textPrimary sm:pl-6">{translate('standingsTable.team')}</th>
                                                 <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
@@ -509,7 +533,7 @@ export const TournamentPage: React.FC = () => {
                                         </thead>
                                         <tbody className="divide-y divide-border bg-surface">
                                             {standings?.map((s, index) => (
-                                                <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
+                                                <tr key={s.teamId} className="hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-200">
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                                                         <div className="flex items-center">
                                                             <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>
@@ -537,7 +561,7 @@ export const TournamentPage: React.FC = () => {
                         <section className="space-y-4">
                             {schedule?.length > 0 ? (
                                 schedule.sort((a,b) => a.round - b.round).map((match, index) => (
-                                    <div key={match.id} className={`${panelClasses} p-3`}>
+                                    <div key={match.id} className={`${panelClasses} p-3 transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10`}>
                                         <div className="flex justify-between items-center mb-2">
                                             <h4 className="text-sm font-semibold text-textSecondary">
                                                 {match.matchLabel || translate('schedule.match', { matchNumber: index + 1 })}
@@ -562,9 +586,9 @@ export const TournamentPage: React.FC = () => {
                                             <div className="flex flex-col items-center justify-center my-2 md:my-0">
                                                 {canEdit ? (
                                                     <div className="flex items-center space-x-2">
-                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
+                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
                                                         <span className="font-bold text-lg text-textSecondary">-</span>
-                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
+                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
                                                     </div>
                                                 ) : (
                                                     <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
@@ -606,7 +630,7 @@ export const TournamentPage: React.FC = () => {
                                                 return (
                                                     <li key={memberRef.playerId} className="p-1 rounded">
                                                         {player ? (
-                                                            <button onClick={() => handleOpenPlayerDetailModal(player)} className="flex items-center text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary p-1 rounded transition-colors duration-150">
+                                                            <button onClick={() => handleOpenPlayerDetailModal(player)} className="flex items-center text-sm w-full text-left hover:bg-black/10 dark:hover:bg-white/10 text-textPrimary p-1 rounded transition-colors duration-150">
                                                                 <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2 flex-shrink-0"/>
                                                                 <span className="hover:underline">{player.name} (#{player.jerseyNumber})</span>
                                                             </button>
