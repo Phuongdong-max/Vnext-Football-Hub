@@ -434,7 +434,14 @@ export const TournamentPage: React.FC = () => {
         }
         
         const { name, teams, schedule, standings, lastUpdated, updatedBy } = tournament;
-        
+
+        // The tournament is "decided" only once every scheduled match has actually been played:
+        // all non-postponed matches must be finished, and at least one match must have been
+        // played at all (otherwise an all-postponed schedule would still trigger the banner).
+        const isTournamentFinished = !!schedule && schedule.length > 0
+            && schedule.every(m => m.status === 'finished' || m.status === 'postponed')
+            && schedule.some(m => m.status === 'finished');
+
         const tabs = [
             { id: 'standings', label: 'tournament.tab.standings', icon: <TableCellsIcon className="w-5 h-5" /> },
             { id: 'schedule', label: 'tournament.tab.schedule', icon: <CalendarIcon className="w-5 h-5" /> },
@@ -494,7 +501,7 @@ export const TournamentPage: React.FC = () => {
                 <div className="mt-4">
                     {activeTab === 'standings' && (
                         <section>
-                            {standings && standings.length > 0 && (
+                            {standings && standings.length > 0 && isTournamentFinished && (
                                 <div className="mb-4 rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 to-slate-800 shadow-lg">
                                     <Scene3DBoundary
                                         className="h-56 relative"
@@ -511,7 +518,7 @@ export const TournamentPage: React.FC = () => {
                             <div className={`${panelClasses} overflow-hidden`}>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full">
-                                        <thead className="bg-slate-100 dark:bg-slate-800">
+                                        <thead className="bg-black/5 dark:bg-white/5">
                                             <tr>
                                                 <th scope="col" className="w-1/3 pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-textPrimary sm:pl-6">{translate('standingsTable.team')}</th>
                                                 <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
