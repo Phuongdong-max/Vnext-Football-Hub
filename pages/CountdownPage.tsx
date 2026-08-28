@@ -190,7 +190,7 @@ export const CountdownPage: React.FC = () => {
         <div className="flex-grow w-full bg-[#f4efe8] flex items-center justify-center relative overflow-hidden p-4">
             <Scene3DBoundary
               className="absolute inset-0 z-0"
-              fallback={<div className="absolute inset-0 bg-gradient-to-b from-background to-surface" />}
+              fallback={<div />}
             >
               <BallScene />
             </Scene3DBoundary>
