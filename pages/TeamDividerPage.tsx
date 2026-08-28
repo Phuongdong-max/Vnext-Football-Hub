@@ -206,7 +206,7 @@ export const TeamDividerPage: React.FC = () => {
                     is published and comes back via "New Division". For everyone else
                     the roster is read-only, so it stays visible next to the result. */}
                 {(divisionState !== 'finished' || !isAdmin) && (
-                    <section className="p-4 sm:p-6 bg-surface rounded-lg shadow-md">
+                    <section className="p-4 sm:p-6 bg-surface rounded-2xl shadow-md">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
                             <h2 className="text-2xl font-semibold text-textPrimary">
                                 {isAdmin ? translate('teamDivider.inputTitle') : translate('teamDivider.rosterTitle')}
@@ -270,7 +270,7 @@ export const TeamDividerPage: React.FC = () => {
                                 {(['GK', 'A', 'B', 'C', 'D', 'E'] as PlayerSeed[]).map(seed => {
                                     const names = seedPlayers[seed].split('\n').map(n => n.trim()).filter(Boolean);
                                     return (
-                                        <div key={seed} className="bg-background dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md p-3">
+                                        <div key={seed} className="bg-black/5 dark:bg-white/5 border border-border dark:border-slate-700 rounded-2xl p-3">
                                             <h3 className="text-sm font-medium text-textPrimary mb-2 pb-2 border-b border-border">
                                                 {translate(`teamDivider.seed${seed}`)}
                                                 <span className="ml-1 text-xs text-textSecondary font-normal">({names.length})</span>
@@ -336,7 +336,7 @@ export const TeamDividerPage: React.FC = () => {
                     </div>
                     <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
                         {dividedTeams.length > 0 ? dividedTeams.map(team => (
-                            <div key={team.id} id={`team-box-${team.id}`} className="bg-surface rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col p-5">
+                            <div key={team.id} id={`team-box-${team.id}`} className="bg-surface rounded-2xl shadow-lg transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 flex flex-col p-5">
                                 <h3 className="text-xl font-semibold text-primary mb-3">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
                                 <ul className="space-y-1 text-textPrimary flex-grow mb-3 pr-2 overflow-y-auto max-h-48 custom-scrollbar-thin">
                                     {team.players.length > 0 ? team.players.map(player => (
