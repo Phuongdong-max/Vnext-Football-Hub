@@ -7,6 +7,9 @@ import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
 import { TOURNAMENT_DOC_ID, getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
 import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
+import { Scene3DBoundary } from '../components/three/Scene3DBoundary';
+
+const BallScene = React.lazy(() => import('../components/three/BallScene'));
 
 
 // --- SVG & Asset Components (Embedded for portability) ---
@@ -115,7 +118,7 @@ const useCountdown = (targetDate: string) => {
 
 const CountdownDisplay: React.FC<{ time: number; label: string }> = ({ time, label }) => (
     <div className="flex flex-col items-center">
-        <span className="text-4xl sm:text-5xl font-black text-black tracking-tighter">{String(time).padStart(2, '0')}</span>
+        <span className="text-4xl sm:text-5xl font-black text-black tracking-tighter font-display tabular-nums">{String(time).padStart(2, '0')}</span>
         <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{label}</span>
     </div>
 );
@@ -185,6 +188,12 @@ export const CountdownPage: React.FC = () => {
     return (
       <>
         <div className="flex-grow w-full bg-[#f4efe8] flex items-center justify-center relative overflow-hidden p-4">
+            <Scene3DBoundary
+              className="absolute inset-0 z-0"
+              fallback={<div className="absolute inset-0 bg-gradient-to-b from-background to-surface" />}
+            >
+              <BallScene />
+            </Scene3DBoundary>
             <DotPatternAccent position="top-left" />
             <DotPatternAccent position="top-right" />
             <DotPatternAccent position="bottom-left" />
