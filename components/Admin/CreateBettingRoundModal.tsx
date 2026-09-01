@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { FootballMatch, League, OddsData } from '../../types';
 import { Modal } from '../shared/Modal';
@@ -7,22 +6,22 @@ import { PlusCircleIcon, RefreshIcon, PencilAltIcon, ListBulletIcon, CloudIcon, 
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAppContext } from '../../contexts/AppContext';
-import { 
-  fetchAvailableLeaguesFootballData, 
+import {
+  fetchAvailableLeaguesFootballData,
   fetchMatchesByDateAndLeague,
   fetchLeaguesFromOddsApi,
   fetchMatchesFromOddsApi,
   checkIsFootballDataApiAvailable,
-  checkIsTheOddsApiAvailable
+  checkIsTheOddsApiAvailable,
 } from '../../services/footballApiService';
 
 interface CreateBettingRoundModalProps {
   isOpen: boolean;
   onClose: () => void;
-  leagues: League[]; 
-  fetchMatchesFunction: (date: string, leagueCode: string) => Promise<FootballMatch[]>; 
+  leagues: League[];
+  fetchMatchesFunction: (date: string, leagueCode: string) => Promise<FootballMatch[]>;
   onCreateRound: (matchToCreate: FootballMatch) => void;
-  isDataLoading: boolean; 
+  isDataLoading: boolean;
 }
 
 type CreationMode = 'api' | 'manual';
@@ -45,17 +44,19 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
 
   const [creationMode, setCreationMode] = useState<CreationMode>('api');
   const [selectedApiSource, setSelectedApiSource] = useState<ApiSource>('football-data.org');
-  
-  const [availableLeagues, setAvailableLeagues] = useState<League[]>([]);
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string>(''); 
 
-  const [currentFootballDataDate, setCurrentFootballDataDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [availableLeagues, setAvailableLeagues] = useState<League[]>([]);
+  const [selectedLeagueId, setSelectedLeagueId] = useState<string>('');
+
+  const [currentFootballDataDate, setCurrentFootballDataDate] = useState<string>(
+    new Date().toISOString().split('T')[0],
+  );
   const [oddsApiCommenceTimeToDate, setOddsApiCommenceTimeToDate] = useState<string>(getDefaultOddsApiDate());
-  
+
   const [apiSelectableMatches, setApiSelectableMatches] = useState<FootballMatch[]>([]);
-  const [selectedApiMatchInternalId, setSelectedApiMatchInternalId] = useState<string>(''); 
+  const [selectedApiMatchInternalId, setSelectedApiMatchInternalId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  
+
   const [isLoadingLeagues, setIsLoadingLeagues] = useState<boolean>(false);
   const [isLoadingApiMatches, setIsLoadingApiMatches] = useState<boolean>(false);
   const [apiSelectionError, setApiSelectionError] = useState<string>('');
@@ -71,18 +72,20 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
 
   const resetModalState = useCallback(() => {
     setCreationMode('api');
-    setSelectedApiSource(isFootballDataApiConfigured ? 'football-data.org' : (isTheOddsApiConfigured ? 'the-odds-api' : 'football-data.org'));
-    
+    setSelectedApiSource(
+      isFootballDataApiConfigured ? 'football-data.org' : isTheOddsApiConfigured ? 'the-odds-api' : 'football-data.org',
+    );
+
     setAvailableLeagues([]);
     setSelectedLeagueId('');
     setCurrentFootballDataDate(new Date().toISOString().split('T')[0]);
     setOddsApiCommenceTimeToDate(getDefaultOddsApiDate());
-    
+
     setApiSelectableMatches([]);
     setSelectedApiMatchInternalId('');
     setSearchTerm('');
     setApiSelectionError('');
-    
+
     setManualHomeTeam('');
     setManualAwayTeam('');
     const tomorrow = new Date();
@@ -106,7 +109,7 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
       setIsLoadingLeagues(true);
       setAvailableLeagues([]);
       setSelectedLeagueId('');
-      setApiSelectableMatches([]); 
+      setApiSelectableMatches([]);
       setSelectedApiMatchInternalId('');
       try {
         let fetchedLeagues: League[] = [];
@@ -117,20 +120,36 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
         }
         setAvailableLeagues(fetchedLeagues);
         if (fetchedLeagues.length > 0) {
-          setSelectedLeagueId(fetchedLeagues[0].id); 
+          setSelectedLeagueId(fetchedLeagues[0].id);
         } else {
-            addToast(translate('createBettingRoundModal.info.noLeaguesForSource', {sourceName: selectedApiSource }), 'info');
+          addToast(
+            translate('createBettingRoundModal.info.noLeaguesForSource', { sourceName: selectedApiSource }),
+            'info',
+          );
         }
       } catch (error) {
         console.error(`Error fetching leagues for ${selectedApiSource}:`, error);
-        addToast(translate('createBettingRoundModal.error.fetchLeaguesFailed', { sourceName: selectedApiSource, errorMessage: (error as Error).message }), 'error');
+        addToast(
+          translate('createBettingRoundModal.error.fetchLeaguesFailed', {
+            sourceName: selectedApiSource,
+            errorMessage: (error as Error).message,
+          }),
+          'error',
+        );
       } finally {
         setIsLoadingLeagues(false);
       }
     };
     loadLeagues();
-  }, [isOpen, creationMode, selectedApiSource, addToast, translate, isFootballDataApiConfigured, isTheOddsApiConfigured]);
-
+  }, [
+    isOpen,
+    creationMode,
+    selectedApiSource,
+    addToast,
+    translate,
+    isFootballDataApiConfigured,
+    isTheOddsApiConfigured,
+  ]);
 
   const handleLoadApiMatches = async () => {
     setApiSelectionError('');
@@ -138,7 +157,7 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
       setApiSelectionError(translate('createBettingRoundModal.error.selectLeague'));
       return;
     }
-    
+
     setIsLoadingApiMatches(true);
     setSelectedApiMatchInternalId('');
     setApiSelectableMatches([]);
@@ -158,16 +177,24 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
           setIsLoadingApiMatches(false);
           return;
         }
-        fetchedMatches = await fetchMatchesFromOddsApi(selectedLeagueId, oddsApiCommenceTimeToDate); 
+        fetchedMatches = await fetchMatchesFromOddsApi(selectedLeagueId, oddsApiCommenceTimeToDate);
       }
       setApiSelectableMatches(fetchedMatches);
-      if(fetchedMatches.length === 0){
-        addToast(translate('createBettingRoundModal.info.noMatchesFoundForLeague', { leagueName: availableLeagues.find(l => l.id === selectedLeagueId)?.name || selectedLeagueId }), 'info');
+      if (fetchedMatches.length === 0) {
+        addToast(
+          translate('createBettingRoundModal.info.noMatchesFoundForLeague', {
+            leagueName: availableLeagues.find((l) => l.id === selectedLeagueId)?.name || selectedLeagueId,
+          }),
+          'info',
+        );
       }
     } catch (error) {
-      console.error("Error fetching matches in modal:", error);
-      setApiSelectableMatches([]); 
-      addToast(translate('createBettingRoundModal.error.fetchMatchesGeneric', {errorMessage: (error as Error).message}), 'error');
+      console.error('Error fetching matches in modal:', error);
+      setApiSelectableMatches([]);
+      addToast(
+        translate('createBettingRoundModal.error.fetchMatchesGeneric', { errorMessage: (error as Error).message }),
+        'error',
+      );
     } finally {
       setIsLoadingApiMatches(false);
     }
@@ -187,22 +214,22 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
   };
 
   const handleSubmit = () => {
-    setApiSelectionError(''); 
-    setManualInputError(''); 
-    
+    setApiSelectionError('');
+    setManualInputError('');
+
     if (creationMode === 'api') {
       if (!selectedApiMatchInternalId) {
         setApiSelectionError(translate('createBettingRoundModal.error.selectMatchFromApi'));
         return;
       }
-      const selectedMatch = apiSelectableMatches.find(m => m.id === selectedApiMatchInternalId); 
+      const selectedMatch = apiSelectableMatches.find((m) => m.id === selectedApiMatchInternalId);
       if (selectedMatch) {
-        onCreateRound(selectedMatch); 
+        onCreateRound(selectedMatch);
         onClose();
       } else {
         setApiSelectionError(translate('createBettingRoundModal.error.selectedMatchNotFound'));
       }
-    } else { 
+    } else {
       if (!validateManualInputs()) return;
       const newManualMatch: FootballMatch = {
         id: `manual_${Date.now()}_${Math.random().toString(16).slice(2)}`,
@@ -210,31 +237,37 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
         awayTeam: manualAwayTeam.trim(),
         startTime: new Date(manualStartTime),
         league: manualLeagueName.trim(),
-        apiSource: 'manual', 
+        apiSource: 'manual',
       };
       onCreateRound(newManualMatch);
       onClose();
     }
   };
 
-  const filteredMatchesForSelection = apiSelectableMatches.filter(match =>
-    match.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    match.awayTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    match.league.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  
-  const inputBaseClasses = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500";
+  const filteredMatchesForSelection = apiSelectableMatches
+    .filter(
+      (match) =>
+        match.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.awayTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.league.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  const inputBaseClasses =
+    'w-full px-3 py-2 border border-border rounded-md shadow-orange-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-card text-foreground placeholder:text-muted-foreground dark:placeholder-slate-500';
   const selectBaseClasses = `${inputBaseClasses} appearance-none`;
 
   const renderApiMode = () => (
     <>
       <div className="mb-4">
-        <label className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.api.selectSourceLabel')}</label>
+        <label className="block text-sm font-medium text-foreground mb-1">
+          {translate('createBettingRoundModal.api.selectSourceLabel')}
+        </label>
         <div className="flex space-x-2">
           {isFootballDataApiConfigured && (
-            <Button 
+            <Button
               onClick={() => setSelectedApiSource('football-data.org')}
-              variant={selectedApiSource === 'football-data.org' ? 'primary' : 'outline'}
+              variant={selectedApiSource === 'football-data.org' ? 'soft' : 'outline'}
               size="sm"
               disabled={isLoadingLeagues || isLoadingApiMatches || isParentDataLoading}
             >
@@ -242,9 +275,9 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
             </Button>
           )}
           {isTheOddsApiConfigured && (
-            <Button 
+            <Button
               onClick={() => setSelectedApiSource('the-odds-api')}
-              variant={selectedApiSource === 'the-odds-api' ? 'primary' : 'outline'}
+              variant={selectedApiSource === 'the-odds-api' ? 'soft' : 'outline'}
               size="sm"
               disabled={isLoadingLeagues || isLoadingApiMatches || isParentDataLoading}
             >
@@ -253,41 +286,67 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
           )}
         </div>
         {!isFootballDataApiConfigured && !isTheOddsApiConfigured && (
-             <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 italic">{translate('createBettingRoundModal.warning.noApisConfigured')}</p>
+          <p className="text-xs text-vnext-amber mt-1 italic">
+            {translate('createBettingRoundModal.warning.noApisConfigured')}
+          </p>
         )}
       </div>
 
-      <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-md space-y-3 bg-gray-50 dark:bg-slate-800/60">
-        <h4 className="text-md font-semibold text-textPrimary">
-          {translate(selectedApiSource === 'football-data.org' ? 'createBettingRoundModal.api.titleFootballData' : 'createBettingRoundModal.api.titleTheOddsApi')}
+      <div className="p-4 border border-border rounded-md space-y-3 bg-muted/50 /60">
+        <h4 className="text-md font-semibold text-foreground">
+          {translate(
+            selectedApiSource === 'football-data.org'
+              ? 'createBettingRoundModal.api.titleFootballData'
+              : 'createBettingRoundModal.api.titleTheOddsApi',
+          )}
         </h4>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
           <div>
-            <label htmlFor="leagueSelectApi" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.api.selectLeagueLabel')}</label>
+            <label htmlFor="leagueSelectApi" className="block text-sm font-medium text-foreground mb-1">
+              {translate('createBettingRoundModal.api.selectLeagueLabel')}
+            </label>
             <select
               id="leagueSelectApi"
               value={selectedLeagueId}
-              onChange={(e) => { setSelectedLeagueId(e.target.value); setApiSelectableMatches([]); setSelectedApiMatchInternalId(''); }}
+              onChange={(e) => {
+                setSelectedLeagueId(e.target.value);
+                setApiSelectableMatches([]);
+                setSelectedApiMatchInternalId('');
+              }}
               className={selectBaseClasses}
               disabled={availableLeagues.length === 0 || isLoadingLeagues || isLoadingApiMatches || isParentDataLoading}
             >
-              <option value="" disabled className="text-gray-500 dark:text-slate-500">{translate('createBettingRoundModal.api.selectLeagueDefault')}</option>
-              {availableLeagues.map(league => (
-                <option key={league.id} value={league.id} className="text-textPrimary dark:text-slate-100">{league.name}</option>
+              <option value="" disabled className="text-muted-foreground">
+                {translate('createBettingRoundModal.api.selectLeagueDefault')}
+              </option>
+              {availableLeagues.map((league) => (
+                <option key={league.id} value={league.id} className="text-foreground ">
+                  {league.name}
+                </option>
               ))}
             </select>
-            {isLoadingLeagues && <p className="text-xs text-textSecondary mt-1"><LoadingSpinner size="sm" /> {translate('createBettingRoundModal.api.loadingLeagues')}</p>}
+            {isLoadingLeagues && (
+              <p className="text-xs text-muted-foreground mt-1">
+                <LoadingSpinner size="sm" /> {translate('createBettingRoundModal.api.loadingLeagues')}
+              </p>
+            )}
           </div>
 
           {selectedApiSource === 'football-data.org' && (
             <div>
-              <label htmlFor="dateSelectApiFootballData" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.api.selectDateLabel')}</label>
+              <label htmlFor="dateSelectApiFootballData" className="block text-sm font-medium text-foreground mb-1">
+                {translate('createBettingRoundModal.api.selectDateLabel')}
+              </label>
               <input
                 type="date"
                 id="dateSelectApiFootballData"
                 value={currentFootballDataDate}
-                onChange={(e) => { setCurrentFootballDataDate(e.target.value); setApiSelectableMatches([]); setSelectedApiMatchInternalId('');}}
+                onChange={(e) => {
+                  setCurrentFootballDataDate(e.target.value);
+                  setApiSelectableMatches([]);
+                  setSelectedApiMatchInternalId('');
+                }}
                 className={`${inputBaseClasses} dark:[color-scheme:dark]`}
                 disabled={isLoadingLeagues || isLoadingApiMatches || isParentDataLoading}
               />
@@ -295,51 +354,65 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
           )}
 
           {selectedApiSource === 'the-odds-api' && (
-             <div>
-              <label htmlFor="dateSelectApiOddsApi" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.api.selectDateOddsApiLabel')}</label>
+            <div>
+              <label htmlFor="dateSelectApiOddsApi" className="block text-sm font-medium text-foreground mb-1">
+                {translate('createBettingRoundModal.api.selectDateOddsApiLabel')}
+              </label>
               <input
                 type="date"
                 id="dateSelectApiOddsApi"
                 value={oddsApiCommenceTimeToDate}
-                onChange={(e) => { setOddsApiCommenceTimeToDate(e.target.value); setApiSelectableMatches([]); setSelectedApiMatchInternalId('');}}
+                onChange={(e) => {
+                  setOddsApiCommenceTimeToDate(e.target.value);
+                  setApiSelectableMatches([]);
+                  setSelectedApiMatchInternalId('');
+                }}
                 className={`${inputBaseClasses} dark:[color-scheme:dark]`}
                 disabled={isLoadingLeagues || isLoadingApiMatches || isParentDataLoading}
               />
             </div>
           )}
-          
-          <div className={(selectedApiSource === 'football-data.org' || selectedApiSource === 'the-odds-api') ? '' : 'sm:col-span-2'}>
-             <Button
-                onClick={handleLoadApiMatches}
-                disabled={
-                    !selectedLeagueId || 
-                    isLoadingLeagues || 
-                    isLoadingApiMatches || 
-                    isParentDataLoading || 
-                    (selectedApiSource === 'football-data.org' && !currentFootballDataDate) ||
-                    (selectedApiSource === 'the-odds-api' && !oddsApiCommenceTimeToDate)
-                }
-                fullWidth
-                variant="secondary"
-             >
-                {isLoadingApiMatches ? <LoadingSpinner size="sm" className="mr-2" /> : <RefreshIcon className="w-5 h-5 mr-2"/>}
-                {translate('createBettingRoundModal.api.button.loadMatches')}
-             </Button>
-          </div>
-        </div>
-        {apiSelectionError && 
-            (
-                !selectedLeagueId || 
+
+          <div
+            className={
+              selectedApiSource === 'football-data.org' || selectedApiSource === 'the-odds-api' ? '' : 'sm:col-span-2'
+            }
+          >
+            <Button
+              onClick={handleLoadApiMatches}
+              disabled={
+                !selectedLeagueId ||
+                isLoadingLeagues ||
+                isLoadingApiMatches ||
+                isParentDataLoading ||
                 (selectedApiSource === 'football-data.org' && !currentFootballDataDate) ||
                 (selectedApiSource === 'the-odds-api' && !oddsApiCommenceTimeToDate)
-            ) && 
-            <p className="text-sm text-danger mt-1">{apiSelectionError}</p>
-        }
+              }
+              fullWidth
+              variant="secondary"
+            >
+              {isLoadingApiMatches ? (
+                <LoadingSpinner size="sm" className="mr-2" />
+              ) : (
+                <RefreshIcon className="w-5 h-5 mr-2" />
+              )}
+              {translate('createBettingRoundModal.api.button.loadMatches')}
+            </Button>
+          </div>
+        </div>
+        {apiSelectionError &&
+          (!selectedLeagueId ||
+            (selectedApiSource === 'football-data.org' && !currentFootballDataDate) ||
+            (selectedApiSource === 'the-odds-api' && !oddsApiCommenceTimeToDate)) && (
+            <p className="text-sm text-danger-text mt-1">{apiSelectionError}</p>
+          )}
       </div>
 
       <>
         <div>
-          <label htmlFor="matchSearch" className="block text-sm font-medium text-textPrimary mb-1 mt-3">{translate('createBettingRoundModal.api.searchMatchesLabel')}</label>
+          <label htmlFor="matchSearch" className="block text-sm font-medium text-foreground mb-1 mt-3">
+            {translate('createBettingRoundModal.api.searchMatchesLabel')}
+          </label>
           <input
             type="text"
             id="matchSearch"
@@ -352,65 +425,113 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
         </div>
 
         <div>
-          <label htmlFor="matchSelect" className="block text-sm font-medium text-textPrimary mb-1 mt-2">
+          <label htmlFor="matchSelect" className="block text-sm font-medium text-foreground mb-1 mt-2">
             {translate('createBettingRoundModal.api.selectMatchLabel')}
           </label>
-          {(isLoadingApiMatches) && <div className="text-center py-2 text-textSecondary"><LoadingSpinner /> <span className="ml-2">{translate('createBettingRoundModal.api.loadingMatches')}</span></div>}
-          {(!isLoadingApiMatches && apiSelectableMatches.length === 0 && !apiSelectionError && !isLoadingLeagues) && ( 
-            <p className="text-sm text-textSecondary text-center py-2 italic p-3 bg-gray-50 dark:bg-slate-700/50 rounded-md">
-                {selectedLeagueId ? translate('createBettingRoundModal.api.noMatchesLoadedOrFound') : translate('createBettingRoundModal.api.selectLeagueFirst') }
+          {isLoadingApiMatches && (
+            <div className="text-center py-2 text-muted-foreground">
+              <LoadingSpinner /> <span className="ml-2">{translate('createBettingRoundModal.api.loadingMatches')}</span>
+            </div>
+          )}
+          {!isLoadingApiMatches && apiSelectableMatches.length === 0 && !apiSelectionError && !isLoadingLeagues && (
+            <p className="text-sm text-muted-foreground text-center py-2 italic p-3 bg-muted/50 /50 rounded-md">
+              {selectedLeagueId
+                ? translate('createBettingRoundModal.api.noMatchesLoadedOrFound')
+                : translate('createBettingRoundModal.api.selectLeagueFirst')}
             </p>
           )}
-          {(!isLoadingApiMatches && apiSelectableMatches.length > 0 && filteredMatchesForSelection.length === 0 && searchTerm) && (
-            <p className="text-sm text-textSecondary text-center py-2 italic p-3 bg-gray-50 dark:bg-slate-700/50 rounded-md">
+          {!isLoadingApiMatches &&
+            apiSelectableMatches.length > 0 &&
+            filteredMatchesForSelection.length === 0 &&
+            searchTerm && (
+              <p className="text-sm text-muted-foreground text-center py-2 italic p-3 bg-muted/50 /50 rounded-md">
                 {translate('createBettingRoundModal.api.noMatchesFoundForSearch', { searchTerm })}
-            </p>
-          )}
+              </p>
+            )}
           <select
             id="matchSelect"
             value={selectedApiMatchInternalId}
             onChange={(e) => setSelectedApiMatchInternalId(e.target.value)}
             className={`${selectBaseClasses} overflow-y-auto`}
             disabled={filteredMatchesForSelection.length === 0 || isLoadingApiMatches}
-            size={Math.min(5, Math.max(1,filteredMatchesForSelection.length || 1))}
+            size={Math.min(5, Math.max(1, filteredMatchesForSelection.length || 1))}
           >
-            <option value="" disabled className="text-gray-500 dark:text-slate-500">{translate('createBettingRoundModal.api.selectMatchDefault')}</option>
-            {filteredMatchesForSelection.map(match => (
-              <option key={match.id} value={match.id} className="text-textPrimary dark:text-slate-200 p-1.5 hover:bg-primary/10">
-                {new Date(match.startTime).toLocaleDateString()} @ {new Date(match.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {match.homeTeam} vs {match.awayTeam} ({match.league})
+            <option value="" disabled className="text-muted-foreground">
+              {translate('createBettingRoundModal.api.selectMatchDefault')}
+            </option>
+            {filteredMatchesForSelection.map((match) => (
+              <option key={match.id} value={match.id} className="text-foreground p-1.5 hover:bg-primary/10">
+                {new Date(match.startTime).toLocaleDateString()} @{' '}
+                {new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
+                {match.homeTeam} vs {match.awayTeam} ({match.league})
               </option>
             ))}
           </select>
-          {apiSelectionError && !selectedApiMatchInternalId && <p className="text-sm text-danger mt-1">{apiSelectionError}</p>}
+          {apiSelectionError && !selectedApiMatchInternalId && (
+            <p className="text-sm text-danger-text mt-1">{apiSelectionError}</p>
+          )}
         </div>
       </>
     </>
   );
 
   const renderManualMode = () => (
-    <div className="space-y-3 p-4 border border-gray-200 dark:border-slate-700 rounded-md bg-gray-50 dark:bg-slate-800/60">
-      <h4 className="text-md font-semibold text-textPrimary mb-2">{translate('createBettingRoundModal.manual.title')}</h4>
+    <div className="space-y-3 p-4 border border-border rounded-md bg-muted/50 /60">
+      <h4 className="text-md font-semibold text-foreground mb-2">
+        {translate('createBettingRoundModal.manual.title')}
+      </h4>
       <div>
-        <label htmlFor="manualHomeTeam" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.manual.homeTeamLabel')}</label>
-        <input type="text" id="manualHomeTeam" value={manualHomeTeam} onChange={(e) => setManualHomeTeam(e.target.value)}
-               className={inputBaseClasses} placeholder={translate('createBettingRoundModal.manual.homeTeamPlaceholder')} />
+        <label htmlFor="manualHomeTeam" className="block text-sm font-medium text-foreground mb-1">
+          {translate('createBettingRoundModal.manual.homeTeamLabel')}
+        </label>
+        <input
+          type="text"
+          id="manualHomeTeam"
+          value={manualHomeTeam}
+          onChange={(e) => setManualHomeTeam(e.target.value)}
+          className={inputBaseClasses}
+          placeholder={translate('createBettingRoundModal.manual.homeTeamPlaceholder')}
+        />
       </div>
       <div>
-        <label htmlFor="manualAwayTeam" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.manual.awayTeamLabel')}</label>
-        <input type="text" id="manualAwayTeam" value={manualAwayTeam} onChange={(e) => setManualAwayTeam(e.target.value)}
-               className={inputBaseClasses} placeholder={translate('createBettingRoundModal.manual.awayTeamPlaceholder')} />
+        <label htmlFor="manualAwayTeam" className="block text-sm font-medium text-foreground mb-1">
+          {translate('createBettingRoundModal.manual.awayTeamLabel')}
+        </label>
+        <input
+          type="text"
+          id="manualAwayTeam"
+          value={manualAwayTeam}
+          onChange={(e) => setManualAwayTeam(e.target.value)}
+          className={inputBaseClasses}
+          placeholder={translate('createBettingRoundModal.manual.awayTeamPlaceholder')}
+        />
       </div>
       <div>
-        <label htmlFor="manualStartTime" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.manual.startTimeLabel')}</label>
-        <input type="datetime-local" id="manualStartTime" value={manualStartTime} onChange={(e) => setManualStartTime(e.target.value)}
-               className={`${inputBaseClasses} dark:[color-scheme:dark]`} />
+        <label htmlFor="manualStartTime" className="block text-sm font-medium text-foreground mb-1">
+          {translate('createBettingRoundModal.manual.startTimeLabel')}
+        </label>
+        <input
+          type="datetime-local"
+          id="manualStartTime"
+          value={manualStartTime}
+          onChange={(e) => setManualStartTime(e.target.value)}
+          className={`${inputBaseClasses} dark:[color-scheme:dark]`}
+        />
       </div>
       <div>
-        <label htmlFor="manualLeague" className="block text-sm font-medium text-textPrimary mb-1">{translate('createBettingRoundModal.manual.leagueNameLabel')}</label>
-        <input type="text" id="manualLeague" value={manualLeagueName} onChange={(e) => setManualLeagueName(e.target.value)}
-               className={inputBaseClasses} placeholder={translate('createBettingRoundModal.manual.leagueNamePlaceholder')} />
+        <label htmlFor="manualLeague" className="block text-sm font-medium text-foreground mb-1">
+          {translate('createBettingRoundModal.manual.leagueNameLabel')}
+        </label>
+        <input
+          type="text"
+          id="manualLeague"
+          value={manualLeagueName}
+          onChange={(e) => setManualLeagueName(e.target.value)}
+          className={inputBaseClasses}
+          placeholder={translate('createBettingRoundModal.manual.leagueNamePlaceholder')}
+        />
       </div>
-      {manualInputError && <p className="text-sm text-danger">{manualInputError}</p>}
+      {manualInputError && <p className="text-sm text-danger-text">{manualInputError}</p>}
     </div>
   );
 
@@ -418,38 +539,41 @@ export const CreateBettingRoundModal: React.FC<CreateBettingRoundModalProps> = (
     <Modal isOpen={isOpen} onClose={onClose} title={translate('createBettingRoundModal.title')} size="lg">
       <div className="space-y-4">
         <div className="flex space-x-2 border-b border-border pb-3 mb-3">
-            <Button 
-                onClick={() => setCreationMode('api')} 
-                variant={creationMode === 'api' ? 'primary' : 'outline'}
-                size="sm"
-                title={translate('createBettingRoundModal.button.selectFromListTitle')}
-            >
-                <ListBulletIcon className="w-4 h-4 mr-2"/> {translate('createBettingRoundModal.button.selectFromList')}
-            </Button>
-            <Button 
-                onClick={() => setCreationMode('manual')} 
-                variant={creationMode === 'manual' ? 'primary' : 'outline'}
-                size="sm"
-            >
-                <PencilAltIcon className="w-4 h-4 mr-2"/> {translate('createBettingRoundModal.button.enterManually')}
-            </Button>
+          <Button
+            onClick={() => setCreationMode('api')}
+            variant={creationMode === 'api' ? 'soft' : 'outline'}
+            size="sm"
+            title={translate('createBettingRoundModal.button.selectFromListTitle')}
+          >
+            <ListBulletIcon className="w-4 h-4 mr-2" /> {translate('createBettingRoundModal.button.selectFromList')}
+          </Button>
+          <Button
+            onClick={() => setCreationMode('manual')}
+            variant={creationMode === 'manual' ? 'soft' : 'outline'}
+            size="sm"
+          >
+            <PencilAltIcon className="w-4 h-4 mr-2" /> {translate('createBettingRoundModal.button.enterManually')}
+          </Button>
         </div>
 
         {creationMode === 'api' ? renderApiMode() : renderManualMode()}
-        
+
         <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
-          <Button onClick={onClose} variant="secondary">{translate('common.button.cancel')}</Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button onClick={onClose} variant="secondary">
+            {translate('common.button.cancel')}
+          </Button>
+          <Button
+            onClick={handleSubmit}
             disabled={
-              (creationMode === 'api' && !selectedApiMatchInternalId) || 
-              (creationMode === 'manual' && (!manualHomeTeam || !manualAwayTeam || !manualStartTime || !manualLeagueName)) || 
-              isLoadingApiMatches || 
+              (creationMode === 'api' && !selectedApiMatchInternalId) ||
+              (creationMode === 'manual' &&
+                (!manualHomeTeam || !manualAwayTeam || !manualStartTime || !manualLeagueName)) ||
+              isLoadingApiMatches ||
               isLoadingLeagues ||
-              isParentDataLoading 
+              isParentDataLoading
             }
           >
-            <PlusCircleIcon className="w-5 h-5 mr-2"/>
+            <PlusCircleIcon className="w-5 h-5 mr-2" />
             {translate('createBettingRoundModal.button.createRound')}
           </Button>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
@@ -7,111 +7,140 @@ import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
 import { TOURNAMENT_DOC_ID, getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
 import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
+import { StadiumField3D } from '../components/StadiumField3D';
+import { VnextLogo } from '../components/VnextLogo';
+import { Modal } from '../components/shared/Modal';
+import { MapPinIcon, XIcon } from '../components/icons';
 
-
-const diamondSponsors = [
-   "Chủ tịch VNext Holdings\nAnh Trần Ngọc Sơn",
-    "Phó TGD VNext Japan\nAnh Đỗ Văn Hữu"
-];
+const diamondSponsors = ['Chủ tịch VNext Holdings\nAnh Trần Ngọc Sơn', 'Phó TGD VNext Japan\nAnh Đỗ Văn Hữu'];
 
 const platinumSponsors = [
-    "Giám đốc VNext Japan\nAnh Mori Shuhei",
-    "GĐ tài chính VNext Holdings\nAnh Nguyễn Trinh Hiếu",
-    "Trưởng PKD Bu1 VNext Japan\nChị Bùi Thị Huệ",
-    "Trưởng PKD Bu2 VNext Japan\nChị Phạm Đỗ Phương Nga",
-    "Phòng BO VNext Japan\nChị Tạ Thị Thu Hằng"
+  'Giám đốc VNext Japan\nAnh Mori Shuhei',
+  'GĐ tài chính VNext Holdings\nAnh Nguyễn Trinh Hiếu',
+  'Trưởng PKD Bu1 VNext Japan\nChị Bùi Thị Huệ',
+  'Trưởng PKD Bu2 VNext Japan\nChị Phạm Đỗ Phương Nga',
+  'Phòng BO VNext Japan\nChị Tạ Thị Thu Hằng',
 ];
 
 const goldSponsors = [
-    "Giám đốc VNext Software\nAnh Hoàng Hải",
-    "Phòng kinh doanh\nChị Nguyễn Thị Thu Huyền",
-    "Phòng phát triển\nAnh Nguyễn Thanh Tùng"
+  'Giám đốc VNext Software\nAnh Hoàng Hải',
+  'Phòng kinh doanh\nChị Nguyễn Thị Thu Huyền',
+  'Phòng phát triển\nAnh Nguyễn Thanh Tùng',
 ];
 
+/** Một hạng tài trợ. Phân cấp bằng cỡ chữ và khoảng trắng, không bằng màu cầu vồng. */
+const SponsorTier: React.FC<{
+  label: string;
+  sponsors: string[];
+  tone: 'diamond' | 'platinum' | 'gold';
+  onSelect: (sponsor: string) => void;
+}> = ({ label, sponsors, tone, onSelect }) => {
+  if (sponsors.length === 0) return null;
+
+  const tierStyles = {
+    diamond: {
+      heading: 'text-base',
+      badge: 'btn-gradient',
+      card: 'p-5 text-base bg-card border-primary/25 shadow-orange-md',
+    },
+    platinum: {
+      heading: 'text-sm',
+      badge: 'bg-primary/10 text-vnext-deep dark:text-primary',
+      card: 'p-4 text-sm bg-card border-border shadow-orange-sm',
+    },
+    gold: {
+      heading: 'text-sm',
+      badge: 'bg-muted text-muted-foreground',
+      card: 'p-3 text-sm bg-card/80 border-border shadow-orange-sm',
+    },
+  }[tone];
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center justify-center gap-3 mb-5">
+        <span
+          className={`inline-flex items-center h-[22px] px-2.5 rounded-full text-xs font-semibold ${tierStyles.badge}`}
+        >
+          {label}
+        </span>
+        <span className="h-px flex-1 max-w-[120px] bg-border" aria-hidden="true" />
+      </div>
+      <div className="flex flex-wrap justify-center items-stretch gap-3 sm:gap-4">
+        {sponsors.map((sponsor) => (
+          <button
+            key={sponsor}
+            onClick={() => onSelect(sponsor)}
+            className={`rounded-lg border font-medium whitespace-pre-line text-center text-foreground
+ card-hover-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50
+                                    ${tierStyles.card} ${tierStyles.heading}`}
+          >
+            {sponsor}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 export const LandingPage: React.FC = () => {
-    const { translate } = useLanguage();
-    const { isFirebaseReady, addToast } = useAppContext();
-    const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-    const [isThankYouModalOpen, setIsThankYouModalOpen] = useState(false);
-    const [selectedSponsor, setSelectedSponsor] = useState('');
-    
-    const [tournament, setTournament] = useState<Tournament | null>(null);
-    const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
-    const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
-    const [selectedTeam, setSelectedTeam] = useState<TournamentTeam | null>(null);
-    const [isPlayerDetailModalOpen, setIsPlayerDetailModalOpen] = useState(false);
-    const [selectedPlayer, setSelectedPlayer] = useState<TournamentPlayer | null>(null);
+  const { translate } = useLanguage();
+  const { isFirebaseReady, addToast } = useAppContext();
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isThankYouModalOpen, setIsThankYouModalOpen] = useState(false);
+  const [selectedSponsor, setSelectedSponsor] = useState('');
 
-    const containerRef = useRef<HTMLDivElement>(null);
-    const contentRef = useRef<HTMLDivElement>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<TournamentTeam | null>(null);
+  const [isPlayerDetailModalOpen, setIsPlayerDetailModalOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<TournamentPlayer | null>(null);
 
-    useEffect(() => {
-        if (!isFirebaseReady) return;
-        const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
-        const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
-        return () => {
-            unsubTournament();
-            unsubPlayers();
-        };
-    }, [isFirebaseReady]);
-
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!containerRef.current || !contentRef.current) return;
-
-            const { clientX, clientY } = e;
-            const { innerWidth, innerHeight } = window;
-            
-            const xOffset = (clientX / innerWidth - 0.5) * -1; // Invert for natural feel
-            const yOffset = (clientY / innerHeight - 0.5) * -1;
-
-            // Apply a much more subtle parallax effect
-            containerRef.current.style.backgroundPosition = `calc(50% + ${xOffset * 8}px) calc(50% + ${yOffset * 8}px)`;
-            contentRef.current.style.transform = `translate(${xOffset * 4}px, ${yOffset * 4}px)`;
-        };
-
-        window.addEventListener('mousemove', handleMouseMove);
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-        };
-    }, []);
-
-    const handleSponsorClick = (sponsorName: string) => {
-        setSelectedSponsor(sponsorName);
-        setIsThankYouModalOpen(true);
+  useEffect(() => {
+    if (!isFirebaseReady) return;
+    const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
+    const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
+    return () => {
+      unsubTournament();
+      unsubPlayers();
     };
+  }, [isFirebaseReady]);
 
-    const handleTeamClick = (teamName: string) => {
-        if (!tournament || !tournament.teams || tournament.teams.length === 0) {
-            addToast('tournament.loading', 'info');
-            return;
-        }
+  const handleSponsorClick = (sponsorName: string) => {
+    setSelectedSponsor(sponsorName);
+    setIsThankYouModalOpen(true);
+  };
 
-        const liveTeam = tournament.teams.find(t => {
-            const styleForClickedName = getTeamStyle(teamName);
-            const styleForLiveTeam = getTeamStyle(t.name);
-            return styleForClickedName.imageSrc === styleForLiveTeam.imageSrc;
-        });
+  const handleTeamClick = (teamName: string) => {
+    if (!tournament || !tournament.teams || tournament.teams.length === 0) {
+      addToast('tournament.loading', 'info');
+      return;
+    }
 
-        if (liveTeam) {
-            setSelectedTeam(liveTeam);
-            setIsTeamModalOpen(true);
-        } else {
-            console.warn(`Could not find live data for team: ${teamName}`);
-        }
-    };
+    const liveTeam = tournament.teams.find((t) => {
+      const styleForClickedName = getTeamStyle(teamName);
+      const styleForLiveTeam = getTeamStyle(t.name);
+      return styleForClickedName.imageSrc === styleForLiveTeam.imageSrc;
+    });
 
-    const handlePlayerSelect = (player: TournamentPlayer) => {
-        setSelectedPlayer(player);
-        setIsTeamModalOpen(false); // Close team modal
-        setIsPlayerDetailModalOpen(true); // Open player detail modal
-    };
+    if (liveTeam) {
+      setSelectedTeam(liveTeam);
+      setIsTeamModalOpen(true);
+    } else {
+      console.warn(`Could not find live data for team: ${teamName}`);
+    }
+  };
 
-    const mailtoHref = `mailto:manhnv@vnext.vn?subject=${encodeURIComponent(
-        'V/v: Đề Nghị Hợp Tác Tài Trợ Giải Bóng Đá VNEXT JAPAN OPEN CUP'
-    )}&body=${encodeURIComponent(
-        `Kính gửi Anh Mạnh,
+  const handlePlayerSelect = (player: TournamentPlayer) => {
+    setSelectedPlayer(player);
+    setIsTeamModalOpen(false);
+    setIsPlayerDetailModalOpen(true);
+  };
+
+  const mailtoHref = `mailto:manhnv@vnext.vn?subject=${encodeURIComponent(
+    'V/v: Đề Nghị Hợp Tác Tài Trợ Giải Bóng Đá VNEXT JAPAN OPEN CUP',
+  )}&body=${encodeURIComponent(
+    `Kính gửi Anh Mạnh,
 
 Tôi là [Tên của bạn], đại diện cho [Tên công ty/Tổ chức của bạn].
 
@@ -126,301 +155,222 @@ Trân trọng,
 [Tên của bạn]
 [Chức vụ]
 [Tên công ty/Tổ chức]
-[Thông tin liên hệ (Số điện thoại, email)]`
-    )}`;
-    
-    const teamDataForDisplay = FALLBACK_TEAMS_FOR_DISPLAY.map(fallbackTeam => {
-        const style = getTeamStyle(fallbackTeam.name);
-        return {
-            ...fallbackTeam,
-            image: style.imageSrc,
-        };
-    });
+[Thông tin liên hệ (Số điện thoại, email)]`,
+  )}`;
+
+  const teamDataForDisplay = FALLBACK_TEAMS_FOR_DISPLAY.map((fallbackTeam) => ({
+    ...fallbackTeam,
+    image: getTeamStyle(fallbackTeam.name).imageSrc,
+  }));
 
   return (
     <>
-      <div 
-        ref={containerRef}
-        className="min-h-screen bg-cover bg-center text-white font-sans overflow-hidden transition-all duration-500 ease-out" 
-        style={{ backgroundImage: "url('assets/stadium-bg.jpg')" }}
-      >
-        <div className="min-h-screen bg-black/40 backdrop-blur-[2px] p-4 sm:p-6 flex flex-col relative overflow-hidden shine-effect">
-          <div ref={contentRef} className="flex flex-col flex-grow transition-transform duration-500 ease-out relative z-10">
+      <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
+        {/* Nền 3D — vùng chuyển động duy nhất của màn này */}
+        <StadiumField3D />
 
-            {/* Header */}
-            <header 
-              className="flex flex-col md:flex-row justify-between items-center md:items-start text-xs sm:text-sm gap-y-4 gap-x-4 w-full will-animate"
-              style={{ animation: 'fadeInUp 0.6s ease-out forwards' }}
-            >
-              <div className="flex flex-col items-center text-center gap-2 w-full md:w-1/3 order-2 md:order-1">
-                <p className="font-bold uppercase">Đơn vị tổ chức</p>
-                <img src="assets/vnext.png" alt="VNEXT Logo" className="w-24 h-auto" />
-              </div>
-              <div className="text-center w-full md:w-1/3 order-1 md:order-2 flex flex-col items-center gap-1">
-                <span className="font-bold bg-white text-black px-3 py-1 rounded-md text-sm">VNEXT JAPAN株式会社</span>
-                <p>GIẢI BÓNG ĐÁ NỘI BỘ</p>
-                <p>CHÀO MỪNG KỈ NIỆM 8 NĂM THÀNH LẬP VNEXT JAPAN</p>
-              </div>
-              <div className="flex flex-col items-center text-center gap-2 w-full md:w-1/3 order-3">
-                <p className="font-bold uppercase">Đơn vị đăng cai</p>
-                <img src="assets/dang-cai-logo.png" alt="Đơn vị đăng cai" className="w-16 h-16 sm:w-20 sm:h-20" />
-              </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="flex-grow flex flex-col items-center justify-center text-center my-8">
-              <div 
-                className="will-animate"
-                style={{ animation: 'fadeInUp 0.6s ease-out 0.2s forwards' }}
-              >
-                <div className="relative bg-black py-2 sm:py-4 px-8 sm:px-24 border-4 sm:border-8 border-orange-400 -skew-x-12 shadow-2xl transition-all duration-300 hover:scale-[1.03] hover:shadow-lg hover:shadow-orange-400/40">
-                  <div className="absolute -top-3 -left-10 sm:-top-4 sm:-left-12 w-6 h-6 sm:w-8 sm:h-8 bg-purple-600"></div>
-                  <div className="absolute -bottom-3 -right-10 sm:-bottom-4 sm:-right-12 w-6 h-6 sm:w-8 sm:h-8 bg-purple-600"></div>
-                  <h1 className="text-3xl sm:text-6xl font-black tracking-wider skew-x-12">VNEXT JAPAN</h1>
-                  <h2 className="text-4xl sm:text-7xl font-black text-orange-400 tracking-wider skew-x-12">OPEN CUP</h2>
-                </div>
-                <div className="mt-8">
-                  <h3 className="text-4xl sm:text-6xl font-extrabold tracking-tight">TỨ HÙNG TRANH ĐẤU</h3>
-                  <p className="mt-2 text-lg sm:text-2xl font-semibold text-gray-200">Khát vọng bứt phá - Kết nối đam mê</p>
-                </div>
-              </div>
-
-              <div 
-                className="flex flex-wrap justify-center items-start gap-x-4 gap-y-8 sm:gap-x-8 mt-12 will-animate"
-                style={{ animation: 'fadeInUp 0.6s ease-out 0.4s forwards' }}
-              >
-                {teamDataForDisplay.map(team => (
-                  <button key={team.id} onClick={() => handleTeamClick(team.name)} className="flex flex-col items-center gap-3 group">
-                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-orange-400 p-2 transform transition-all duration-300 group-hover:scale-110 group-hover:shadow-2xl group-hover:[filter:drop-shadow(0_0_15px_rgba(255,193,7,0.6))]">
-                      <div className="w-full h-full rounded-full bg-white/20 flex items-center justify-center">
-                          <img src={team.image} alt={team.name} className="w-[170%] h-[170%] object-contain" />
-                      </div>
-                    </div>
-                    <p className="font-bold text-lg bg-black/30 px-3 py-1 rounded-md transition-colors duration-300 group-hover:bg-black/60">{team.name}</p>
-                  </button>
-                ))}
-              </div>
-                
-              <div 
-                className="mt-12 will-animate"
-                style={{ animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}
-              >
-                {diamondSponsors.length > 0 && (
-                    <div className="mb-8">
-                        <h4 className="font-extrabold text-2xl border-b-2 border-purple-400 text-purple-300 inline-block px-4 pb-1 mb-4 text-center">
-                            NHÀ TÀI TRỢ KIM CƯƠNG
-                        </h4>
-                        <div className="flex flex-wrap justify-center items-center gap-4 text-sm sm:text-base font-semibold whitespace-pre-line text-center">
-                            {diamondSponsors.map(sponsor => (
-                                <button key={sponsor} onClick={() => handleSponsorClick(sponsor)} className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-2 border-purple-300 p-4 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-400/40 text-center">{sponsor}</button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                {platinumSponsors.length > 0 && (
-                    <div className="mb-8">
-                        <h4 className="font-extrabold text-xl border-b-2 border-slate-300 text-slate-100 inline-block px-4 pb-1 mb-4 text-center">
-                            NHÀ TÀI TRỢ BẠCH KIM
-                        </h4>
-                        <div className="flex flex-wrap justify-center items-center gap-4 text-sm sm:text-base font-bold whitespace-pre-line text-center">
-                            {platinumSponsors.map(sponsor => (
-                                <button key={sponsor} onClick={() => handleSponsorClick(sponsor)} className="bg-gradient-to-br from-slate-200 to-slate-400 text-black border-2 border-slate-100 p-3 rounded-lg shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-slate-300/40 text-center">{sponsor}</button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                {goldSponsors.length > 0 && (
-                    <div className="mb-8">
-                        <h4 className="font-extrabold text-lg border-b-2 border-yellow-400 text-yellow-300 inline-block px-4 pb-1 mb-4 text-center">
-                            NHÀ TÀI TRỢ VÀNG
-                        </h4>
-                        <div className="flex flex-wrap justify-center items-center gap-4 text-sm sm:text-base font-semibold whitespace-pre-line text-center">
-                            {goldSponsors.map(sponsor => (
-                                <button key={sponsor} onClick={() => handleSponsorClick(sponsor)} className="bg-gradient-to-br from-yellow-300 to-yellow-500 text-black border-2 border-yellow-300 p-2 rounded-md shadow-md transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-400/30 text-center">{sponsor}</button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-              </div>
-            </main>
-            
-            {/* Footer Info */}
-            <footer 
-              className="mt-auto pt-8 flex flex-col md:flex-row md:justify-between items-center gap-6 text-sm w-full will-animate"
-              style={{ animation: 'fadeInUp 0.6s ease-out 0.8s forwards' }}
-            >
-              <button 
-                  onClick={() => setIsLocationModalOpen(true)}
-                  className="bg-orange-400 text-black p-4 rounded-lg shadow-lg flex flex-col justify-center text-center md:w-auto h-full transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-orange-400/40"
-              >
-                <p className="font-bold text-lg">Sân bonera FUTSAL FIELD,</p>
-                <p className="font-semibold text-base">15:00-18:00 Ngày 04.10.2025</p>
-              </button>
-                <a 
-                  href={mailtoHref} 
-                  className="bg-orange-400 text-black p-4 rounded-lg shadow-lg flex flex-col justify-center text-center md:w-auto h-full transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-orange-400/40"
-                >
-                    <p className="font-bold text-lg">Tài trợ xin liên hệ</p>
-                    <p className="font-semibold text-base">manhnv@vnext.vn</p>
-                </a>
-            </footer>
-
-            {/* Navigation Button */}
-            <div 
-              className="text-center mt-8 will-animate"
-              style={{ animation: 'fadeInUp 0.6s ease-out 1s forwards' }}
-            >
-                <Link to="/home" className="inline-block bg-white text-orange-500 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-gray-200 transition-all duration-300 text-lg transform hover:scale-105 hover:shadow-2xl hover:shadow-white/30">
-                    {translate('landing.enterAppButton')}
-                </Link>
+        <div className="relative z-10 flex flex-col min-h-screen px-4 sm:px-6 py-6">
+          {/* Đơn vị tổ chức / tên giải / đơn vị đăng cai */}
+          <header className="w-full grid grid-cols-1 md:grid-cols-3 items-start gap-6 animate-slide-up">
+            <div className="flex flex-col items-center gap-2 order-2 md:order-1">
+              <p className="text-xs font-medium text-muted-foreground">Đơn vị tổ chức</p>
+              <VnextLogo variant="horizontal" height={30} />
             </div>
-          </div>
+
+            <div className="flex flex-col items-center text-center gap-2 order-1 md:order-2">
+              <span className="inline-flex items-center h-[22px] px-2.5 rounded-full text-xs font-semibold btn-gradient">
+                VNEXT JAPAN株式会社
+              </span>
+              <p className="text-sm font-medium text-foreground">Giải bóng đá nội bộ</p>
+              <p className="text-sm text-muted-foreground">Chào mừng kỉ niệm 9 năm thành lập VNEXT JAPAN</p>
+            </div>
+
+            <div className="flex flex-col items-center gap-2 order-3">
+              <p className="text-xs font-medium text-muted-foreground">Đơn vị đăng cai</p>
+              <img src="assets/dang-cai-logo.png" alt="Đơn vị đăng cai" className="w-16 h-16 object-contain" />
+            </div>
+          </header>
+
+          <main className="flex-grow flex flex-col items-center justify-center text-center py-14">
+            <div className="animate-slide-up vn-delay-1">
+              <h1 className="font-heading font-bold leading-[1.05] text-[clamp(2.25rem,1.4rem+3.4vw,4rem)]">
+                <span className="block text-foreground">VNEXT JAPAN</span>
+                <span className="block gradient-text">OPEN CUP</span>
+              </h1>
+              <p className="mt-5 font-heading font-semibold text-[clamp(1.25rem,1rem+1.2vw,1.75rem)] text-foreground">
+                Tứ hùng tranh đấu
+              </p>
+              <p className="mt-2 text-base text-muted-foreground">Khát vọng bứt phá — Kết nối đam mê</p>
+            </div>
+
+            {/* Bốn đội */}
+            <div className="flex flex-wrap justify-center items-start gap-6 sm:gap-8 mt-12 animate-slide-up vn-delay-2">
+              {teamDataForDisplay.map((team) => (
+                <button
+                  key={team.id}
+                  onClick={() => handleTeamClick(team.name)}
+                  className="group flex flex-col items-center gap-3 rounded-xl p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  <span
+                    className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border border-border bg-card grid place-items-center overflow-hidden
+ shadow-orange-sm transition-all duration-350 ease-spring
+ group-hover:-translate-y-1 group-hover:shadow-orange-lg group-hover:border-primary/30"
+                  >
+                    <img src={team.image} alt="" className="w-[150%] h-[150%] object-contain" />
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">{team.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Nhà tài trợ */}
+            <div className="mt-16 w-full max-w-4xl animate-slide-up vn-delay-3">
+              <SponsorTier
+                label="Nhà tài trợ kim cương"
+                sponsors={diamondSponsors}
+                tone="diamond"
+                onSelect={handleSponsorClick}
+              />
+              <SponsorTier
+                label="Nhà tài trợ bạch kim"
+                sponsors={platinumSponsors}
+                tone="platinum"
+                onSelect={handleSponsorClick}
+              />
+              <SponsorTier label="Nhà tài trợ vàng" sponsors={goldSponsors} tone="gold" onSelect={handleSponsorClick} />
+            </div>
+          </main>
+
+          {/* Thời gian, địa điểm, liên hệ tài trợ */}
+          <footer className="mt-auto w-full max-w-4xl mx-auto animate-slide-up vn-delay-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => setIsLocationModalOpen(true)}
+                className="rounded-xl border border-border bg-card p-5 text-left card-hover-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <MapPinIcon className="w-4 h-4" />
+                  Địa điểm thi đấu
+                </span>
+                <p className="mt-2 font-heading font-semibold text-foreground">Sân bonera FUTSAL FIELD</p>
+                <p className="mt-1 text-sm text-muted-foreground">15:00–18:00, ngày 04.10.2025</p>
+                <span className="mt-3 inline-block text-sm font-medium text-vnext-deep dark:text-primary">
+                  Xem đường đi
+                </span>
+              </button>
+
+              <a
+                href={mailtoHref}
+                className="rounded-xl border border-border bg-card p-5 text-left card-hover-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <span className="text-xs font-medium text-muted-foreground">Tài trợ giải đấu</span>
+                <p className="mt-2 font-heading font-semibold text-foreground">Liên hệ ban tổ chức</p>
+                <p className="mt-1 text-sm text-muted-foreground">manhnv@vnext.vn</p>
+                <span className="mt-3 inline-block text-sm font-medium text-vnext-deep dark:text-primary">
+                  Soạn email tài trợ
+                </span>
+              </a>
+            </div>
+
+            {/* Hành động chính duy nhất của trang */}
+            <div className="text-center my-10">
+              <Link
+                to="/home"
+                className="btn-gradient inline-flex items-center justify-center h-11 px-8 rounded-md text-base shadow-orange-md
+ transition-all duration-250 ease-spring hover:-translate-y-px hover:shadow-orange-lg
+ focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                {translate('landing.enterAppButton')}
+              </Link>
+            </div>
+          </footer>
         </div>
       </div>
 
-      {isLocationModalOpen && (
-        <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4"
-            onClick={() => setIsLocationModalOpen(false)}
-            style={{ animation: 'fadeIn 0.3s ease-out forwards' }}
-        >
-            <div 
-                className="bg-white text-black rounded-lg shadow-2xl max-w-lg w-full m-4 p-6 relative max-h-[90vh] overflow-y-auto"
-                onClick={(e) => e.stopPropagation()}
-                style={{ animation: 'scaleIn 0.3s ease-out forwards' }}
-            >
-                <button 
-                    onClick={() => setIsLocationModalOpen(false)}
-                    className="absolute top-3 right-3 text-gray-500 hover:text-black transition-colors"
-                    aria-label="Đóng"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-                <h3 className="text-2xl font-bold mb-4 text-gray-800">Thông Tin Địa Điểm & Di Chuyển</h3>
-                <div className="space-y-4 text-left text-gray-700">
-                    <div>
-                        <p className="font-semibold text-gray-800">Địa chỉ:</p>
-                        <p>3 Chome-3-2 Komatsugawa, Edogawa City, Tokyo 132-0034</p>
-                    </div>
-                    <div>
-                        <p className="font-semibold text-gray-800">Cách di chuyển:</p>
-                        <ul className="list-decimal list-inside space-y-1 mt-1 pl-2">
-                            <li>Từ ga Hirai (Line Chūō-Sōbu) đi bộ.</li>
-                            <li>Từ ga Hirai (Line Chūō-Sōbu) đi xe buýt <span className="font-mono bg-gray-200 px-1 rounded">평２３</span>.</li>
-                            <li>Từ ga Kameido (Line Chūō-Sōbu) đi xe buýt <span className="font-mono bg-gray-200 px-1 rounded">錦２５</span> hoặc <span className="font-mono bg-gray-200 px-1 rounded">亀２６</span>.</li>
-                        </ul>
-                    </div>
-                </div>
-                <div className="mt-6 space-y-4 text-center">
-                    <div>
-                      <p className="font-semibold text-gray-800 mb-2">Lối vào tại ô vuông được đánh dấu</p>
-                      <img src="assets/location.png" alt="Sơ đồ lối vào sân" className="w-full h-auto rounded-lg border border-gray-300 shadow-sm" />
-                    </div>
-                    <a 
-                        href="https://www.google.com/maps/place/bonera+FUTSAL+FIELD/@35.6978187,139.8440284,653m/data=!3m2!1e3!4b1!4m6!3m5!1s0x60188899aa7fe353:0xcda7648e2f41ac3c!8m2!3d35.6978187!4d139.8466033!16s%2Fg%2F11bv1c2qc0?entry=ttu&g_ep=EgoyMDI1MDkwMy4wIKXMDSoASAFQAw%3D%3D"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-blue-500 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:bg-blue-600 transition-all duration-300 transform hover:scale-105"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        Mở trên Google Maps
-                    </a>
-                </div>
-            </div>
+      <Modal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        title="Địa điểm và cách di chuyển"
+        size="lg"
+      >
+        <div className="space-y-5 text-sm">
+          <div>
+            <p className="font-medium text-foreground">Địa chỉ</p>
+            <p className="mt-1 text-muted-foreground">3 Chome-3-2 Komatsugawa, Edogawa City, Tokyo 132-0034</p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Cách di chuyển</p>
+            <ol className="mt-2 space-y-1.5 list-decimal list-inside text-muted-foreground">
+              <li>Từ ga Hirai (Line Chūō-Sōbu) đi bộ.</li>
+              <li>
+                Từ ga Hirai (Line Chūō-Sōbu) đi xe buýt{' '}
+                <span className="font-mono text-xs bg-muted text-foreground px-1.5 py-0.5 rounded-sm">평２３</span>.
+              </li>
+              <li>
+                Từ ga Kameido (Line Chūō-Sōbu) đi xe buýt{' '}
+                <span className="font-mono text-xs bg-muted text-foreground px-1.5 py-0.5 rounded-sm">錦２５</span> hoặc{' '}
+                <span className="font-mono text-xs bg-muted text-foreground px-1.5 py-0.5 rounded-sm">亀２６</span>.
+              </li>
+            </ol>
+          </div>
+          <div>
+            <p className="font-medium text-foreground">Lối vào tại ô vuông được đánh dấu</p>
+            <img
+              src="assets/location.png"
+              alt="Sơ đồ lối vào sân"
+              className="mt-2 w-full h-auto rounded-lg border border-border"
+            />
+          </div>
+          <a
+            href="https://www.google.com/maps/place/bonera+FUTSAL+FIELD/@35.6978187,139.8440284,653m/data=!3m2!1e3!4b1!4m6!3m5!1s0x60188899aa7fe353:0xcda7648e2f41ac3c!8m2!3d35.6978187!4d139.8466033!16s%2Fg%2F11bv1c2qc0?entry=ttu&g_ep=EgoyMDI1MDkwMy4wIKXMDSoASAFQAw%3D%3D"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-sm font-medium border border-border bg-card text-foreground
+ transition-all duration-250 ease-spring hover:bg-primary/5 hover:border-primary/25
+ focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <MapPinIcon className="w-4 h-4" />
+            Mở trên Google Maps
+          </a>
         </div>
-      )}
+      </Modal>
 
       {isThankYouModalOpen && (
-        <div 
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4"
-            onClick={() => setIsThankYouModalOpen(false)}
-            style={{ animation: 'fadeIn 0.3s ease-out forwards' }}
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setIsThankYouModalOpen(false)}
+          role="presentation"
         >
-            <div 
-                className="bg-transparent max-w-2xl w-full m-4 relative"
-                onClick={(e) => e.stopPropagation()}
-                style={{ animation: 'scaleIn 0.3s ease-out forwards' }}
+          <div className="relative max-w-2xl w-full animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setIsThankYouModalOpen(false)}
+              className="absolute -top-3 -right-3 z-10 inline-flex items-center justify-center w-9 h-9 rounded-full bg-card text-foreground border border-border shadow-orange-lg
+ transition-colors duration-150 ease-spring hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              aria-label="Đóng"
             >
-                <button 
-                    onClick={() => setIsThankYouModalOpen(false)}
-                    className="absolute -top-3 -right-3 text-white bg-black/50 rounded-full p-1.5 hover:bg-black/80 transition-colors z-10"
-                    aria-label="Đóng"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-                <img src="assets/thank_you_card.png" alt={`Thư cảm ơn nhà tài trợ ${selectedSponsor}`} className="w-full h-auto rounded-lg shadow-2xl" />
-            </div>
+              <XIcon className="w-5 h-5" />
+            </button>
+            <img
+              src="assets/thank_you_card.png"
+              alt={`Thư cảm ơn nhà tài trợ ${selectedSponsor}`}
+              className="w-full h-auto rounded-xl shadow-orange-xl"
+            />
+          </div>
         </div>
       )}
 
-       <TeamDetailModal
-            isOpen={isTeamModalOpen}
-            onClose={() => setIsTeamModalOpen(false)}
-            team={selectedTeam}
-            allPlayers={allPlayers}
-            onSelectPlayer={handlePlayerSelect}
-        />
-        <PlayerDetailModal
-            isOpen={isPlayerDetailModalOpen}
-            onClose={() => setIsPlayerDetailModalOpen(false)}
-            player={selectedPlayer}
-        />
-      
-      <style>{`
-          .will-animate {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes scaleIn { 
-              from { opacity: 0; transform: scale(0.95); } 
-              to { opacity: 1; transform: scale(1); } 
-          }
-          @keyframes shine {
-            0% {
-              transform: translateX(-100%) skewX(-30deg);
-              opacity: 0;
-            }
-            5% {
-              opacity: 0.1;
-            }
-            20% {
-              opacity: 0.1;
-            }
-            25% {
-              transform: translateX(400%) skewX(-30deg);
-              opacity: 0;
-            }
-            100% {
-              transform: translateX(400%) skewX(-30deg);
-              opacity: 0;
-            }
-          }
-          .shine-effect::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 30%;
-            height: 100%;
-            background: linear-gradient(
-              to right,
-              rgba(255, 255, 255, 0) 0%,
-              rgba(255, 255, 255, 1) 50%,
-              rgba(255, 255, 255, 0) 100%
-            );
-            opacity: 0;
-            z-index: 0;
-            pointer-events: none;
-            animation: shine 10s ease-in-out infinite;
-          }
-      `}</style>
+      <TeamDetailModal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        team={selectedTeam}
+        allPlayers={allPlayers}
+        onSelectPlayer={handlePlayerSelect}
+      />
+      <PlayerDetailModal
+        isOpen={isPlayerDetailModalOpen}
+        onClose={() => setIsPlayerDetailModalOpen(false)}
+        player={selectedPlayer}
+      />
     </>
   );
 };

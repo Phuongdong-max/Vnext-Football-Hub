@@ -1,12 +1,9 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { FootballMatch, MatchAnalysis } from '../types';
 import { Modal } from './shared/Modal';
 import { LoadingSpinner } from './shared/LoadingSpinner';
 import { getMatchAnalysisFromAI } from '../services/aiAnalysisService';
-import { LightBulbIcon } from './icons'; 
+import { LightBulbIcon } from './icons';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface AiAnalysisModalProps {
@@ -31,24 +28,29 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
           const result = await getMatchAnalysisFromAI(matchDetails);
           setAnalysis(result);
         } catch (err: any) {
-            let errorMessageKey = 'error.aiCannotGetAnalysis';
-            if (err.message?.includes("AI Service is not available")) errorMessageKey = 'error.aiServiceUnavailable';
-            else if (err.message?.includes("Match details are required")) errorMessageKey = 'error.aiMatchDetailsRequired';
-            else if (err.message?.includes("Phản hồi phân tích AI thiếu")) errorMessageKey = 'error.aiResponseMissingFields';
-            else if (err.message?.includes("AI trả về định dạng phân tích không hợp lệ")) errorMessageKey = 'error.aiInvalidFormat';
-            else if (err.message?.includes("Khóa API của AI không hợp lệ")) errorMessageKey = 'error.aiInvalidApiKey';
-          
-            setError(translate(errorMessageKey, { errorMessage: err.message || translate('aiAnalysisModal.defaultError') }));
-            setAnalysis(null);
+          let errorMessageKey = 'error.aiCannotGetAnalysis';
+          if (err.message?.includes('AI Service is not available')) errorMessageKey = 'error.aiServiceUnavailable';
+          else if (err.message?.includes('Match details are required'))
+            errorMessageKey = 'error.aiMatchDetailsRequired';
+          else if (err.message?.includes('Phản hồi phân tích AI thiếu'))
+            errorMessageKey = 'error.aiResponseMissingFields';
+          else if (err.message?.includes('AI trả về định dạng phân tích không hợp lệ'))
+            errorMessageKey = 'error.aiInvalidFormat';
+          else if (err.message?.includes('Khóa API của AI không hợp lệ')) errorMessageKey = 'error.aiInvalidApiKey';
+
+          setError(
+            translate(errorMessageKey, { errorMessage: err.message || translate('aiAnalysisModal.defaultError') }),
+          );
+          setAnalysis(null);
         } finally {
           setIsLoading(false);
         }
       };
       fetchAnalysis();
     } else if (!isOpen) {
-        setAnalysis(null);
-        setIsLoading(false);
-        setError(null);
+      setAnalysis(null);
+      setIsLoading(false);
+      setError(null);
     }
   }, [isOpen, matchDetails, translate]);
 
@@ -62,21 +64,39 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
       <div>
         <strong>{translate('aiAnalysisModal.confidence.title')}:</strong>
         <ul className="list-disc list-inside ml-4 text-xs">
-          {homeWinPercentage !== undefined && homeWinPercentage !== null && <li>{translate('aiAnalysisModal.confidence.homeWin', { teamName: matchDetails.homeTeam, percentage: homeWinPercentage })}</li>}
-          {awayWinPercentage !== undefined && awayWinPercentage !== null && <li>{translate('aiAnalysisModal.confidence.awayWin', { teamName: matchDetails.awayTeam, percentage: awayWinPercentage })}</li>}
-          {drawPercentage !== undefined && drawPercentage !== null && <li>{translate('aiAnalysisModal.confidence.draw', { percentage: drawPercentage })}</li>}
+          {homeWinPercentage !== undefined && homeWinPercentage !== null && (
+            <li>
+              {translate('aiAnalysisModal.confidence.homeWin', {
+                teamName: matchDetails.homeTeam,
+                percentage: homeWinPercentage,
+              })}
+            </li>
+          )}
+          {awayWinPercentage !== undefined && awayWinPercentage !== null && (
+            <li>
+              {translate('aiAnalysisModal.confidence.awayWin', {
+                teamName: matchDetails.awayTeam,
+                percentage: awayWinPercentage,
+              })}
+            </li>
+          )}
+          {drawPercentage !== undefined && drawPercentage !== null && (
+            <li>{translate('aiAnalysisModal.confidence.draw', { percentage: drawPercentage })}</li>
+          )}
         </ul>
       </div>
     );
   };
-  
+
   const renderKeyFactors = (keyFactors?: string[]) => {
     if (!keyFactors || keyFactors.length === 0) return null;
     return (
       <div>
         <strong>{translate('aiAnalysisModal.keyFactors.title')}:</strong>
         <ul className="list-disc list-inside ml-4 text-xs">
-          {keyFactors.map((factor, index) => <li key={index}>{factor}</li>)}
+          {keyFactors.map((factor, index) => (
+            <li key={index}>{factor}</li>
+          ))}
         </ul>
       </div>
     );
@@ -97,50 +117,76 @@ export const AiAnalysisModal: React.FC<AiAnalysisModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <Modal 
-        isOpen={isOpen} 
-        onClose={onClose} 
-        title={translate('aiAnalysisModal.title', { homeTeam: matchDetails.homeTeam, awayTeam: matchDetails.awayTeam })}
-        size="lg"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={translate('aiAnalysisModal.title', { homeTeam: matchDetails.homeTeam, awayTeam: matchDetails.awayTeam })}
+      size="lg"
     >
-      <div className="p-1 bg-slate-50 dark:bg-slate-800/70 rounded-md space-y-2 text-sm min-h-[200px]">
-        <h4 className="text-md font-semibold text-textPrimary flex items-center mb-3 p-2 border-b border-border">
-            <LightBulbIcon className="w-6 h-6 mr-2 text-yellow-400" />
-            {translate('aiAnalysisModal.subTitle')}
+      <div className="p-1 bg-muted/50 /70 rounded-md space-y-2 text-sm min-h-[200px]">
+        <h4 className="text-md font-semibold text-foreground flex items-center mb-3 p-2 border-b border-border">
+          <LightBulbIcon className="w-6 h-6 mr-2 text-vnext-amber" />
+          {translate('aiAnalysisModal.subTitle')}
         </h4>
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-8">
             <LoadingSpinner size="md" />
-            <span className="ml-2 mt-3 text-textSecondary">{translate('aiAnalysisModal.loading')}</span>
+            <span className="ml-2 mt-3 text-muted-foreground">{translate('aiAnalysisModal.loading')}</span>
           </div>
         )}
-        {error && !isLoading && (
-          <p className="text-danger text-center py-8 px-2">{error}</p>
-        )}
+        {error && !isLoading && <p className="text-danger-text text-center py-8 px-2">{error}</p>}
         {analysis && !isLoading && (
-          <div className="space-y-3 px-2 pb-2 text-textSecondary">
+          <div className="space-y-3 px-2 pb-2 text-muted-foreground">
             <p>
-              <strong>{translate('aiAnalysisModal.predictedWinner.label')}:</strong> 
-              <span className={`ml-1 font-semibold ${
-                analysis.predictedWinner === 'home' ? 'text-blue-500 dark:text-blue-400' : 
-                analysis.predictedWinner === 'away' ? 'text-red-500 dark:text-red-400' : 
-                analysis.predictedWinner === 'draw' ? 'text-yellow-600 dark:text-yellow-400' :
-                'text-textSecondary'
-              }`}>
+              <strong>{translate('aiAnalysisModal.predictedWinner.label')}:</strong>
+              <span
+                className={`ml-1 font-semibold ${
+                  analysis.predictedWinner === 'home'
+                    ? 'text-vnext-deep dark:text-primary'
+                    : analysis.predictedWinner === 'away'
+                      ? 'text-danger-text'
+                      : analysis.predictedWinner === 'draw'
+                        ? 'text-vnext-amber'
+                        : 'text-muted-foreground'
+                }`}
+              >
                 {getPredictedWinnerText()}
               </span>
             </p>
-            {analysis.predictionReasoning && <p><strong>{translate('aiAnalysisModal.predictionReasoning.label')}:</strong> {analysis.predictionReasoning}</p>}
-            
+            {analysis.predictionReasoning && (
+              <p>
+                <strong>{translate('aiAnalysisModal.predictionReasoning.label')}:</strong>{' '}
+                {analysis.predictionReasoning}
+              </p>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-              {analysis.homeTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.specificTeam', { teamName: matchDetails.homeTeam })}:</strong> {analysis.homeTeamForm}</p>}
-              {analysis.awayTeamForm && <p><strong>{translate('aiAnalysisModal.teamForm.specificTeam', { teamName: matchDetails.awayTeam })}:</strong> {analysis.awayTeamForm}</p>}
+              {analysis.homeTeamForm && (
+                <p>
+                  <strong>
+                    {translate('aiAnalysisModal.teamForm.specificTeam', { teamName: matchDetails.homeTeam })}:
+                  </strong>{' '}
+                  {analysis.homeTeamForm}
+                </p>
+              )}
+              {analysis.awayTeamForm && (
+                <p>
+                  <strong>
+                    {translate('aiAnalysisModal.teamForm.specificTeam', { teamName: matchDetails.awayTeam })}:
+                  </strong>{' '}
+                  {analysis.awayTeamForm}
+                </p>
+              )}
             </div>
 
             {renderConfidence(analysis.confidence)}
             {renderKeyFactors(analysis.keyFactors)}
-            
-            {analysis.summary && <p className="italic mt-2"><strong>{translate('aiAnalysisModal.summary.label')}:</strong> {analysis.summary}</p>}
+
+            {analysis.summary && (
+              <p className="italic mt-2">
+                <strong>{translate('aiAnalysisModal.summary.label')}:</strong> {analysis.summary}
+              </p>
+            )}
           </div>
         )}
       </div>

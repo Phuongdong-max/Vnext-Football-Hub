@@ -56,6 +56,19 @@ assetsToCopy.forEach(asset => {
     }
 });
 
+// Copy the VNEXT brand assets (logo variants + favicons) as a whole folder
+const vnextSrcDir = path.join(projectRoot, 'assets', 'vnext');
+const vnextDestDir = path.join(distDir, 'assets', 'vnext');
+if (fs.existsSync(vnextSrcDir)) {
+    fs.mkdirSync(vnextDestDir, { recursive: true });
+    fs.readdirSync(vnextSrcDir).forEach((file) => {
+        fs.copyFileSync(path.join(vnextSrcDir, file), path.join(vnextDestDir, file));
+    });
+    console.log('Copied VNEXT brand assets to dist/assets/vnext.');
+} else {
+    console.warn('Warning: assets/vnext not found. Logo and favicon will be missing.');
+}
+
 // esbuild build configuration
 const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
 // Read QWEN_API_KEY from .env, but we will define it as process.env.API_KEY for the client

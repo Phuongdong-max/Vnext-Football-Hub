@@ -7,24 +7,21 @@ interface ToastProps {
   onDismiss: (id: string) => void;
 }
 
+/** Tối đa 3 toast cùng lúc, tự tắt sau 4s — vnext-ui/references/components.md */
+const MAX_VISIBLE_TOASTS = 3;
+
 const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onDismiss(toast.id);
-    }, 5000); // Auto dismiss after 5 seconds
-
-    return () => {
-      clearTimeout(timer);
-    };
+    const timer = setTimeout(() => onDismiss(toast.id), 4000);
+    return () => clearTimeout(timer);
   }, [toast.id, onDismiss]);
 
-  const baseClasses = "flex items-center p-4 mb-3 rounded-lg shadow-lg text-sm font-medium transition-all duration-300 ease-in-out";
-  const typeClasses = {
-    success: "bg-green-500 text-white",
-    error: "bg-danger text-white",
-    info: "bg-blue-500 text-white",
-    warning: "bg-yellow-500 text-white",
-  };
+  const accentClasses = {
+    success: 'border-l-success text-success',
+    error: 'border-l-destructive text-danger-text',
+    info: 'border-l-primary text-vnext-deep dark:text-primary',
+    warning: 'border-l-warning text-vnext-amber dark:text-warning',
+  }[toast.type];
 
   const IconComponent = {
     success: CheckCircleIcon,
@@ -34,30 +31,22 @@ const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   }[toast.type];
 
   return (
-    <div 
-        className={`${baseClasses} ${typeClasses[toast.type]} opacity-0 animate-toastIn`}
-        role="alert"
+    <div
+      className={`flex items-start gap-3 p-4 mb-3 rounded-lg border border-border border-l-4 bg-card shadow-orange-lg animate-slide-in-right ${accentClasses}`}
+      role="alert"
     >
-      <IconComponent className="w-5 h-5 mr-3" />
-      <span>{toast.message}</span>
-      <button 
-        onClick={() => onDismiss(toast.id)} 
-        className="ml-auto -mx-1.5 -my-1.5 p-1.5 rounded-lg hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-white/50"
-        aria-label="Dismiss"
+      <IconComponent className="w-5 h-5 flex-shrink-0 mt-0.5" />
+      <span className="text-sm font-medium text-foreground">{toast.message}</span>
+      <button
+        onClick={() => onDismiss(toast.id)}
+        className="ml-auto -mr-1 -mt-1 inline-flex items-center justify-center w-7 h-7 flex-shrink-0 rounded-md text-muted-foreground transition-colors duration-150 ease-spring hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        aria-label="Đóng thông báo"
       >
         <XIcon className="w-4 h-4" />
       </button>
-      <style jsx-global>{`
-        @keyframes toastIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-toastIn { animation: toastIn 0.3s forwards; }
-      `}</style>
     </div>
   );
 };
-
 
 interface ToastContainerProps {
   toasts: ToastMessage[];
@@ -66,14 +55,14 @@ interface ToastContainerProps {
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, setToasts }) => {
   const dismissToast = (id: string) => {
-    setToasts(currentToasts => currentToasts.filter(toast => toast.id !== id));
+    setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== id));
   };
 
   if (!toasts.length) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-[200] w-full max-w-xs sm:max-w-sm">
-      {toasts.map(toast => (
+    <div className="fixed z-[90] w-full max-w-sm px-4 top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 sm:px-0">
+      {toasts.slice(-MAX_VISIBLE_TOASTS).map((toast) => (
         <Toast key={toast.id} toast={toast} onDismiss={dismissToast} />
       ))}
     </div>

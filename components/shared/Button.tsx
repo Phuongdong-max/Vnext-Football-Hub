@@ -1,13 +1,17 @@
-
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'outline' | 'ghost' | 'soft';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   children: React.ReactNode;
 }
 
+/**
+ * Nút theo design system VNEXT (vnext-ui/references/components.md).
+ * Luật: mỗi cụm chỉ MỘT nút `primary` (cam). Hành động phụ dùng `outline`/`ghost`,
+ * hành động lặp trong danh sách dùng `soft`.
+ */
 export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
@@ -16,21 +20,29 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles =
+    'inline-flex items-center justify-center gap-2 rounded-md font-medium select-none ' +
+    'transition-all duration-250 ease-spring ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background ' +
+    'disabled:opacity-50 disabled:pointer-events-none';
 
   const variantStyles = {
-    primary: 'bg-primary text-white hover:bg-opacity-90 focus:ring-primary',
-    secondary: 'bg-secondary text-white hover:bg-opacity-90 focus:ring-secondary',
-    danger: 'bg-danger text-white hover:bg-opacity-90 focus:ring-danger',
-    warning: 'bg-warning text-textPrimary hover:bg-opacity-90 focus:ring-warning',
-    outline: 'border border-primary text-primary hover:bg-primary/10 focus:ring-primary',
-    ghost: 'text-primary hover:bg-primary/10 focus:ring-primary',
+    // Hành động chính — nền gradient deep để chữ trắng đạt 4.5:1
+    primary: 'btn-gradient shadow-orange-sm hover:-translate-y-px hover:shadow-orange-md',
+    // Hành động phụ
+    outline: 'border border-border bg-card text-foreground hover:bg-primary/5 hover:border-primary/25',
+    secondary: 'border border-border bg-card text-foreground hover:bg-primary/5 hover:border-primary/25',
+    // Hành động lặp lại trong danh sách
+    soft: 'bg-primary/10 text-vnext-deep dark:text-primary hover:bg-primary/[0.18]',
+    ghost: 'text-foreground hover:bg-muted/60',
+    danger: 'bg-destructive/10 text-danger-text hover:bg-destructive/20',
+    warning: 'border border-warning/40 bg-warning/10 text-foreground hover:bg-warning/20',
   };
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'h-8 px-3 text-xs [&_svg]:w-4 [&_svg]:h-4',
+    md: 'h-10 px-4 text-sm [&_svg]:w-4 [&_svg]:h-4',
+    lg: 'h-11 px-6 text-base [&_svg]:w-5 [&_svg]:h-5',
   };
 
   const widthStyle = fullWidth ? 'w-full' : '';
@@ -44,4 +56,3 @@ export const Button: React.FC<ButtonProps> = ({
     </button>
   );
 };
-    

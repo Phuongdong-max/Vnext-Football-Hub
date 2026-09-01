@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { BettingRound, MatchResultTeam } from '../../types';
 import { Modal } from '../shared/Modal';
@@ -23,14 +22,17 @@ export const UpdateResultModal: React.FC<UpdateResultModalProps> = ({ isOpen, on
   };
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onClose={onClose} 
-      title={translate('updateResultModal.title', { homeTeam: round.matchDetails.homeTeam, awayTeam: round.matchDetails.awayTeam })}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={translate('updateResultModal.title', {
+        homeTeam: round.matchDetails.homeTeam,
+        awayTeam: round.matchDetails.awayTeam,
+      })}
     >
       <div className="space-y-4">
-        <p className="text-sm text-textSecondary">{translate('updateResultModal.instruction')}</p>
-        
+        <p className="text-sm text-muted-foreground">{translate('updateResultModal.instruction')}</p>
+
         <div className="space-y-2">
           <Button
             onClick={() => setSelectedWinner(MatchResultTeam.HOME_WIN)}
@@ -56,9 +58,11 @@ export const UpdateResultModal: React.FC<UpdateResultModalProps> = ({ isOpen, on
         </div>
 
         <div className="flex justify-end space-x-3 pt-2">
-          <Button onClick={onClose} variant="secondary">{translate('common.button.cancel')}</Button>
+          <Button onClick={onClose} variant="secondary">
+            {translate('common.button.cancel')}
+          </Button>
           <Button onClick={handleSubmit} disabled={!selectedWinner}>
-            <PencilAltIcon className="w-5 h-5 mr-2"/>
+            <PencilAltIcon className="w-5 h-5 mr-2" />
             {translate('updateResultModal.button.confirmResult')}
           </Button>
         </div>

@@ -3,76 +3,354 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VNext FootballHub (Firebase)</title>
-    <link rel="icon" type="image/png" href="assets/VFLogo fix.png" />
+    <title>VNEXT Football Hub</title>
+
+    <!-- Logo VNEXT: favicon + apple touch icon -->
+    <link rel="icon" type="image/png" sizes="64x64" href="assets/vnext/vnext-favicon-64.png" />
+    <link rel="apple-touch-icon" href="assets/vnext/vnext-favicon-180.png" />
+    <meta name="theme-color" content="#e96620" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Design system VNEXT — token ngữ nghĩa HSL, xem skill vnext-ui/references/tokens.md
       tailwind.config = {
-        darkMode: 'class', // Enable class-based dark mode
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
-              primary: 'var(--color-primary)', 
-              secondary: 'var(--color-secondary)', 
-              background: 'var(--color-background)', 
-              surface: 'var(--color-surface)', 
-              textPrimary: 'var(--color-text-primary)', 
-              textSecondary: 'var(--color-text-secondary)',
-              border: 'var(--color-border)',
-              success: '#28a745',
-              danger: '#dc3545',
-              warning: '#ffc107',
+              // Thang thương hiệu (hex) — logo, biểu đồ, minh hoạ
+              vnext: {
+                primary: '#e96620', secondary: '#f7b478', accent: '#fac99a',
+                light: '#fff7ed', soft: '#ffedd5', warm: '#fed7aa',
+                muted: '#f8c090', deep: '#c2410c', amber: '#d97706', gold: '#ca8a04',
+              },
+              // Token ngữ nghĩa — dùng cho UI
+              border: 'hsl(var(--border) / <alpha-value>)',
+              input: 'hsl(var(--input) / <alpha-value>)',
+              ring: 'hsl(var(--ring) / <alpha-value>)',
+              background: 'hsl(var(--background) / <alpha-value>)',
+              foreground: 'hsl(var(--foreground) / <alpha-value>)',
+              primary: {
+                DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+                foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
+              },
+              secondary: {
+                DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+                foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)',
+              },
+              muted: {
+                DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+                foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+              },
+              accent: {
+                DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+                foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+              },
+              card: {
+                DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+                foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
+              },
+              popover: {
+                DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+                foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
+              },
+              destructive: {
+                DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+                foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
+              },
+              success: 'hsl(var(--success) / <alpha-value>)',
+              warning: 'hsl(var(--warning) / <alpha-value>)',
+              'danger-text': 'hsl(var(--danger-text) / <alpha-value>)',
+
+              // Alias tương thích code cũ — trỏ về cùng token VNEXT
+              surface: 'hsl(var(--card) / <alpha-value>)',
+              textPrimary: 'hsl(var(--foreground) / <alpha-value>)',
+              textSecondary: 'hsl(var(--muted-foreground) / <alpha-value>)',
+              danger: 'hsl(var(--destructive) / <alpha-value>)',
             },
             fontFamily: {
-              sans: ['Montserrat', 'sans-serif'],
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+              body: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+              heading: ['Space Grotesk', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+              display: ['Space Grotesk', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+            },
+            borderRadius: {
+              sm: 'calc(var(--radius) - 4px)',
+              md: 'calc(var(--radius) - 2px)',
+              lg: 'var(--radius)',
+              xl: 'calc(var(--radius) + 4px)',
+              '2xl': 'calc(var(--radius) + 8px)',
+            },
+            boxShadow: {
+              'orange-sm': 'var(--shadow-sm)',
+              'orange-md': 'var(--shadow-md)',
+              'orange-lg': 'var(--shadow-lg)',
+              'orange-xl': 'var(--shadow-xl)',
+              'orange-glow': 'var(--shadow-glow)',
+              'orange-neon': 'var(--shadow-neon)',
+              card: 'var(--shadow-sm)',
+              'card-hover': 'var(--shadow-lg)',
+            },
+            transitionTimingFunction: {
+              spring: 'cubic-bezier(0.16, 1, 0.3, 1)',
+              bounce: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            },
+            transitionDuration: { 150: '150ms', 250: '250ms', 350: '350ms' },
+            keyframes: {
+              'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
+              'slide-up': { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+              'scale-in': { from: { opacity: '0', transform: 'scale(0.96)' }, to: { opacity: '1', transform: 'scale(1)' } },
+              'slide-in-right': { from: { opacity: '0', transform: 'translateX(16px)' }, to: { opacity: '1', transform: 'translateX(0)' } },
+              float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+            },
+            animation: {
+              'fade-in': 'fade-in 0.35s cubic-bezier(0.16,1,0.3,1) both',
+              'slide-up': 'slide-up 0.35s cubic-bezier(0.16,1,0.3,1) both',
+              'scale-in': 'scale-in 0.25s cubic-bezier(0.16,1,0.3,1) both',
+              'slide-in-right': 'slide-in-right 0.3s cubic-bezier(0.16,1,0.3,1) both',
+              float: 'float 8s ease-in-out infinite',
             },
           },
         },
       }
     </script>
+
     <style>
-      body {
-        font-family: 'Montserrat', sans-serif;
-        @apply text-textPrimary transition-colors duration-300;
-      }
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        @apply bg-gray-100;
-        border-radius: 10px;
-      }
-      html.dark ::-webkit-scrollbar-track {
-        background-color: var(--color-background); 
-      }
-      ::-webkit-scrollbar-thumb {
-        @apply bg-primary;
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        @apply bg-opacity-80;
-      }
+      /* ===================================================================
+         VNEXT design tokens — nguồn sự thật duy nhất cho màu/bóng/bán kính.
+         Không hardcode hex trong component.
+         =================================================================== */
       :root {
-        --color-primary: #f97316; /* Orange-500 */
-        --color-secondary: #475569; /* Slate-600 */
-        --color-background: #f1f5f9; /* Slate-100 */
-        --color-surface: #ffffff;
-        --color-text-primary: #1e293b; /* Slate-800 */
-        --color-text-secondary: #475569; /* Slate-600 */
-        --color-border: #e2e8f0; /* Slate-200 */
-      }
-      html.dark {
-        --color-primary: #ea580c; /* Orange-600 */
-        --color-secondary: #94a3b8; /* Slate-400 */
-        --color-background: #0f172a; /* Slate-900 */
-        --color-surface: #1e293b;    /* Slate-800 */
-        --color-text-primary: #f1f5f9; /* Slate-100 */
-        --color-text-secondary: #94a3b8; /* Slate-400 */
-        --color-border: #334155; /* Slate-700 */
+        /* Thang thương hiệu (hex) */
+        --vn-primary: #e96620;
+        --vn-secondary: #f7b478;
+        --vn-accent: #fac99a;
+        --vn-light: #fff7ed;
+        --vn-soft: #ffedd5;
+        --vn-warm: #fed7aa;
+        --vn-muted: #f8c090;
+        --vn-deep: #c2410c;
+        --vn-amber: #d97706;
+        --vn-gold: #ca8a04;
+
+        /* Token ngữ nghĩa (HSL triplet) */
+        --background: 30 20% 97%;
+        --foreground: 20 15% 8%;
+        --card: 0 0% 100%;
+        --card-foreground: 20 15% 8%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 20 15% 8%;
+        --primary: 21 82% 52%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 30 100% 96%;
+        --secondary-foreground: 20 60% 20%;
+        --muted: 25 15% 93%;
+        --muted-foreground: 20 8% 40%;
+        --accent: 38 95% 94%;
+        --accent-foreground: 38 80% 22%;
+        --success: 152 60% 36%;
+        --warning: 35 92% 45%;
+        --destructive: 0 72% 48%;
+        --destructive-foreground: 0 0% 100%;
+        --danger-text: 0 72% 42%;
+        --border: 25 15% 85%;
+        --input: 25 15% 85%;
+        --ring: 21 82% 52%;
+        --surface-sunken: 30 20% 95%;
+        --surface-elevated: 0 0% 100%;
+
+        /* Bán kính — chỉ 4 bậc */
+        --radius: 0.75rem;
+        --radius-sm: calc(var(--radius) - 4px);
+        --radius-md: calc(var(--radius) - 2px);
+        --radius-lg: calc(var(--radius) + 4px);
+        --radius-full: 999px;
+
+        /* Bóng ấm, nhiều lớp */
+        --shadow-sm: 0 1px 2px hsl(20 20% 8% / .06), 0 1px 4px hsl(21 82% 52% / .04);
+        --shadow-md: 0 2px 4px hsl(20 20% 8% / .04), 0 6px 16px -2px hsl(20 20% 8% / .08), 0 2px 8px -2px hsl(21 82% 52% / .06);
+        --shadow-lg: 0 2px 4px hsl(20 20% 8% / .03), 0 8px 24px -4px hsl(20 20% 8% / .10), 0 4px 16px -4px hsl(21 82% 52% / .08);
+        --shadow-xl: 0 4px 8px hsl(20 20% 8% / .04), 0 16px 40px -8px hsl(20 20% 8% / .12), 0 8px 24px -6px hsl(21 82% 52% / .10);
+        --shadow-glow: 0 0 0 3px hsl(21 82% 52% / .15), 0 4px 16px hsl(21 82% 52% / .08);
+        --shadow-neon: 0 0 20px hsl(21 82% 52% / .20), 0 0 50px hsl(21 82% 52% / .08), 0 4px 20px hsl(21 82% 52% / .10);
+
+        /* Gradient — chỉ 6 cái này */
+        --gradient-brand: linear-gradient(135deg, hsl(21 82% 52%) 0%, hsl(30 90% 55%) 50%, hsl(38 95% 52%) 100%);
+        --gradient-brand-deep: linear-gradient(135deg, hsl(21 84% 42%) 0%, hsl(18 84% 42%) 50%, hsl(14 82% 40%) 100%);
+        --gradient-brand-subtle: linear-gradient(135deg, hsl(21 82% 52% / .06) 0%, hsl(38 95% 52% / .03) 100%);
+        --gradient-card: linear-gradient(160deg, hsl(0 0% 100%) 0%, hsl(30 20% 98.5%) 100%);
+        --gradient-border: linear-gradient(135deg, hsl(21 82% 52% / .25) 0%, hsl(38 95% 52% / .10) 100%);
+        --gradient-mesh:
+          radial-gradient(ellipse at 20% 50%, hsl(21 80% 52% / .06) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 20%, hsl(38 95% 52% / .05) 0%, transparent 50%),
+          radial-gradient(ellipse at 50% 80%, hsl(25 60% 90% / .40) 0%, transparent 50%);
+
+        /* Chuyển động */
+        --ease-spring: cubic-bezier(.16, 1, .3, 1);
+        --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
+        --dur-fast: 150ms;
+        --dur: 250ms;
+        --dur-slow: 350ms;
       }
 
-      /* Floating Points Indicator Animation */
+      html.dark {
+        --background: 20 18% 6%;
+        --foreground: 30 15% 95%;
+        --card: 20 15% 10%;
+        --card-foreground: 30 15% 95%;
+        --popover: 20 15% 10%;
+        --popover-foreground: 30 15% 95%;
+        --primary: 21 90% 55%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 20 15% 14%;
+        --secondary-foreground: 30 15% 90%;
+        --muted: 20 12% 15%;
+        --muted-foreground: 25 8% 62%;
+        --accent: 20 15% 14%;
+        --accent-foreground: 30 15% 90%;
+        --success: 152 45% 45%;
+        --warning: 38 92% 55%;
+        --destructive: 0 63% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --danger-text: 0 85% 72%;
+        --border: 20 12% 18%;
+        --input: 20 12% 18%;
+        --ring: 21 90% 55%;
+        --surface-sunken: 20 18% 5%;
+        --surface-elevated: 20 15% 12%;
+
+        --shadow-sm: 0 1px 3px hsl(0 0% 0% / .35), 0 2px 6px hsl(0 0% 0% / .20);
+        --shadow-md: 0 2px 4px hsl(0 0% 0% / .20), 0 8px 20px -4px hsl(0 0% 0% / .40), 0 4px 12px -4px hsl(21 90% 55% / .08);
+        --shadow-lg: 0 2px 4px hsl(0 0% 0% / .15), 0 12px 28px -6px hsl(0 0% 0% / .45), 0 6px 20px -6px hsl(21 90% 55% / .10);
+        --shadow-xl: 0 4px 8px hsl(0 0% 0% / .15), 0 20px 48px -10px hsl(0 0% 0% / .50), 0 10px 30px -8px hsl(21 90% 55% / .12);
+        --shadow-glow: 0 0 0 3px hsl(21 90% 55% / .25), 0 4px 20px hsl(21 90% 55% / .12);
+        --shadow-neon: 0 0 25px hsl(21 90% 55% / .30), 0 0 60px hsl(21 90% 55% / .12), 0 4px 24px hsl(21 90% 55% / .15);
+        --gradient-card: linear-gradient(160deg, hsl(20 15% 11%) 0%, hsl(20 18% 8%) 100%);
+      }
+
+      /* ── Nền tảng ─────────────────────────────────────────────────────── */
+      html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+
+      body {
+        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
+        -webkit-font-smoothing: antialiased;
+        transition: background-color var(--dur-slow) var(--ease-spring),
+                    color var(--dur-slow) var(--ease-spring);
+      }
+
+      h1, h2, h3, h4 {
+        font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.02em;
+      }
+
+      :focus-visible {
+        outline: 2px solid hsl(var(--ring));
+        outline-offset: 2px;
+        border-radius: var(--radius-md);
+      }
+      ::selection { background: hsl(21 82% 52% / .15); }
+
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: var(--radius-full); }
+      ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / .5); }
+
+      /* ── Hiệu ứng thương hiệu (ngân sách: references/effects.md) ───────── */
+      .glass {
+        background: hsl(0 0% 100% / .6);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+      }
+      html.dark .glass { background: hsl(20 15% 10% / .75); }
+
+      .glass-card {
+        background: hsl(0 0% 100% / .8);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
+        border: 1px solid hsl(var(--border) / .5);
+        box-shadow: var(--shadow-sm);
+      }
+      html.dark .glass-card { background: hsl(20 15% 12% / .8); }
+
+      .glass-navbar {
+        background: hsl(0 0% 100% / .82);
+        backdrop-filter: blur(24px) saturate(200%);
+        -webkit-backdrop-filter: blur(24px) saturate(200%);
+        box-shadow: 0 1px 3px hsl(0 0% 0% / .04), 0 4px 12px hsl(0 0% 0% / .03);
+      }
+      html.dark .glass-navbar {
+        background: hsl(20 18% 8% / .82);
+        box-shadow: 0 1px 3px hsl(0 0% 0% / .2), 0 4px 16px hsl(0 0% 0% / .15);
+      }
+
+      /* Nền đặc + chữ trắng: luôn dùng bản deep để đạt tương phản 4.5:1 */
+      .btn-gradient { background: var(--gradient-brand-deep); color: #fff; font-weight: 600; }
+
+      .gradient-text {
+        background: var(--gradient-brand);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent; color: transparent;
+      }
+
+      .card-hover-glow {
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow var(--dur-slow) var(--ease-spring),
+                    transform var(--dur-slow) var(--ease-spring),
+                    border-color var(--dur-slow) ease;
+      }
+      .card-hover-glow:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 0 0 1px hsl(21 82% 52% / .15), var(--shadow-lg);
+      }
+      html.dark .card-hover-glow:hover { box-shadow: 0 0 0 1px hsl(21 90% 55% / .3), var(--shadow-lg); }
+
+      .surface-sunken {
+        background: hsl(var(--surface-sunken));
+        border-radius: var(--radius);
+        box-shadow: inset 0 1px 4px hsl(0 0% 0% / .04);
+      }
+      .surface-raised { background: hsl(var(--surface-elevated)); box-shadow: var(--shadow-md); }
+
+      .mesh-bg { background-image: var(--gradient-mesh); }
+
+      .blob {
+        border-radius: 50%;
+        filter: blur(60px);
+        opacity: .15;
+        pointer-events: none;
+        animation: blob-float 12s ease-in-out infinite;
+      }
+      @keyframes blob-float {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(15px, -20px) scale(1.03); }
+        50% { transform: translate(-10px, 15px) scale(.97); }
+        75% { transform: translate(20px, 5px) scale(1.02); }
+      }
+
+      @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+      .skeleton-shimmer {
+        background: linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(21 82% 52% / .06) 50%, hsl(var(--muted)) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.8s ease-in-out infinite;
+        border-radius: var(--radius-sm);
+      }
+
+      /* Stagger vào màn — tối đa 6 phần tử đầu */
+      .vn-delay-1 { animation-delay: 60ms; }
+      .vn-delay-2 { animation-delay: 120ms; }
+      .vn-delay-3 { animation-delay: 180ms; }
+      .vn-delay-4 { animation-delay: 240ms; }
+      .vn-delay-5 { animation-delay: 300ms; }
+      .vn-delay-6 { animation-delay: 360ms; }
+
+      /* ── Animation riêng của app (giữ nguyên hành vi, đổi sang token) ──── */
       @keyframes floatPoints {
         0% { transform: translateY(0) scale(1); opacity: 0.8; }
         50% { transform: translateY(-60px) scale(1.1); opacity: 1; }
@@ -82,20 +360,19 @@
         animation: floatPoints 4s ease-out infinite;
         position: absolute;
         pointer-events: none;
-        font-weight: bold;
+        font-weight: 600;
         display: flex;
         align-items: center;
         padding: 2px 6px;
-        border-radius: 8px;
-        background-color: rgba(0, 0, 0, 0.2); /* Slight background for visibility */
+        border-radius: var(--radius-sm);
+        background-color: hsl(var(--foreground) / .18);
       }
-       /* Animation for the selected player flying to their team box */
+
       @keyframes flyToTeam {
         0% {
           transform: translate(var(--start-x, 0), var(--start-y, 0)) scale(1.2);
           opacity: 1;
-          color: var(--color-primary);
-          text-shadow: 0 0 10px var(--color-primary);
+          color: hsl(var(--primary));
         }
         100% {
           transform: translate(var(--end-x, 0), var(--end-y, 0)) scale(0.5);
@@ -104,22 +381,21 @@
       }
       .player-fly-animation {
         position: fixed;
-        z-index: 1000;
-        font-size: 1.5rem;
-        font-weight: bold;
-        animation: flyToTeam 1s ease-in forwards;
+        z-index: 80;
+        font-size: 1.25rem;
+        font-weight: 600;
+        animation: flyToTeam 1s var(--ease-spring) forwards;
         pointer-events: none;
         padding: 4px 8px;
-        border-radius: 6px;
-        background-color: var(--color-surface);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        border-radius: var(--radius-md);
+        background-color: hsl(var(--card));
+        box-shadow: var(--shadow-lg);
       }
-      /* Animation for the match flying to its slot in the schedule */
+
       @keyframes flyToSlot {
         0% {
           transform: translate(var(--start-x, 0), var(--start-y, 0)) scale(1.2);
           opacity: 0.9;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         }
         40% {
           opacity: 1;
@@ -132,33 +408,34 @@
       }
       .match-fly-animation {
         position: fixed;
-        z-index: 1000;
-        font-weight: bold;
-        animation: flyToSlot 1.2s ease-in-out forwards;
+        z-index: 80;
+        font-weight: 600;
+        animation: flyToSlot 1.2s var(--ease-spring) forwards;
         pointer-events: none;
         padding: 8px 12px;
-        border-radius: 8px;
-        background-color: var(--color-primary);
-        color: white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        border-radius: var(--radius-md);
+        background: var(--gradient-brand-deep);
+        color: #fff;
+        box-shadow: var(--shadow-lg);
         white-space: nowrap;
       }
-       /* Animation for page load */
+
       @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ── Tôn trọng prefers-reduced-motion (bắt buộc) ───────────────────── */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: .01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: .01ms !important;
+          scroll-behavior: auto !important;
         }
       }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,700;0,800;0,900;1,700;1,900&display=swap" rel="stylesheet">
-  
+
   <!-- Firebase SDKs -->
   <script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
@@ -189,7 +466,7 @@
       } else {
         document.documentElement.classList.remove('dark');
       }
-      
+
       // Set initial language from localStorage or browser preference
       const storedLang = localStorage.getItem('language');
       let currentLang = 'en'; // Default

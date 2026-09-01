@@ -1,5 +1,23 @@
 # Football Hub Redesign Implementation Plan
 
+> **Cập nhật 2026-09-01 — bản thiết kế này đã được thay thế.**
+>
+> Người dùng chọn áp dụng design system **VNEXT** (skill `vnext-ui`) cho toàn bộ app,
+> thay cho ngôn ngữ thiết kế "Stadium Floodlights" mô tả bên dưới. Những gì đã đổi:
+>
+> - **Bảng màu**: dùng token VNEXT (cam `#e96620`, dark nâu-đen ấm `20 18% 6%`), khai báo
+>   bằng HSL triplet trong `index.html` để hỗ trợ `bg-primary/10`. Không dùng palette
+>   cam-xanh sân cỏ ở mục 2.1.
+> - **Chữ**: Inter (body) + Space Grotesk (heading), thay Montserrat và Bebas Neue.
+> - **3D**: không dùng Three.js / `@react-three/fiber` và không bật esbuild code-splitting.
+>   Nền 3D là `components/StadiumField3D.tsx` — WebGL thuần, không thêm dependency, tự tắt
+>   khi `prefers-reduced-motion` hoặc thiết bị yếu.
+> - **Hiệu ứng**: theo ngân sách của `vnext-ui/references/effects.md` (tối đa 1 vùng nền
+>   chuyển động mỗi màn) và checklist chống AI slop.
+> - **Logo**: logo VNEXT chính thức ở header, favicon, màn tải và màn xác thực.
+>
+> Giữ nguyên từ bản này: việc gỡ giao diện Leaderboard (mục 5) và các non-goals ở mục 1.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Redesign the entire Vnext Football Hub UI to the "Stadium Floodlights" design system (pitch-green/orange-floodlight palette, real WebGL 3D on hero moments, CSS-3D depth elsewhere) and remove the Leaderboard UI while keeping its data model intact, then build/QA/deploy.
