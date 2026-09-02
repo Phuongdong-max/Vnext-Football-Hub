@@ -3,12 +3,14 @@ import { Player, DividedTeam, PlayerSeed } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { Button } from './shared/Button';
-import { PlayIcon } from './icons';
+import { PlayIcon, ArrowLeftIcon } from './icons';
 
 interface TeamDivisionSpinnerProps {
     players: Player[];
     numberOfTeams: number;
     onComplete: (teams: DividedTeam[]) => void;
+    /** Leave the draw and go back to the squad list. */
+    onCancel?: () => void;
 }
 
 const seedValues: Record<PlayerSeed, number> = { GK: 0, A: 5, B: 4, C: 3, D: 2, E: 1 };
@@ -46,7 +48,7 @@ const sliceColorAt = (index: number, total: number) => {
 // Picking a team is pure so that the one-at-a-time spin and the spin-all draw
 // run the exact same rule; spin-all folds it over a local working copy of the
 // teams instead of waiting for a state update between players.
-const pickTargetTeam = (player: Player, teams: DividedTeam[]): { team: DividedTeam; usedFallback: boolean } => {
+export const pickTargetTeam = (player: Player, teams: DividedTeam[]): { team: DividedTeam; usedFallback: boolean } => {
     // Ideal candidates are teams that DO NOT have this player's seed yet.
     const idealCandidates = teams.filter(t => !t.players.some(p => p.seed === player.seed));
     const usedFallback = idealCandidates.length === 0;
@@ -68,7 +70,7 @@ const pickTargetTeam = (player: Player, teams: DividedTeam[]): { team: DividedTe
     return { team: candidates[0], usedFallback };
 };
 
-const assignToTeams = (teams: DividedTeam[], player: Player, teamId: number): DividedTeam[] =>
+export const assignToTeams = (teams: DividedTeam[], player: Player, teamId: number): DividedTeam[] =>
     teams.map(team => team.id !== teamId ? team : {
         ...team,
         players: [...team.players, player].sort((a, b) => seedValues[b.seed] - seedValues[a.seed]),
@@ -77,7 +79,7 @@ const assignToTeams = (teams: DividedTeam[], player: Player, teamId: number): Di
         playerCount: team.playerCount + 1,
     });
 
-const shuffled = <T,>(items: T[]): T[] => {
+export const shuffled = <T,>(items: T[]): T[] => {
     const copy = [...items];
     for (let i = copy.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -105,7 +107,7 @@ const makeConfetti = (count: number): ConfettiPiece[] =>
     }));
 
 
-export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, onComplete }) => {
+export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, onComplete, onCancel }) => {
     const { translate } = useLanguage();
     const { addToast } = useAppContext();
 
@@ -301,9 +303,12 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
     const sliceCount = unassignedPlayers.length;
     const sliceAngle = sliceCount > 0 ? 360 / sliceCount : 360;
     const hubSize = Math.max(96, Math.round(wheelSize * 0.26));
+    // The hub plate is hubSize + 16; labels must stay outside it.
+    const hubRadius = (hubSize + 16) / 2;
+    const labelBand = Math.max(40, wheelRadius - hubRadius - 10);
 
     return (
-        <div className="flex flex-col items-center justify-start p-4 min-h-[80vh] bg-background dark:bg-slate-900/50 rounded-lg">
+        <div className="relative min-h-[80vh] rounded-lg bg-background p-4 dark:bg-slate-900/50">
             <style>{`
               @keyframes tds-confetti-fall {
                 0%   { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
@@ -337,8 +342,27 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                  </div>
             )}
 
-            <h1 className="text-3xl font-bold text-textPrimary mb-2 text-center">{translate('teamDivider.spinner.title')}</h1>
-            <p role="status" aria-live="polite" className="text-lg text-textSecondary h-8 text-center transition-all duration-300">{announcement}</p>
+            {/* The draw takes over the whole page, so this arrow is the only way
+                back to the squad list. Disabled mid-spin to avoid abandoning a
+                draw halfway through an animation. */}
+            {onCancel && (
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={isSpinning}
+                    aria-label={translate('teamDivider.spinner.backButton')}
+                    title={translate('teamDivider.spinner.backButton')}
+                    className="absolute left-2 top-2 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-surface text-textPrimary shadow-md transition-colors hover:bg-black/5 disabled:opacity-40 dark:hover:bg-white/10 sm:left-4 sm:top-4"
+                >
+                    <ArrowLeftIcon className="h-5 w-5" />
+                </button>
+            )}
+
+            {/* Wheel on the left, teams on the right, so a room watching the draw
+                can follow both at once instead of scrolling between them. */}
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_30rem] lg:items-stretch xl:grid-cols-[minmax(0,1fr)_34rem]">
+            <div className="flex flex-col items-center lg:pr-8">
+            <p role="status" aria-live="polite" className="h-8 text-center text-lg text-textSecondary transition-all duration-300">{announcement}</p>
 
             {/* Winner reveal - fixed height so the wheel never jumps when it
                 appears, and enough bottom margin to clear the wheel's pointer. */}
@@ -450,29 +474,35 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                             transformOrigin: 'bottom center',
                         };
 
-                        // This div sits on the spoke and is responsible for positioning the text block.
+                        // The spoke runs rim (top: 0) to centre (top: wheelRadius),
+                        // so the label is placed by its distance from the rim.
+                        // Centre it in the band between the hub plate and the rim -
+                        // at half the radius a long name ran inwards and vanished
+                        // under the hub.
                         const textPositionerStyle: React.CSSProperties = {
                             position: 'absolute',
-                            // Position the block halfway along the radius
-                            top: `${wheelRadius * 0.5}px`,
+                            top: `${wheelRadius - (hubRadius + labelBand / 2)}px`,
                             left: '0.5px', // Center on the 1px spoke
-                            // Center the block itself on the spoke line, and move its own center up to its position
                             transform: 'translate(-50%, -50%)',
                             pointerEvents: 'none',
                         };
 
-                        // This handles the text's own rotation to make it vertical and readable.
-                        const textRotation = textAngle > 90 && textAngle < 270 ? 90 : -90;
+                        // The label's total rotation on screen is textAngle plus this,
+                        // and it reads correctly only while that total stays within
+                        // -90..90. The old boundaries (90/270) left the lower-right
+                        // and upper-left quadrants printing upside down.
+                        const textRotation = textAngle <= 180 ? -90 : 90;
 
-                        // Slice count sets the ceiling; a long name may only shrink
-                        // it further. Previously the name rule sat between two count
-                        // rules, so it applied at 26-35 players but was overwritten
-                        // at 36+ and ignored below 26.
+                        // Slice count sets the ceiling, then the name is shrunk
+                        // further until it actually fits the band. Guessing from
+                        // name length alone still let long names overflow.
                         let fontSize = 13;
                         if (sliceCount > 35) fontSize = 9;
                         else if (sliceCount > 25) fontSize = 11;
                         else if (sliceCount > 15) fontSize = 12;
-                        if (player.name.length > 12) fontSize = Math.min(fontSize, 10);
+                        // ~0.55em average glyph width for this typeface.
+                        const fitted = labelBand / (Math.max(player.name.length, 1) * 0.55);
+                        fontSize = Math.max(8, Math.floor(Math.min(fontSize, fitted)));
 
                         const textSpanStyle: React.CSSProperties = {
                             display: 'block',
@@ -522,7 +552,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                 </Button>
             </div>
 
-            <div className="mt-6 flex flex-col items-center gap-2">
+            <div className="mt-5 flex flex-col items-center gap-2">
                 <Button
                     onClick={handleSpinAll}
                     disabled={isSpinning || unassignedPlayers.length === 0}
@@ -535,24 +565,45 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                     {translate('teamDivider.spinner.remaining', { count: unassignedPlayers.length })}
                 </span>
             </div>
+            </div>
 
-            <div className="w-full max-w-6xl mx-auto grid gap-4 mt-10" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))` }}>
-                {teams.map(team => (
-                    <div
-                        key={team.id}
-                        id={`team-box-${team.id}`}
-                        className={`bg-surface rounded-lg shadow-md p-4 min-h-[150px] transition-all duration-300 flex flex-col ${lastWinner?.teamId === team.id ? 'ring-2 ring-primary' : ''}`}
-                    >
-                        <h3 className="text-lg font-semibold text-primary mb-2 text-center border-b border-border pb-2">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
-                        <ul className="space-y-1 flex-grow">
-                            {team.players.map((p, i) => (
-                                <li key={`${p.name}-${team.id}-${i}`} className="text-sm text-textPrimary text-center bg-gray-100 dark:bg-slate-700 p-1.5 rounded-md shadow-sm">
-                                    {p.name} <span className="text-xs text-textSecondary">({p.seed})</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
+            {/* Teams fill up as the draw runs. Empty slots are drawn in so the
+                boxes do not start as three blank rectangles and the target size
+                of each team is obvious. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:h-full lg:grid-rows-2">
+                {teams.map(team => {
+                    const target = Math.ceil(players.length / Math.max(teams.length, 1));
+                    const emptySlots = Math.max(0, target - team.players.length);
+                    const isTarget = lastWinner?.teamId === team.id;
+                    return (
+                        <div
+                            key={team.id}
+                            id={`team-box-${team.id}`}
+                            className={`flex flex-col overflow-hidden rounded-xl bg-surface shadow-md transition-all duration-300 ${isTarget ? 'ring-2 ring-primary' : ''}`}
+                        >
+                            <div className="flex items-baseline justify-between bg-primary px-3 py-1.5">
+                                <h3 className="text-sm font-bold text-white">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
+                                <span className="font-mono text-xs text-white/80">{team.playerCount}</span>
+                            </div>
+                            <ul className="flex flex-grow flex-col gap-1 p-2">
+                                {team.players.map((p, i) => (
+                                    <li key={`${p.name}-${team.id}-${i}`} className="flex items-center justify-between gap-2 rounded bg-background px-2 py-1 dark:bg-slate-700/60">
+                                        <span className="break-words text-[13px] font-medium leading-tight text-textPrimary">{p.name}</span>
+                                        <span className="flex-shrink-0 font-mono text-[10px] text-textSecondary">{p.seed}</span>
+                                    </li>
+                                ))}
+                                {Array.from({ length: emptySlots }).map((_, i) => (
+                                    <li key={`slot-${team.id}-${i}`} className="min-h-[26px] flex-1 rounded border border-dashed border-border" />
+                                ))}
+                            </ul>
+                            <div className="border-t border-border px-2 py-1 text-center text-[10px] text-textSecondary">
+                                {translate('teamDivider.totalSeedValue')}:{' '}
+                                <span className="font-semibold text-primary">{team.totalSeedValue}</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
             </div>
         </div>
     );

@@ -1,26 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import {
     onTournamentUpdate,
     updateTournament,
-    getAllTournaments,
-    createTournament,
-    deleteTournament,
     onAllPlayersUpdate
 } from '../services/firebaseService';
 import { Tournament, TeamStanding, TournamentMatch, TournamentTeam, UserRole, Goal, TournamentPlayer } from '../types';
-import { TOURNAMENT_DOC_ID } from '../constants';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
 import { Modal } from '../components/shared/Modal';
-import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon, TShirtIcon, StarIcon, PlusIcon as PlusSmallIcon, TrashIcon, PencilIcon } from '../components/icons';
+import { PencilAltIcon, TrophyIcon, UsersIcon, CalendarIcon, TableCellsIcon, UserCircleIcon, PlusCircleIcon, ArrowPathIcon, TShirtIcon, StarIcon, PencilIcon, XIcon } from '../components/icons';
 import { ManageTournamentModal } from '../components/Tournament/ManageTournamentModal';
 import { TournamentScheduleGeneratorModal } from '../components/Tournament/TournamentScheduleGeneratorModal';
 import { TournamentJerseyDrawModal } from '../components/Tournament/TournamentJerseyDrawModal';
 import { GoalscorerModal } from '../components/Tournament/GoalscorerModal';
 import { TopScorersList } from '../components/Tournament/TopScorersList';
-import { CreateEditTournamentModal } from '../components/Tournament/CreateEditTournamentModal';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 import { TeamAnalysisModal } from '../components/Tournament/TeamAnalysisModal';
 import { TournamentMatchAnalysisModal } from '../components/Tournament/TournamentMatchAnalysisModal';
@@ -111,66 +107,82 @@ const TeamDisplay = ({ teamId, alignment = 'start', teams }: { teamId: string, a
     );
 };
 
-export const TournamentPage: React.FC = () => {
-    const { translate, language } = useLanguage();
-    const { currentUser, isFirebaseReady, addToast, canEdit } = useAppContext();
+/** One side of a fixture row. Highlights the winner and fades the loser so a
+ *  result is readable at a glance instead of having to compare two numbers. */
+const ScheduleTeam = ({ teamId, teams, align, isWinner, dimmed }: {
+    teamId: string; teams: TournamentTeam[]; align: 'start' | 'end'; isWinner: boolean; dimmed: boolean;
+}) => {
+    const { translate } = useLanguage();
+    const team = teams.find(t => t.id === teamId);
+    const justify = align === 'end' ? 'justify-end text-right' : 'justify-start text-left';
 
-    const [allTournaments, setAllTournaments] = useState<{ id: string; name: string }[]>([]);
-    const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+    if (teamId.startsWith('TBD-')) {
+        return <div className={`flex items-center gap-2 ${justify} min-w-0`}>
+            <span className="truncate text-sm italic text-textSecondary">{translate('schedule.tbd')}</span>
+        </div>;
+    }
+
+    const content = (
+        <>
+            <span style={{ backgroundColor: team?.color || '#a1a1aa' }} className="h-5 w-1 flex-shrink-0 rounded-full" />
+            <span className={`truncate text-sm sm:text-base ${isWinner ? 'font-bold text-textPrimary' : dimmed ? 'font-medium text-textSecondary' : 'font-semibold text-textPrimary'}`}>
+                {team?.name || teamId}
+            </span>
+        </>
+    );
+
+    return (
+        <div className={`flex min-w-0 items-center gap-2 ${justify}`}>
+            {align === 'end' ? <>{content}</> : <>{content}</>}
+        </div>
+    );
+};
+
+type TournamentTabId = 'standings' | 'schedule' | 'teams' | 'topScorers';
+
+interface TournamentPageProps {
+    // When SeasonPage hosts this as one panel of the season shell it owns the
+    // season picker and the tab bar, so both are suppressed here and the active
+    // tab is driven from outside.
+    embeddedTab?: TournamentTabId;
+}
+
+export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) => {
+    const { translate, language } = useLanguage();
+    const {
+        currentUser, isFirebaseReady, addToast, canEdit: canEditRaw, isAdmin,
+        selectedTournamentId, isSelectedTournamentArchived,
+    } = useAppContext();
+
+    // An archived season is a historical record: readable by everyone, editable
+    // by nobody, so every edit affordance folds away rather than failing on save.
+    const canEdit = canEditRaw && !isSelectedTournamentArchived;
+
     const [tournament, setTournament] = useState<Tournament | null>(null);
     const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
     
     const [isLoading, setIsLoading] = useState(true);
     const [isSwitchingTournament, setIsSwitchingTournament] = useState(false);
-    const [isListLoading, setIsListLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'teams' | 'topScorers'>('standings');
+    const [ownActiveTab, setActiveTab] = useState<TournamentTabId>('standings');
+    const activeTab: TournamentTabId = embeddedTab ?? ownActiveTab;
+    const isEmbedded = embeddedTab !== undefined;
     
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
     const [isJerseyDrawModalOpen, setIsJerseyDrawModalOpen] = useState(false);
     const [isGoalscorerModalOpen, setIsGoalscorerModalOpen] = useState(false);
-    const [isCreateEditModalOpen, setIsCreateEditModalOpen] = useState(false);
     const [isPlayerDetailModalOpen, setIsPlayerDetailModalOpen] = useState(false);
     const [isEditMatchModalOpen, setIsEditMatchModalOpen] = useState(false);
     
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [editingMatchInfo, setEditingMatchInfo] = useState<{ match: TournamentMatch; teamType: 'home' | 'away' } | null>(null);
     const [matchToEdit, setMatchToEdit] = useState<TournamentMatch | null>(null);
     const [selectedPlayerForDetail, setSelectedPlayerForDetail] = useState<TournamentPlayer | null>(null);
     const [teamForAnalysis, setTeamForAnalysis] = useState<TournamentTeam | null>(null);
     const [matchForAnalysis, setMatchForAnalysis] = useState<TournamentMatch | null>(null);
 
-    // Effect for fetching the list of all tournaments
-    const fetchAllTournaments = useCallback(async () => {
-        if (!isFirebaseReady) return;
-        setIsListLoading(true);
-        try {
-            const tournamentsList = await getAllTournaments();
-            setAllTournaments(tournamentsList);
-            if (tournamentsList.length > 0) {
-                const storedId = localStorage.getItem('selectedTournamentId');
-                if (storedId && tournamentsList.some(t => t.id === storedId)) {
-                    setSelectedTournamentId(storedId);
-                } else {
-                    const defaultTournament = tournamentsList.find(t => t.id === TOURNAMENT_DOC_ID) || tournamentsList[0];
-                    setSelectedTournamentId(defaultTournament.id);
-                }
-            } else {
-                setSelectedTournamentId(null);
-            }
-        } catch (error) {
-            addToast('tournament.toast.fetchListError', 'error');
-            console.error("Failed to fetch tournaments list", error);
-        } finally {
-            setIsListLoading(false);
-        }
-    }, [isFirebaseReady, addToast]);
-
-    useEffect(() => {
-        fetchAllTournaments();
-    }, [fetchAllTournaments]);
-
-    // Effect for subscribing to the selected tournament's data
+    // The tournament list and the current selection now live in AppContext, so
+    // Player Info and Team Divider read the same season. This page only
+    // subscribes to whichever one is selected.
     useEffect(() => {
         if (!isFirebaseReady || !selectedTournamentId) {
             setTournament(null);
@@ -179,27 +191,24 @@ export const TournamentPage: React.FC = () => {
         }
 
         setIsSwitchingTournament(true);
-        console.log(`[TournamentPage] Subscribing to tournament: ${selectedTournamentId}`);
         const unsubscribe = onTournamentUpdate(selectedTournamentId, (data) => {
             setTournament(data);
             setIsLoading(false);
             setIsSwitchingTournament(false);
         });
-        
-        localStorage.setItem('selectedTournamentId', selectedTournamentId);
 
-        return () => {
-            console.log(`[TournamentPage] Unsubscribing from tournament: ${selectedTournamentId}`);
-            unsubscribe();
-        };
+        return () => unsubscribe();
     }, [isFirebaseReady, selectedTournamentId]);
 
-    // Effect for subscribing to the global player list
+    // Squads are per season now, so this follows the selected tournament.
     useEffect(() => {
-        if (!isFirebaseReady) return;
-        const unsubscribe = onAllPlayersUpdate(setAllPlayers);
+        if (!isFirebaseReady || !selectedTournamentId) {
+            setAllPlayers([]);
+            return;
+        }
+        const unsubscribe = onAllPlayersUpdate(selectedTournamentId, setAllPlayers);
         return () => unsubscribe();
-    }, [isFirebaseReady]);
+    }, [isFirebaseReady, selectedTournamentId]);
 
     const availablePlayersForTournament = useMemo(() => {
         const legacyPlayers = tournament?.players ?? [];
@@ -261,6 +270,55 @@ export const TournamentPage: React.FC = () => {
         return standingsArray;
     };
     
+    // --- Editing squads -----------------------------------------------------
+    //
+    // Members are picked from this season's squad, never typed, so a team can
+    // only ever contain real players. Drafts hold ids; a player already on some
+    // team is not offered again, which makes double-assignment impossible.
+    const [isEditingTeams, setIsEditingTeams] = useState(false);
+    const [teamDrafts, setTeamDrafts] = useState<Record<string, string[]>>({});
+    const [isSavingTeams, setIsSavingTeams] = useState(false);
+
+    const startEditingTeams = () => {
+        const drafts: Record<string, string[]> = {};
+        (tournament?.teams ?? []).forEach(team => {
+            drafts[team.id] = (team.members ?? []).map(m => m.playerId);
+        });
+        setTeamDrafts(drafts);
+        setIsEditingTeams(true);
+    };
+
+    const assignedIds = new Set(Object.values(teamDrafts).flat());
+    const unassignedPlayers = availablePlayersForTournament
+        .filter(p => !assignedIds.has(p.id))
+        .sort((a, b) => (a.jerseyNumber || 0) - (b.jerseyNumber || 0));
+
+    const addMember = (teamId: string, playerId: string) => {
+        if (!playerId) return;
+        setTeamDrafts(prev => ({ ...prev, [teamId]: [...(prev[teamId] ?? []), playerId] }));
+    };
+    const removeMember = (teamId: string, playerId: string) => {
+        setTeamDrafts(prev => ({ ...prev, [teamId]: (prev[teamId] ?? []).filter(id => id !== playerId) }));
+    };
+
+    const handleSaveTeams = async () => {
+        if (!currentUser || !tournament || !selectedTournamentId) return;
+        setIsSavingTeams(true);
+        try {
+            const teams: TournamentTeam[] = (tournament.teams ?? []).map(team => ({
+                ...team,
+                members: (teamDrafts[team.id] ?? []).map(playerId => ({ playerId })),
+            }));
+            await updateTournament(selectedTournamentId, { teams }, currentUser);
+            addToast('teamList.saved', 'success');
+            setIsEditingTeams(false);
+        } catch (error) {
+            addToast('teamList.saveError', 'error', { message: (error as Error).message });
+        } finally {
+            setIsSavingTeams(false);
+        }
+    };
+
     const topScorers = useMemo(() => {
         if (!tournament?.schedule || !tournament?.teams || !availablePlayersForTournament) return [];
         const scorerStats: Record<string, { name: string; goals: number; teamId: string; isGuest: boolean; jerseyNumber?: number; }> = {};
@@ -285,45 +343,10 @@ export const TournamentPage: React.FC = () => {
             .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
     }, [tournament, availablePlayersForTournament]);
 
-    const handleCreateTournament = async (name: string) => {
-        if (!currentUser) return;
-        try {
-            const newTournamentId = await createTournament(name, currentUser);
-            addToast('tournament.toast.createdSuccess', 'success', { name });
-            await fetchAllTournaments();
-            setSelectedTournamentId(newTournamentId);
-            setIsCreateEditModalOpen(false);
-        } catch (error) {
-            addToast('tournament.toast.createError', 'error', { message: (error as Error).message });
-        }
-    };
-    
-    const handleEditTournament = async (newName: string) => {
-        if (!currentUser || !tournament) return;
-        try {
-            await updateTournament(tournament.id, { name: newName }, currentUser);
-            addToast('tournament.toast.updatedSuccess', 'success');
-            await fetchAllTournaments();
-            setIsCreateEditModalOpen(false);
-        } catch (error) {
-            addToast('tournament.toast.updateError', 'error', { message: (error as Error).message });
-        }
-    };
-    
-    const handleDeleteTournament = async () => {
-        if (!tournament) return;
-        const confirmDelete = window.confirm(translate('tournament.deleteConfirm.message', { name: tournament.name }));
-        if (!confirmDelete) return;
 
-        try {
-            await deleteTournament(tournament.id);
-            addToast('tournament.toast.deletedSuccess', 'success', { name: tournament.name });
-            setTournament(null);
-            await fetchAllTournaments();
-        } catch (error) {
-            addToast('tournament.toast.deleteError', 'error', { message: (error as Error).message });
-        }
-    };
+
+    // Replaces deletion. Past seasons have to stay readable, so the worst an
+    // admin can do here is lock one - and that is reversible.
 
     const handleOpenGoalscorerModal = (match: TournamentMatch, teamType: 'home' | 'away') => {
         if (!canEdit) return;
@@ -420,11 +443,13 @@ export const TournamentPage: React.FC = () => {
             return (
                 <div className="text-center py-10">
                     <p className="text-textSecondary">{translate('tournament.noData')}</p>
-                    {canEdit && (
-                         <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} className="mt-4">
+                    {/* Seasons are created on the admin page now, so point there
+                        instead of opening a form this page no longer owns. */}
+                    {isAdmin && (
+                        <Link to="/admin" className="mt-4 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-opacity-90">
                             <PlusCircleIcon className="w-5 h-5 mr-2" />
-                            {translate('tournament.button.new')}
-                        </Button>
+                            {translate('admin.season.createButton')}
+                        </Link>
                     )}
                 </div>
             );
@@ -442,32 +467,20 @@ export const TournamentPage: React.FC = () => {
 
         return (
             <div className="space-y-6 animate-fadeIn">
-                <header className="relative text-center">
-                    <div className="bg-surface backdrop-blur-sm p-4 rounded-xl shadow-lg inline-block border border-border">
-                        <h1 className="text-3xl sm:text-4xl font-bold text-textPrimary tracking-tight">{name}</h1>
-                        {lastUpdated && updatedBy && (
-                            <p className="text-xs text-textSecondary mt-2">{translate('tournament.lastUpdated', { name: updatedBy.name, date: new Date(lastUpdated).toLocaleString(language) })}</p>
-                        )}
-                    </div>
-                </header>
-                 {canEdit && (
-                    <div className={`${panelClasses} p-3`}>
-                        <h2 className="text-lg font-semibold mb-2 text-textPrimary">{translate('tournament.generateScheduleSectionTitle')}</h2>
-                        <div className="flex flex-wrap gap-2">
-                            <Button onClick={() => setIsGeneratorModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} size="sm">
-                                <ArrowPathIcon className="w-4 h-4 mr-2" />
-                                {translate('tournament.button.generateSchedule')}
-                            </Button>
-                            <Button onClick={() => setIsJerseyDrawModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} variant="secondary" size="sm">
-                                <TShirtIcon className="w-4 h-4 mr-2" />
-                                {translate('tournament.button.drawJerseys')}
-                            </Button>
+                {/* The season shell already shows the name and the last-updated
+                    line in its hero, so this header would be a duplicate there. */}
+                {!isEmbedded && (
+                    <header className="relative text-center">
+                        <div className="bg-surface backdrop-blur-sm p-4 rounded-xl shadow-lg inline-block border border-border">
+                            <h1 className="text-3xl sm:text-4xl font-bold text-textPrimary tracking-tight">{name}</h1>
+                            {lastUpdated && updatedBy && (
+                                <p className="text-xs text-textSecondary mt-2">{translate('tournament.lastUpdated', { name: updatedBy.name, date: new Date(lastUpdated).toLocaleString(language) })}</p>
+                            )}
                         </div>
-                    </div>
+                    </header>
                 )}
-
-                {/* Tab Navigation */}
-                <div className="border-b border-border">
+                {/* Tab Navigation - hidden when the season shell provides it */}
+                {!isEmbedded && <div className="border-b border-border">
                     <nav className="-mb-px flex flex-wrap gap-x-2 sm:gap-x-4" aria-label="Tabs">
                         {tabs.map(tab => (
                              <button
@@ -485,7 +498,7 @@ export const TournamentPage: React.FC = () => {
                             </button>
                         ))}
                     </nav>
-                </div>
+                </div>}
 
                 {/* Tab Content */}
                 <div className="mt-4">
@@ -534,97 +547,262 @@ export const TournamentPage: React.FC = () => {
                         </section>
                     )}
                     {activeTab === 'schedule' && (
-                        <section className="space-y-4">
-                            {schedule?.length > 0 ? (
-                                schedule.sort((a,b) => a.round - b.round).map((match, index) => (
-                                    <div key={match.id} className={`${panelClasses} p-3`}>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="text-sm font-semibold text-textSecondary">
-                                                {match.matchLabel || translate('schedule.match', { matchNumber: index + 1 })}
-                                            </h4>
-                                            <div className="flex items-center gap-1">
-                                                {!match.homeTeamId.startsWith('TBD-') && !match.awayTeamId.startsWith('TBD-') && (
-                                                     <Button size="sm" variant="ghost" className="!p-1.5 h-7 w-7" onClick={() => setMatchForAnalysis(match)} title="AI Analysis">
-                                                        <span className="font-bold text-sm bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-500 to-orange-500">
-                                                            AI
-                                                        </span>
-                                                    </Button>
-                                                )}
-                                                {canEdit && (
-                                                    <Button size="sm" variant="ghost" className="!p-1.5 h-7 w-7" onClick={() => handleOpenEditMatchModal(match)}>
-                                                        <PencilIcon className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
-                                            <TeamDisplay teamId={match.homeTeamId} alignment="end" teams={teams} />
-                                            <div className="flex flex-col items-center justify-center my-2 md:my-0">
-                                                {canEdit ? (
-                                                    <div className="flex items-center space-x-2">
-                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'home')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.homeTeamScore ?? '-'}</button>
-                                                        <span className="font-bold text-lg text-textSecondary">-</span>
-                                                        <button onClick={() => handleOpenGoalscorerModal(match, 'away')} className="w-20 sm:w-24 text-xl font-bold text-center text-textPrimary bg-background border border-border rounded-lg p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-primary/50 transition-all shadow-sm" title={translate('schedule.updateScoreTitle')}>{match.awayTeamScore ?? '-'}</button>
+                        <section className="space-y-6">
+                            {/* Generating fixtures and drawing jerseys used to sit
+                                above every tab. They belong with the schedule. */}
+                            {canEdit && (
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    <Button onClick={() => setIsGeneratorModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} size="sm">
+                                        <ArrowPathIcon className="mr-2 h-4 w-4" />
+                                        {translate('tournament.button.generateSchedule')}
+                                    </Button>
+                                    <Button onClick={() => setIsJerseyDrawModalOpen(true)} disabled={!tournament || tournament.teams.length < 2} variant="secondary" size="sm">
+                                        <TShirtIcon className="mr-2 h-4 w-4" />
+                                        {translate('tournament.button.drawJerseys')}
+                                    </Button>
+                                </div>
+                            )}
+                            {schedule?.length > 0 ? (() => {
+                                // Group by round so a league phase reads as rounds and
+                                // knockout ties keep their own heading. The flat list
+                                // buried the final among the group games.
+                                const ordered = [...schedule].sort((a, b) => a.round - b.round);
+                                const groups = new Map<number, TournamentMatch[]>();
+                                ordered.forEach(m => {
+                                    if (!groups.has(m.round)) groups.set(m.round, []);
+                                    groups.get(m.round)!.push(m);
+                                });
+                                let runningIndex = 0;
+
+                                return [...groups.entries()].map(([round, matches]) => (
+                                    <div key={round}>
+                                        <h3 className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-textSecondary">
+                                            {matches[0].matchLabel || translate('schedule.round', { round })}
+                                        </h3>
+                                        <div className={`${panelClasses} divide-y divide-border !p-0`}>
+                                            {matches.map(match => {
+                                                runningIndex += 1;
+                                                const isPlayed = match.status === 'finished'
+                                                    && match.homeTeamScore !== null && match.awayTeamScore !== null;
+                                                const homeWon = isPlayed && (match.homeTeamScore! > match.awayTeamScore!);
+                                                const awayWon = isPlayed && (match.awayTeamScore! > match.homeTeamScore!);
+                                                const isTbd = match.homeTeamId.startsWith('TBD-') || match.awayTeamId.startsWith('TBD-');
+
+                                                return (
+                                                    <div key={match.id} className="px-3 py-3 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03] sm:px-4">
+                                                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-[11px] text-textSecondary">
+                                                                    {match.matchLabel || translate('schedule.match', { matchNumber: runningIndex })}
+                                                                </span>
+                                                                {/* Fixtures carry no kickoff time yet, so say so
+                                                                    rather than leave a silent gap. */}
+                                                                <span className="text-[11px] text-textSecondary">
+                                                                    {match.date
+                                                                        ? new Date(match.date).toLocaleString(language, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                                                                        : translate('schedule.dateTBD')}
+                                                                </span>
+                                                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                                                    isPlayed
+                                                                        ? 'bg-success/15 text-success'
+                                                                        : 'bg-black/5 text-textSecondary dark:bg-white/10'
+                                                                }`}>
+                                                                    {translate(isPlayed ? 'schedule.status.finished' : 'schedule.status.scheduled')}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                {!isTbd && (
+                                                                    <Button size="sm" variant="ghost" className="!p-1.5 h-7" onClick={() => setMatchForAnalysis(match)} title={translate('tournament.aiAnalysisTitle')}>
+                                                                        <span className="bg-gradient-to-r from-fuchsia-500 to-orange-500 bg-clip-text text-xs font-bold text-transparent">
+                                                                            AI
+                                                                        </span>
+                                                                    </Button>
+                                                                )}
+                                                                {canEdit && (
+                                                                    <Button size="sm" variant="ghost" className="!p-1.5 h-7 w-7" onClick={() => handleOpenEditMatchModal(match)} title={translate('schedule.editMatchTitle')}>
+                                                                        <PencilIcon className="h-4 w-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* One row, three columns: the old layout gave each
+                                                            match a tall card that fit barely one line of
+                                                            content. */}
+                                                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+                                                            <ScheduleTeam teamId={match.homeTeamId} teams={teams} align="end" isWinner={homeWon} dimmed={isPlayed && !homeWon && !awayWon ? false : isPlayed && !homeWon} />
+                                                            {canEdit ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <button onClick={() => handleOpenGoalscorerModal(match, 'home')} title={translate('schedule.updateScoreTitle')}
+                                                                        className="w-11 rounded-md border border-border bg-background py-1.5 text-lg font-bold text-textPrimary transition-colors hover:border-primary/50 hover:bg-black/5 dark:hover:bg-slate-700 sm:w-14">
+                                                                        {match.homeTeamScore ?? '-'}
+                                                                    </button>
+                                                                    <span className="text-textSecondary">:</span>
+                                                                    <button onClick={() => handleOpenGoalscorerModal(match, 'away')} title={translate('schedule.updateScoreTitle')}
+                                                                        className="w-11 rounded-md border border-border bg-background py-1.5 text-lg font-bold text-textPrimary transition-colors hover:border-primary/50 hover:bg-black/5 dark:hover:bg-slate-700 sm:w-14">
+                                                                        {match.awayTeamScore ?? '-'}
+                                                                    </button>
+                                                                </div>
+                                                            ) : isPlayed ? (
+                                                                <span className="rounded-md bg-background px-3 py-1 font-mono text-xl font-bold text-textPrimary dark:bg-slate-800">
+                                                                    {match.homeTeamScore} : {match.awayTeamScore}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-3 text-sm font-semibold text-textSecondary">vs</span>
+                                                            )}
+                                                            <ScheduleTeam teamId={match.awayTeamId} teams={teams} align="start" isWinner={awayWon} dimmed={isPlayed && !awayWon && !homeWon ? false : isPlayed && !awayWon} />
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <span className="text-xl font-bold px-3 py-1 text-textPrimary bg-background rounded-md">{match.status === 'finished' ? `${match.homeTeamScore ?? '-'} - ${match.awayTeamScore ?? '-'}` : 'vs'}</span>
-                                                )}
-                                            </div>
-                                            <TeamDisplay teamId={match.awayTeamId} alignment="start" teams={teams} />
+                                                );
+                                            })}
                                         </div>
                                     </div>
-                                ))
-                            ) : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
+                                ));
+                            })() : <div className={`${panelClasses} p-4`}><p className="text-textSecondary text-center py-4">{translate('schedule.noMatches')}</p></div>}
                         </section>
                     )}
                     {activeTab === 'teams' && (
-                         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="space-y-4">
+                        {/* Managing teams and rosters is season content, not season
+                            lifecycle, so it stays here rather than moving to /admin. */}
+                        {canEdit && (
+                            <div className="flex flex-wrap justify-end gap-2">
+                                {isEditingTeams ? (
+                                    <>
+                                        <Button onClick={handleSaveTeams} disabled={isSavingTeams} size="sm">
+                                            {isSavingTeams ? <LoadingSpinner size="sm" /> : translate('teamList.saveButton')}
+                                        </Button>
+                                        <Button onClick={() => setIsEditingTeams(false)} disabled={isSavingTeams} variant="secondary" size="sm">
+                                            {translate('common.button.cancel')}
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button onClick={startEditingTeams} disabled={!tournament?.teams?.length} variant="outline" size="sm">
+                                            <PencilIcon className="mr-2 h-4 w-4" />
+                                            {translate('teamList.editButton')}
+                                        </Button>
+                                        <Button onClick={() => setIsManageModalOpen(true)} size="sm">
+                                            <PencilAltIcon className="w-4 h-4 mr-2" />
+                                            {translate('tournament.manageButton')}
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {/* Four to a row: a season is usually three or four teams,
+                            so they should all be comparable at a glance instead of
+                            wrapping onto a second line. */}
+                        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                             {teams?.map(team => (
-                                <div key={team.id} className={panelClasses}>
-                                    <div className="p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h3 className="font-bold text-lg text-primary flex items-center gap-3">
-                                                <div style={{ backgroundColor: team.color || '#a1a1aa' }} className="w-1 h-4 rounded-full flex-shrink-0"></div>
-                                                {team.name}
-                                            </h3>
-                                            <Button
+                                <div key={team.id} className="flex flex-col overflow-hidden rounded-xl bg-surface shadow-md">
+                                    <div
+                                        className="flex items-center justify-between gap-2 px-3 py-2"
+                                        style={{ backgroundColor: team.color || '#64748b' }}
+                                    >
+                                        <h3 className="truncate font-bold text-white">{team.name}</h3>
+                                        <div className="flex flex-shrink-0 items-center gap-1">
+                                            <span className="rounded bg-black/20 px-1.5 py-0.5 font-mono text-[11px] text-white">
+                                                {team.members?.length ?? 0}
+                                            </span>
+                                            <button
                                                 onClick={() => setTeamForAnalysis(team)}
-                                                variant="ghost"
-                                                size="sm"
-                                                className="!p-1.5 h-8 w-8"
                                                 title={translate('teamAnalysis.aiButton')}
+                                                className="rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-bold text-transparent transition-colors hover:bg-white"
+                                                style={{ backgroundImage: 'linear-gradient(90deg,#d946ef,#f97316)', WebkitBackgroundClip: 'text', backgroundClip: 'text' }}
                                             >
-                                                <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-500 to-orange-500">
-                                                    AI
-                                                </span>
-                                            </Button>
+                                                AI
+                                            </button>
                                         </div>
-                                        <h4 className="font-semibold text-sm text-textPrimary mb-1">{translate('teamList.members')}</h4>
-                                        <ul className="space-y-1">
-                                            {team.members?.map(memberRef => {
-                                                const player = availablePlayersForTournament.find(p => p.id === memberRef.playerId);
-                                                return (
-                                                    <li key={memberRef.playerId} className="p-1 rounded">
-                                                        {player ? (
-                                                            <button onClick={() => handleOpenPlayerDetailModal(player)} className="flex items-center text-sm w-full text-left hover:bg-gray-100 dark:hover:bg-slate-700/60 text-textPrimary p-1 rounded transition-colors duration-150">
-                                                                <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2 flex-shrink-0"/>
-                                                                <span className="hover:underline">{player.name} (#{player.jerseyNumber})</span>
-                                                            </button>
-                                                        ) : (
-                                                            <div className="flex items-center text-sm p-1 text-textPrimary">
-                                                                <UserCircleIcon className="w-6 h-6 text-textSecondary mr-2 flex-shrink-0"/>
-                                                                <span className="italic text-textSecondary text-xs">({translate('tournament.playerDeleted')})</span>
-                                                            </div>
-                                                        )}
-                                                    </li>
-                                                );
-                                            })}
-                                            {(!team.members || team.members.length === 0) && <p className="text-xs text-textSecondary italic">{translate('teamList.noMembers')}</p>}
-                                        </ul>
                                     </div>
+
+                                    {isEditingTeams && canEdit ? (
+                                        <div className="flex flex-grow flex-col">
+                                            <ul className="flex-grow divide-y divide-border">
+                                                {(teamDrafts[team.id] ?? []).map(playerId => {
+                                                    const player = availablePlayersForTournament.find(p => p.id === playerId);
+                                                    return (
+                                                        <li key={playerId} className="flex items-center gap-2 px-3 py-1.5">
+                                                            <span className="w-6 flex-shrink-0 text-center font-mono text-xs text-textSecondary">
+                                                                {player?.jerseyNumber ?? '-'}
+                                                            </span>
+                                                            <span className="flex-1 truncate text-sm text-textPrimary">
+                                                                {player?.name ?? translate('tournament.playerDeleted')}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => removeMember(team.id, playerId)}
+                                                                aria-label={translate('teamList.removeMember')}
+                                                                title={translate('teamList.removeMember')}
+                                                                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-textSecondary transition-colors hover:bg-danger/10 hover:text-danger"
+                                                            >
+                                                                <XIcon className="h-4 w-4" />
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                                {(teamDrafts[team.id] ?? []).length === 0 && (
+                                                    <li className="px-3 py-4 text-center text-xs italic text-textSecondary">
+                                                        {translate('teamList.noMembers')}
+                                                    </li>
+                                                )}
+                                            </ul>
+                                            {/* Only players not already on a team are offered. */}
+                                            <div className="border-t border-border p-2">
+                                                <select
+                                                    value=""
+                                                    onChange={e => addMember(team.id, e.target.value)}
+                                                    disabled={unassignedPlayers.length === 0}
+                                                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-textPrimary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 dark:bg-slate-800"
+                                                >
+                                                    <option value="">
+                                                        {unassignedPlayers.length === 0
+                                                            ? translate('teamList.allAssigned')
+                                                            : translate('teamList.addMember', { count: unassignedPlayers.length })}
+                                                    </option>
+                                                    {unassignedPlayers.map(p => (
+                                                        <option key={p.id} value={p.id}>#{p.jerseyNumber} {p.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                    <ul className="flex-grow divide-y divide-border">
+                                        {team.members?.map(memberRef => {
+                                            const player = availablePlayersForTournament.find(p => p.id === memberRef.playerId);
+                                            return (
+                                                <li key={memberRef.playerId}>
+                                                    {player ? (
+                                                        <button
+                                                            onClick={() => handleOpenPlayerDetailModal(player)}
+                                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/5"
+                                                        >
+                                                            <span className="w-6 flex-shrink-0 text-center font-mono text-xs text-textSecondary">
+                                                                {player.jerseyNumber}
+                                                            </span>
+                                                            <span className="truncate text-sm font-medium text-textPrimary">{player.name}</span>
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 px-3 py-1.5">
+                                                            <UserCircleIcon className="h-4 w-4 flex-shrink-0 text-textSecondary/50" />
+                                                            <span className="truncate text-xs italic text-textSecondary">
+                                                                {translate('tournament.playerDeleted')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                        {(!team.members || team.members.length === 0) && (
+                                            <li className="px-3 py-6 text-center text-xs italic text-textSecondary">
+                                                {translate('teamList.noMembers')}
+                                            </li>
+                                        )}
+                                    </ul>
+                                    )}
                                 </div>
                             ))}
                         </section>
+                      </div>
                     )}
                     {activeTab === 'topScorers' && (
                         <section><div className={panelClasses}><TopScorersList scorers={topScorers} teams={teams} /></div></section>
@@ -640,32 +818,6 @@ export const TournamentPage: React.FC = () => {
     
     return (
         <div className="space-y-6">
-            <div className={`${panelClasses} p-3`}>
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex-grow">
-                         <label htmlFor="tournament-select" className="sr-only">{translate('tournament.selectTournament')}</label>
-                         <select
-                            id="tournament-select"
-                            value={selectedTournamentId || ''}
-                            onChange={e => setSelectedTournamentId(e.target.value)}
-                            disabled={isListLoading}
-                            className="w-full max-w-xs block px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400"
-                        >
-                            {isListLoading ? <option>{translate('tournament.loading')}</option> : allTournaments.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {canEdit && (
-                        <div className="flex items-center gap-2">
-                             <Button onClick={() => { setModalMode('create'); setIsCreateEditModalOpen(true); }} size="sm"><PlusSmallIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.new')}</Button>
-                             <Button onClick={() => { setModalMode('edit'); setIsCreateEditModalOpen(true); }} size="sm" variant="outline" disabled={!tournament}><PencilIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.edit')}</Button>
-                             <Button onClick={handleDeleteTournament} size="sm" variant="danger" disabled={!tournament || allTournaments.length <= 1}><TrashIcon className="w-4 h-4 mr-1"/>{translate('tournament.button.delete')}</Button>
-                             <Button onClick={() => setIsManageModalOpen(true)} size="sm" disabled={!tournament}><PencilAltIcon className="w-4 h-4 mr-1" />{translate('tournament.manageButton')}</Button>
-                        </div>
-                    )}
-                </div>
-            </div>
 
             {renderContent()}
 
@@ -677,9 +829,6 @@ export const TournamentPage: React.FC = () => {
                     allPlayers={allPlayers}
                     availablePlayersForLookup={availablePlayersForTournament}
                 />
-            )}
-            {isCreateEditModalOpen && canEdit && (
-                 <CreateEditTournamentModal isOpen={isCreateEditModalOpen} onClose={() => setIsCreateEditModalOpen(false)} mode={modalMode} initialName={modalMode === 'edit' ? tournament?.name : ''} onSubmit={modalMode === 'create' ? handleCreateTournament : handleEditTournament} />
             )}
             {isGeneratorModalOpen && tournament && (
                 <TournamentScheduleGeneratorModal isOpen={isGeneratorModalOpen} onClose={() => setIsGeneratorModalOpen(false)} teams={tournament.teams} onSave={handleSaveGeneratedSchedule} />

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, League, UserRole } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
+import { SeasonAdminSection } from '../components/Admin/SeasonAdminSection';
 import {
   createFirebaseBettingRound,
   getFirebaseBettingRoundsByAdmin,
@@ -178,6 +179,8 @@ export const AdminDashboardPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <SeasonAdminSection />
 
       <section className="p-4 bg-surface rounded-lg shadow-md border border-border">
           <h2 className="text-xl font-semibold text-textPrimary mb-4">Global App Controls</h2>

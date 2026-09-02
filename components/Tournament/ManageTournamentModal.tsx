@@ -4,7 +4,7 @@ import { Button } from '../shared/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAppContext } from '../../contexts/AppContext';
 import { Tournament, TournamentTeam, TournamentPlayer } from '../../types';
-import { updateTournament, addPlayer, updatePlayer, deletePlayer, batchAddGlobalPlayers } from '../../services/firebaseService';
+import { updateTournament, addPlayer, updatePlayer, deletePlayer, copyPlayersIntoTournament } from '../../services/firebaseService';
 import { PlusIcon, XIcon, InformationCircleIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
@@ -56,8 +56,8 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         
         setIsMigrating(true);
         try {
-            // Step 1: Add all legacy players to the global collection
-            await batchAddGlobalPlayers(initialTournament.players);
+            // Step 1: move the embedded legacy players into this season's own squad
+            await copyPlayersIntoTournament(initialTournament.id, initialTournament.players);
 
             // Step 2: Remove the legacy 'players' array from the tournament document
             await updateTournament(initialTournament.id, {
@@ -139,7 +139,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         if (jersey !== 0 && allPlayers.some(p => p.jerseyNumber === jersey)) { addToast('manageTournament.players.error.jerseyExists', 'error'); return; }
 
         try {
-            await addPlayer({ name, jerseyNumber: jersey });
+            await addPlayer(initialTournament.id, { name, jerseyNumber: jersey });
             addToast('Cầu thủ đã được thêm thành công!', 'success');
             setNewPlayerName('');
             setNewPlayerJersey('');
@@ -155,7 +155,7 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                 addToast('manageTournament.players.error.nameRequired', 'error');
                 return; // Don't update if name is empty
             }
-            await updatePlayer(playerId, { [field]: value });
+            await updatePlayer(initialTournament.id, playerId, { [field]: value });
             addToast('Thông tin cầu thủ đã được cập nhật.', 'info');
         } catch (error) {
             addToast((error as Error).message, 'error');
@@ -166,8 +166,8 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
         if (!window.confirm(translate('manageTournament.players.deleteConfirm'))) return;
 
         try {
-            // This now only deletes from the global list. We also need to update the local `teams` state.
-            await deletePlayer(playerIdToRemove);
+            // Removes the player from this season's squad only; past seasons keep theirs.
+            await deletePlayer(initialTournament.id, playerIdToRemove);
 
             setTeams(prevTeams => prevTeams.map(team => ({
                 ...team,

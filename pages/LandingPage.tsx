@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { onTournamentUpdate, onAllPlayersUpdate } from '../services/firebaseService';
 import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
-import { TOURNAMENT_DOC_ID, getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
+import { getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
 import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 
@@ -30,7 +30,7 @@ const goldSponsors = [
 
 export const LandingPage: React.FC = () => {
     const { translate } = useLanguage();
-    const { isFirebaseReady, addToast } = useAppContext();
+    const { isFirebaseReady, addToast, selectedTournamentId } = useAppContext();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [isThankYouModalOpen, setIsThankYouModalOpen] = useState(false);
     const [selectedSponsor, setSelectedSponsor] = useState('');
@@ -47,13 +47,17 @@ export const LandingPage: React.FC = () => {
 
     useEffect(() => {
         if (!isFirebaseReady) return;
-        const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
-        const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
+        if (!selectedTournamentId) return;
+        // TOURNAMENT_DOC_ID pointed at a document id that does not exist, so this
+        // page always fell back to the hardcoded demo teams. It now follows the
+        // season selected app-wide.
+        const unsubTournament = onTournamentUpdate(selectedTournamentId, setTournament);
+        const unsubPlayers = onAllPlayersUpdate(selectedTournamentId, setAllPlayers);
         return () => {
             unsubTournament();
             unsubPlayers();
         };
-    }, [isFirebaseReady]);
+    }, [isFirebaseReady, selectedTournamentId]);
 
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {

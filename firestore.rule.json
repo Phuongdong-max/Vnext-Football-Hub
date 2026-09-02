@@ -64,10 +64,22 @@ service cloud.firestore {
 
     // TOURNAMENTS
     // Tournament data is public and can be read by anyone.
-    // Any authenticated user is allowed to write (create, update, delete) tournament data.
+    // Any authenticated user may still record scores and goalscorers.
     match /tournaments/{tournamentId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      // Scores and goalscorers are recorded by any signed-in member...
+      allow create, update: if request.auth != null;
+      // ...but deleting a whole season is an admin-only action.
+      allow delete: if isAdmin();
+
+      // Season squads. A parent match does NOT cover subcollections, so without
+      // this block every read and write under tournaments/{id}/players is denied
+      // by default. Public read like the tournament itself; writes are limited to
+      // admins, who own the roster of a season.
+      match /players/{playerId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
     }
   }
 }

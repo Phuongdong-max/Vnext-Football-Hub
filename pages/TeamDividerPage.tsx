@@ -8,12 +8,23 @@ import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole } from '../
 import { onTeamDivisionUpdate, updateTeamDivision } from '../services/firebaseService';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
-import { UsersIcon, ArrowPathIcon } from '../components/icons';
-import { TeamDivisionSpinner } from '../components/TeamDivisionSpinner';
+import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon } from '../components/icons';
+import { TeamDivisionSpinner, pickTargetTeam, assignToTeams, shuffled } from '../components/TeamDivisionSpinner';
 
-export const TeamDividerPage: React.FC = () => {
+interface TeamDividerPageProps {
+    // Rendered as a tab of SeasonPage, which supplies the page heading.
+    embedded?: boolean;
+    /**
+     * The wheel takes over the whole page, so the host is told to fold away its
+     * season header and tab bar while a draw is running. The host owns that
+     * chrome, so it cannot work this out on its own.
+     */
+    onImmersiveChange?: (immersive: boolean) => void;
+}
+
+export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = false, onImmersiveChange }) => {
     const { translate, language } = useLanguage();
-    const { currentUser, isFirebaseReady, addToast } = useAppContext();
+    const { currentUser, isFirebaseReady, addToast, selectedTournament } = useAppContext();
 
     // Only admins own the roster: they edit it and their division is the one
     // that gets published. Everyone else reads it and may spin locally.
@@ -37,9 +48,27 @@ export const TeamDividerPage: React.FC = () => {
     // Set while the admin has typed changes that are not written yet, so an
     // incoming snapshot does not wipe the edit in progress. Held in a ref too
     // because the snapshot callback closes over the value from subscribe time.
+    // Shown once the draw lands, over everything, so a room watching the screen
+    // gets a clear final result rather than the page quietly changing behind the
+    // wheel. Dismissed by clicking anywhere.
+    const [showResult, setShowResult] = useState(false);
+    const [isEditingList, setIsEditingList] = useState(false);
     const [hasUnsavedPlayers, setHasUnsavedPlayers] = useState(false);
     const hasUnsavedPlayersRef = useRef(false);
     useEffect(() => { hasUnsavedPlayersRef.current = hasUnsavedPlayers; }, [hasUnsavedPlayers]);
+
+    useEffect(() => {
+        onImmersiveChange?.(divisionState === 'spinning');
+    }, [divisionState, onImmersiveChange]);
+
+    useEffect(() => {
+        if (!showResult) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowResult(false); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [showResult]);
+
+    useEffect(() => () => onImmersiveChange?.(false), [onImmersiveChange]);
 
     const editSeedPlayers = (updater: (prev: typeof seedPlayers) => typeof seedPlayers) => {
         setSeedPlayers(updater);
@@ -85,31 +114,28 @@ export const TeamDividerPage: React.FC = () => {
         return () => unsubscribe();
     }, [isFirebaseReady, translate, language]);
 
-    const handlePrepareAndStartDivision = () => {
+    /**
+     * Reads the six lists into players and validates the draw. Shared by both
+     * buttons so "spin" and "divide now" can never disagree about who is in, or
+     * about what counts as a valid setup. Returns null when the draw cannot run,
+     * after setting the message.
+     */
+    const collectPlayers = (): Player[] | null => {
         setMessage('');
 
         if (numberOfTeams < 2) {
             setMessage(translate('teamDivider.message.minPlayersToSplit', { count: 2 }));
-            return;
+            return null;
         }
-        
-        const processTextarea = (text: string, seed: PlayerSeed): Player[] => {
-            return text
+
+        const processTextarea = (text: string, seed: PlayerSeed): Player[] =>
+            text
                 .split("\n")
                 .map(name => name.trim())
                 .filter(name => name !== "")
                 .map(name => ({ name, seed }));
-        };
 
-        const shuffleArray = (array: any[]) => {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        };
-        
-        const allPlayers = shuffleArray([
+        const allPlayers = shuffled([
             ...processTextarea(seedPlayers.GK, 'GK'),
             ...processTextarea(seedPlayers.A, "A"),
             ...processTextarea(seedPlayers.B, "B"),
@@ -120,14 +146,20 @@ export const TeamDividerPage: React.FC = () => {
 
         if (allPlayers.length === 0) {
             setMessage(translate('teamDivider.message.atLeastOnePlayer'));
-            return;
+            return null;
         }
 
         if (allPlayers.length < numberOfTeams) {
             setMessage(translate('teamDivider.message.minPlayersToSplit', { count: numberOfTeams }));
-            return;
+            return null;
         }
 
+        return allPlayers;
+    };
+
+    const handlePrepareAndStartDivision = () => {
+        const allPlayers = collectPlayers();
+        if (!allPlayers) return;
         setPlayersToDivide(allPlayers);
         setDividedTeams([]);
         setDivisionState('spinning');
@@ -152,6 +184,7 @@ export const TeamDividerPage: React.FC = () => {
     const handleDivisionComplete = async (finalTeams: DividedTeam[]) => {
         setDividedTeams(finalTeams);
         setDivisionState('finished');
+        setShowResult(true);
 
         // Non-admins can spin to preview a split, but only an admin's result is
         // published to everyone.
@@ -173,197 +206,305 @@ export const TeamDividerPage: React.FC = () => {
         }
     };
 
+    // "Divide now" runs the identical rule the wheel uses - the helpers are
+    // imported from the spinner rather than reimplemented here.
+    const handleInstantDivide = () => {
+        const allPlayers = collectPlayers();
+        if (!allPlayers) return;
+
+        let teams: DividedTeam[] = Array.from({ length: numberOfTeams }, (_, i) => ({
+            id: i + 1, players: [], totalSeedValue: 0, playerCount: 0,
+        }));
+        let fallbackCount = 0;
+        shuffled(allPlayers).forEach(player => {
+            const { team, usedFallback } = pickTargetTeam(player, teams);
+            if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
+            teams = assignToTeams(teams, player, team.id);
+        });
+        if (fallbackCount > 0) {
+            addToast('teamDivider.spinner.unbalancedSummary', 'warning', { count: fallbackCount });
+        }
+        handleDivisionComplete(teams);
+    };
+
     const textareaBaseClasses = "w-full p-3 rounded-md shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm bg-background dark:bg-slate-800 border border-border dark:border-slate-700 text-textPrimary placeholder-gray-400 dark:placeholder-slate-400 custom-scrollbar-thin";
+    const seedOrder: PlayerSeed[] = ['GK', 'A', 'B', 'C', 'D', 'E'];
+    const namesOf = (seed: PlayerSeed) =>
+        seedPlayers[seed].split('\n').map(n => n.trim()).filter(Boolean);
+    const totalEntered = seedOrder.reduce((sum, s) => sum + namesOf(s).length, 0);
 
     if (isLoading) {
-       return (
-        <div className="flex justify-center items-center py-10">
-             <LoadingSpinner size="lg"/>
-             <p className="ml-4 text-textSecondary">{translate('teamDivider.loading')}</p>
-        </div>
-       );
+        return (
+            <div className="flex items-center justify-center py-16">
+                <LoadingSpinner size="lg" />
+                <p className="ml-3 text-textSecondary">{translate('teamDivider.loading')}</p>
+            </div>
+        );
     }
-    
+
     if (divisionState === 'spinning') {
         return (
             <TeamDivisionSpinner
                 players={playersToDivide}
                 numberOfTeams={numberOfTeams}
                 onComplete={handleDivisionComplete}
+                onCancel={() => setDivisionState('idle')}
             />
         );
     }
 
     return (
-        <div className="space-y-8">
-            <header className="text-center md:text-left">
-                <h1 className="text-3xl font-bold text-textPrimary">{translate('teamDivider.title')}</h1>
-                <p className="text-textSecondary mt-1">{translate('teamDivider.subtitle')}</p>
-            </header>
-
-            <main className="space-y-8">
-                {/* Admins keep the old flow where the editor collapses once a division
-                    is published and comes back via "New Division". For everyone else
-                    the roster is read-only, so it stays visible next to the result. */}
-                {(divisionState !== 'finished' || !isAdmin) && (
-                    <section className="p-4 sm:p-6 bg-surface rounded-lg shadow-md">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-                            <h2 className="text-2xl font-semibold text-textPrimary">
-                                {isAdmin ? translate('teamDivider.inputTitle') : translate('teamDivider.rosterTitle')}
+        <div className="space-y-6">
+            {/* Result takeover: the whole draw exists to produce this, so it gets
+                the full screen for a moment before the page goes back to normal. */}
+            {showResult && dividedTeams.length > 0 && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={translate('teamDivider.result.title')}
+                    onClick={() => setShowResult(false)}
+                    className="tds-result-overlay fixed inset-0 z-[100] flex cursor-pointer flex-col items-center justify-center overflow-y-auto bg-slate-900/80 p-4 backdrop-blur-sm sm:p-8"
+                >
+                    <div className="tds-result-card w-full max-w-6xl">
+                        <div className="mb-6 text-center">
+                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                                {translate('teamDivider.result.title')}
+                            </p>
+                            <h2 className="mt-2 text-3xl font-extrabold text-white drop-shadow sm:text-5xl">
+                                {selectedTournament?.name ?? translate('teamDivider.title')}
                             </h2>
-                            {isAdmin ? (
-                                <div className="flex items-center gap-3">
+                        </div>
+
+                        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+                            {dividedTeams.map(team => (
+                                <div key={team.id} className="flex flex-col overflow-hidden rounded-xl bg-surface shadow-2xl">
+                                    <div className="flex items-baseline justify-between bg-primary px-4 py-2.5">
+                                        <h3 className="font-bold text-white">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
+                                        <span className="font-mono text-xs text-white/80">{team.playerCount}</span>
+                                    </div>
+                                    <ul className="flex-grow divide-y divide-border">
+                                        {team.players.map((player, i) => (
+                                            <li key={`${player.name}-${team.id}-${i}`} className="flex items-center justify-between gap-2 px-4 py-2">
+                                                <span className="break-words font-semibold text-textPrimary">{player.name}</span>
+                                                <span className="flex-shrink-0 font-mono text-[11px] text-textSecondary">{player.seed}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="border-t border-border px-4 py-1.5 text-center text-[11px] text-textSecondary">
+                                        {translate('teamDivider.totalSeedValue')}:{' '}
+                                        <span className="font-semibold text-primary">{team.totalSeedValue}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <p className="mt-6 text-center text-sm text-white/60">
+                            {translate('teamDivider.result.dismissHint')}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {!embedded && (
+                <header className="text-center md:text-left">
+                    <h1 className="text-3xl font-bold text-textPrimary">{translate('teamDivider.title')}</h1>
+                    <p className="mt-1 text-textSecondary">{translate('teamDivider.subtitle')}</p>
+                </header>
+            )}
+
+            {/* The entered squad is always on screen. Editing it used to replace
+                this view with six textareas; now it is a mode you switch into. */}
+            <section className="overflow-hidden rounded-xl bg-surface shadow-lg">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-lg font-semibold text-textPrimary">{translate('teamDivider.rosterTitle')}</h2>
+                        <span className="text-sm text-textSecondary">
+                            {translate('teamDivider.enteredCount', { count: totalEntered })}
+                        </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {isAdmin ? (
+                            isEditingList ? (
+                                <>
                                     {hasUnsavedPlayers && (
-                                        <span className="text-xs font-medium text-warning">{translate('teamDivider.unsavedIndicator')}</span>
+                                        <span className="text-xs font-medium text-warning">
+                                            {translate('teamDivider.unsavedIndicator')}
+                                        </span>
                                     )}
                                     <Button
-                                        onClick={handleSavePlayers}
-                                        disabled={isSavingPlayers || !hasUnsavedPlayers}
-                                        variant="secondary"
+                                        onClick={async () => { await handleSavePlayers(); setIsEditingList(false); }}
+                                        disabled={isSavingPlayers}
                                         size="sm"
                                     >
                                         {isSavingPlayers ? <LoadingSpinner size="sm" /> : translate('teamDivider.savePlayersButton')}
                                     </Button>
-                                </div>
+                                    <Button onClick={() => setIsEditingList(false)} variant="secondary" size="sm">
+                                        {translate('common.button.cancel')}
+                                    </Button>
+                                </>
                             ) : (
-                                <span className="text-xs text-textSecondary italic">{translate('teamDivider.rosterAdminOnly')}</span>
-                            )}
-                        </div>
-                        {isAdmin ? (
-                            <div className="space-y-6">
-                                <div>
-                                    <label htmlFor="seedGK" className="block text-sm font-medium text-textPrimary mb-1">
-                                        {translate('teamDivider.seedGK')}
+                                <Button onClick={() => setIsEditingList(true)} variant="outline" size="sm">
+                                    <PencilIcon className="mr-1.5 h-4 w-4" />
+                                    {translate('teamDivider.editListButton')}
+                                </Button>
+                            )
+                        ) : (
+                            <span className="text-xs italic text-textSecondary">{translate('teamDivider.rosterAdminOnly')}</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-4">
+                    {isEditingList && isAdmin ? (
+                        // Same six-column grid as the read view, so switching into
+                        // edit mode does not resize the panel and shove everything
+                        // below it down the page.
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                            {seedOrder.map(seed => (
+                                <div key={seed} className="flex h-60 flex-col">
+                                    <label htmlFor={`seed${seed}`} className="mb-1 block text-sm font-medium text-textPrimary">
+                                        {translate(`teamDivider.seed${seed}`)}
                                     </label>
                                     <textarea
-                                        id="seedGK"
-                                        rows={3}
-                                        value={seedPlayers.GK}
-                                        onChange={(e) => editSeedPlayers(prev => ({ ...prev, GK: e.target.value }))}
-                                        className={textareaBaseClasses}
+                                        id={`seed${seed}`}
+                                        value={seedPlayers[seed]}
+                                        onChange={(e) => editSeedPlayers(prev => ({ ...prev, [seed]: e.target.value }))}
+                                        className={`${textareaBaseClasses} min-h-0 flex-1 resize-none`}
                                         placeholder={translate('teamDivider.playerPlaceholder')}
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                                    {(['A', 'B', 'C', 'D', 'E'] as PlayerSeed[]).map(seed => {
-                                        if (seed === 'GK') return null;
-                                        return (
-                                            <div key={seed}>
-                                                <label htmlFor={`seed${seed}`} className="block text-sm font-medium text-textPrimary mb-1">
-                                                    {translate(`teamDivider.seed${seed}`)}
-                                                </label>
-                                                <textarea
-                                                    id={`seed${seed}`}
-                                                    rows={5}
-                                                    value={seedPlayers[seed as Exclude<PlayerSeed, 'GK'>]}
-                                                    onChange={(e) => editSeedPlayers(prev => ({ ...prev, [seed]: e.target.value }))}
-                                                    className={textareaBaseClasses}
-                                                    placeholder={translate('teamDivider.playerPlaceholder')}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                                {(['GK', 'A', 'B', 'C', 'D', 'E'] as PlayerSeed[]).map(seed => {
-                                    const names = seedPlayers[seed].split('\n').map(n => n.trim()).filter(Boolean);
-                                    return (
-                                        <div key={seed} className="bg-background dark:bg-slate-800 border border-border dark:border-slate-700 rounded-md p-3">
-                                            <h3 className="text-sm font-medium text-textPrimary mb-2 pb-2 border-b border-border">
-                                                {translate(`teamDivider.seed${seed}`)}
-                                                <span className="ml-1 text-xs text-textSecondary font-normal">({names.length})</span>
-                                            </h3>
-                                            {names.length > 0 ? (
-                                                <ul className="space-y-1">
-                                                    {names.map((name, i) => (
-                                                        <li key={`${seed}-${i}`} className="text-sm text-textPrimary">{name}</li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <p className="text-xs text-textSecondary italic">{translate('teamDivider.noPlayersYet')}</p>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        <div className="mt-8 text-center">
-                            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
-                                <div>
-                                    <label htmlFor="numberOfTeams" className="block text-sm font-medium text-textPrimary mb-1">
-                                        {translate('teamDivider.numberOfTeamsLabel')}
-                                    </label>
-                                    <input
-                                        id="numberOfTeams"
-                                        type="number"
-                                        min="2"
-                                        max="10"
-                                        value={numberOfTeams || ''}
-                                        onChange={e => setNumberOfTeams(Number(e.target.value))}
-                                        onBlur={() => { if (numberOfTeams < 2) setNumberOfTeams(2); }}
-                                        className="w-28 text-center p-2 rounded-md shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm bg-background dark:bg-slate-800 border border-border dark:border-slate-700 text-textPrimary"
-                                    />
-                                </div>
-                                <Button
-                                    onClick={handlePrepareAndStartDivision}
-                                    disabled={isSaving || numberOfTeams < 2}
-                                    size="lg"
-                                    className="w-full sm:w-auto sm:self-end h-[42px]"
-                                >
-                                    <UsersIcon className="w-5 h-5 mr-2" />
-                                    {isSaving ? translate('teamDivider.message.saving') : translate('teamDivider.divideButton')}
-                                </Button>
-                            </div>
+                            ))}
                         </div>
-                        {message && <div className="mt-4 text-center text-danger">{message}</div>}
-                    </section>
-                )}
+                    ) : totalEntered === 0 ? (
+                        // Same height as a grid row, so the panel does not resize
+                        // when the first names are entered either.
+                        <div className="flex h-60 items-center justify-center">
+                            <p className="text-textSecondary">{translate('teamDivider.noPlayersYet')}</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                            {seedOrder.map(seed => {
+                                const names = namesOf(seed);
+                                return (
+                                    <div key={seed} className="flex h-60 flex-col rounded-lg border border-border bg-background p-3 dark:bg-slate-800/60">
+                                        <h3 className="mb-2 flex flex-shrink-0 items-baseline justify-between border-b border-border pb-2">
+                                            <span className="text-sm font-semibold text-textPrimary">
+                                                {translate(`teamDivider.seed${seed}`)}
+                                            </span>
+                                            <span className="font-mono text-xs text-textSecondary">{names.length}</span>
+                                        </h3>
+                                        {names.length > 0 ? (
+                                            <ol className="custom-scrollbar-thin min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                                                {names.map((name, i) => (
+                                                    // break-words, not truncate: a full name matters more
+                                                    // than a tidy single line.
+                                                    <li key={`${seed}-${i}`} className="flex gap-2 text-sm text-textPrimary">
+                                                        <span className="w-4 flex-shrink-0 text-right font-mono text-xs text-textSecondary">{i + 1}</span>
+                                                        <span className="break-words">{name}</span>
+                                                    </li>
+                                                ))}
+                                            </ol>
+                                        ) : (
+                                            <p className="text-xs italic text-textSecondary">{translate('teamDivider.noPlayersYet')}</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
 
-                <section>
-                    <div className="text-center mb-6">
-                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                           <h2 className="text-2xl font-semibold text-textPrimary">{translate('teamDivider.resultsTitle')}</h2>
-                           {divisionState === 'finished' && (
-                              <Button onClick={() => setDivisionState('idle')} variant="outline" size="sm">
-                                <ArrowPathIcon className="w-4 h-4 mr-2"/>
-                                {translate('teamDivider.newDivisionButton')}
-                              </Button>
-                           )}
-                         </div>
-                         {lastUpdateInfo && <p className="text-xs text-textSecondary mt-1">{lastUpdateInfo}</p>}
+                {/* Actions */}
+                <div className="flex flex-wrap items-end justify-center gap-4 border-t border-border bg-background p-4 dark:bg-slate-800/40">
+                    <div>
+                        <label htmlFor="numberOfTeams" className="mb-1 block text-center text-xs font-semibold uppercase tracking-wide text-textSecondary">
+                            {translate('teamDivider.numberOfTeamsLabel')}
+                        </label>
+                        <input
+                            id="numberOfTeams"
+                            type="number"
+                            min="2"
+                            max="10"
+                            value={numberOfTeams || ''}
+                            onChange={e => setNumberOfTeams(Number(e.target.value))}
+                            onBlur={() => { if (numberOfTeams < 2) setNumberOfTeams(2); }}
+                            className="w-24 rounded-md border border-border bg-surface p-2 text-center text-textPrimary shadow-sm focus:border-primary focus:ring-2 focus:ring-primary dark:bg-slate-700"
+                        />
                     </div>
-                    <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-                        {dividedTeams.length > 0 ? dividedTeams.map(team => (
-                            <div key={team.id} id={`team-box-${team.id}`} className="bg-surface rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col p-5">
-                                <h3 className="text-xl font-semibold text-primary mb-3">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
-                                <ul className="space-y-1 text-textPrimary flex-grow mb-3 pr-2 overflow-y-auto max-h-48 custom-scrollbar-thin">
-                                    {team.players.length > 0 ? team.players.map(player => (
-                                        <li key={`${player.name}-${team.id}`} className="py-1 px-2 rounded hover:bg-primary/10 transition-colors duration-150 flex justify-between">
-                                            <span className="font-medium">{player.name}{player.seed === 'GK' ? ' (GK)' : ''}</span>
-                                            <span className="text-xs text-textSecondary font-mono">({player.seed})</span>
+                    <Button
+                        onClick={handlePrepareAndStartDivision}
+                        disabled={isSaving || numberOfTeams < 2 || totalEntered === 0}
+                        size="lg"
+                        className="h-[42px]"
+                    >
+                        <PlayIcon className="mr-2 h-5 w-5" />
+                        {translate('teamDivider.spinDivideButton')}
+                    </Button>
+                    <Button
+                        onClick={handleInstantDivide}
+                        disabled={isSaving || numberOfTeams < 2 || totalEntered === 0}
+                        variant="outline"
+                        size="lg"
+                        className="h-[42px]"
+                    >
+                        <UsersIcon className="mr-2 h-5 w-5" />
+                        {isSaving ? translate('teamDivider.message.saving') : translate('teamDivider.divideButton')}
+                    </Button>
+                </div>
+
+                {message && <p className="border-t border-border p-3 text-center text-danger">{message}</p>}
+            </section>
+
+            {/* Result */}
+            <section>
+                <div className="mb-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+                    <div>
+                        <h2 className="text-xl font-semibold text-textPrimary">{translate('teamDivider.resultsTitle')}</h2>
+                        {lastUpdateInfo && <p className="mt-0.5 text-xs text-textSecondary">{lastUpdateInfo}</p>}
+                    </div>
+                    {divisionState === 'finished' && dividedTeams.length > 0 && (
+                        <Button onClick={() => setDivisionState('idle')} variant="outline" size="sm">
+                            <ArrowPathIcon className="mr-2 h-4 w-4" />
+                            {translate('teamDivider.newDivisionButton')}
+                        </Button>
+                    )}
+                </div>
+
+                {dividedTeams.length > 0 ? (
+                    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+                        {dividedTeams.map(team => (
+                            <div key={team.id} id={`team-box-${team.id}`} className="flex flex-col overflow-hidden rounded-xl bg-surface shadow-lg">
+                                <div className="flex items-baseline justify-between bg-primary px-4 py-2.5">
+                                    <h3 className="font-bold text-white">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
+                                    <span className="text-xs font-medium text-white/80">
+                                        {translate('teamDivider.playerCount')}: {team.playerCount}
+                                    </span>
+                                </div>
+                                <ul className="flex-grow divide-y divide-border">
+                                    {team.players.map((player, i) => (
+                                        <li key={`${player.name}-${team.id}-${i}`} className="flex items-center justify-between gap-2 px-4 py-2">
+                                            <span className="break-words font-medium text-textPrimary">{player.name}</span>
+                                            <span className="flex-shrink-0 rounded bg-black/5 px-1.5 py-0.5 font-mono text-xs text-textSecondary dark:bg-white/10">
+                                                {player.seed}
+                                            </span>
                                         </li>
-                                    )) : <p className="text-textSecondary italic text-sm">{translate('teamDivider.noPlayersYet')}</p>}
+                                    ))}
                                 </ul>
-                                <div className="mt-auto pt-3 border-t border-border text-xs text-textSecondary space-y-1">
-                                    <p>{translate('teamDivider.totalSeedValue')}: <span className="font-semibold text-primary">{team.totalSeedValue}</span></p>
-                                    <p>{translate('teamDivider.playerCount')}: <span className="font-semibold text-primary">{team.playerCount}</span></p>
+                                <div className="border-t border-border px-4 py-2 text-xs text-textSecondary">
+                                    {translate('teamDivider.totalSeedValue')}:{' '}
+                                    <span className="font-semibold text-primary">{team.totalSeedValue}</span>
                                 </div>
                             </div>
-                        )) : (
-                           divisionState === 'finished' && <p className="col-span-full text-center text-textSecondary py-8">{translate('teamDivider.noPlayers')}</p>
-                        )}
+                        ))}
                     </div>
-                </section>
-            </main>
-             <style>{`
-              .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-              .custom-scrollbar-thin::-webkit-scrollbar-track { background-color: transparent; border-radius: 10px; }
-              html.dark .custom-scrollbar-thin::-webkit-scrollbar-track { background-color: transparent; }
-              .custom-scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-secondary/50; border-radius: 10px; }
-              .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { @apply bg-secondary/70; }
-            `}</style>
+                ) : (
+                    <div className="rounded-xl bg-surface p-10 text-center shadow">
+                        <UsersIcon className="mx-auto h-12 w-12 text-textSecondary/25" />
+                        <p className="mt-3 text-textSecondary">{translate('teamDivider.noPlayers')}</p>
+                    </div>
+                )}
+            </section>
         </div>
     );
 };

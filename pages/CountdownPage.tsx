@@ -4,7 +4,7 @@ import { StarIcon } from '../components/icons';
 import { useAppContext } from '../contexts/AppContext';
 import { onTournamentUpdate, onAllPlayersUpdate } from '../services/firebaseService';
 import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
-import { TOURNAMENT_DOC_ID, getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
+import { getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
 import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 
@@ -123,7 +123,7 @@ const CountdownDisplay: React.FC<{ time: number; label: string }> = ({ time, lab
 
 export const CountdownPage: React.FC = () => {
     const { translate } = useLanguage();
-    const { isFirebaseReady, addToast } = useAppContext();
+    const { isFirebaseReady, addToast, selectedTournamentId } = useAppContext();
     const eventDate = "2025-10-04T15:00:00+09:00"; // Target date: Oct 4th, 3:00 PM GMT+9
     const { days, hours, minutes, seconds, isFinished } = useCountdown(eventDate);
     
@@ -137,13 +137,17 @@ export const CountdownPage: React.FC = () => {
 
     useEffect(() => {
         if (!isFirebaseReady) return;
-        const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
-        const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
+        if (!selectedTournamentId) return;
+        // TOURNAMENT_DOC_ID pointed at a document id that does not exist, so this
+        // page always fell back to the hardcoded demo teams. It now follows the
+        // season selected app-wide.
+        const unsubTournament = onTournamentUpdate(selectedTournamentId, setTournament);
+        const unsubPlayers = onAllPlayersUpdate(selectedTournamentId, setAllPlayers);
         return () => {
             unsubTournament();
             unsubPlayers();
         };
-    }, [isFirebaseReady]);
+    }, [isFirebaseReady, selectedTournamentId]);
 
     const handleTeamClick = (teamName: string) => {
         if (!tournament || !tournament.teams || tournament.teams.length === 0) {

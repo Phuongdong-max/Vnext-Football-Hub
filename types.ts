@@ -251,9 +251,29 @@ export interface TeamStanding {
   teamColor?: string | null;
 }
 
+// Stored status is only what an admin sets by hand. Whether a season is
+// upcoming, running or over is derived from its dates, not typed in - see
+// utils/seasonPhase.ts.
+export type TournamentStatus = 'active' | 'archived';
+
+export type SeasonPhase = 'upcoming' | 'ongoing' | 'finished' | 'archived';
+
 export interface Tournament {
   id: string; // Document ID in Firestore
   name: string;
+  // Season year, e.g. 2026. Drives ordering and the "current season" default.
+  // Optional because tournaments created before seasons existed have no value;
+  // treat a missing season as "oldest".
+  season?: number;
+  // Archived tournaments stay fully readable but are locked against edits, so
+  // past seasons cannot be changed by accident. Missing means 'active'.
+  status?: TournamentStatus;
+  // When the season opens and closes. A season is only shown as "ongoing" once
+  // startDate has actually passed - before that it is upcoming, even though the
+  // document already exists and is being filled in.
+  startDate?: any; // Firestore Timestamp | Date
+  endDate?: any;   // Firestore Timestamp | Date
+  createdAt?: any; // Firestore Timestamp
   teams: TournamentTeam[];
   schedule: TournamentMatch[];
   standings: TeamStanding[]; // This will be calculated and stored
@@ -263,6 +283,17 @@ export interface Tournament {
     id: string;
     name: string;
   };
+}
+
+// Lightweight row for the tournament picker - avoids pulling every season's
+// full schedule and standings just to render a dropdown.
+export interface TournamentSummary {
+  id: string;
+  name: string;
+  season?: number;
+  status: TournamentStatus;
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 export interface TournamentMatchAnalysis {

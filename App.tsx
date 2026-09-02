@@ -1,25 +1,23 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { User, UserRole, LeaderboardEntry, ToastMessage, AppSettings } from './types';
-import { APP_TITLE } from './constants'; 
-import { 
-  initializeFirebase, 
-  onFirebaseAuthStateChanged, 
-  signInWithGoogle as performSignInWithGoogle, 
+import { User, UserRole, LeaderboardEntry, ToastMessage, AppSettings, TournamentSummary } from './types';
+import { APP_TITLE } from './constants';
+import {
+  initializeFirebase,
+  onFirebaseAuthStateChanged,
+  signInWithGoogle as performSignInWithGoogle,
   firebaseSignOut as performFirebaseSignOut,
   updateUserPointsInFirestore,
-  getFirebaseLeaderboardEntries, 
+  getFirebaseLeaderboardEntries,
   onAppSettingsUpdate,
-  updateAppSettings as performUpdateAppSettings
+  updateAppSettings as performUpdateAppSettings,
+  getAllTournaments
 } from './services/firebaseService';
 import { Header } from './components/Header';
-import { AuthComponent } from './components/Auth';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MemberHomePage } from './pages/MemberHomePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
-import { TeamDividerPage } from './pages/TeamDividerPage';
-import { TournamentPage } from './pages/TournamentPage';
-import { PlayerInfoPage } from './pages/PlayerInfoPage';
+import { SeasonPage } from './pages/SeasonPage';
 import { CountdownPage } from './pages/CountdownPage'; 
 import { LandingPage } from './pages/LandingPage'; // Import the new landing page
 import { ToastContainer } from './components/shared/ToastContainer';
@@ -43,7 +41,15 @@ const AppCore: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isEnvironmentSupported, setIsEnvironmentSupported] = useState(true);
   const [criticalError, setCriticalError] = useState<string | null>(null);
-  const [isBettingEnabled, setIsBettingEnabled] = useState(true);
+
+  // --- Season selection, shared by Tournament / Player Info / Team Divider ---
+  const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+  const [isTournamentListLoading, setIsTournamentListLoading] = useState(true);
+
+  // Off until the setting is actually read. Defaulting to on made betting UI
+  // flash for everyone, and stick permanently when the read failed.
+  const [isBettingEnabled, setIsBettingEnabled] = useState(false);
 
   // Get location to conditionally apply layout styles
   const location = useLocation();
@@ -56,6 +62,42 @@ const AppCore: React.FC = () => {
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
   }, [translate]);
   
+  const refreshTournaments = useCallback(async () => {
+    if (!isFirebaseReady) return;
+    setIsTournamentListLoading(true);
+    try {
+      const list = await getAllTournaments();
+      setTournaments(list);
+      setSelectedTournamentId(prev => {
+        // Keep the current pick if it still exists, otherwise fall back to the
+        // remembered one, otherwise open on the newest season that is still
+        // running - a first-time visitor should land on the live season, not on
+        // whichever name happens to sort first.
+        if (prev && list.some(t => t.id === prev)) return prev;
+        const stored = localStorage.getItem('selectedTournamentId');
+        if (stored && list.some(t => t.id === stored)) return stored;
+        const newestActive = list.find(t => t.status === 'active');
+        return (newestActive ?? list[0])?.id ?? null;
+      });
+    } catch (error) {
+      console.error('Failed to fetch tournaments list', error);
+      addToast('tournament.toast.fetchListError', 'error');
+    } finally {
+      setIsTournamentListLoading(false);
+    }
+  }, [isFirebaseReady, addToast]);
+
+  useEffect(() => {
+    refreshTournaments();
+  }, [refreshTournaments]);
+
+  const selectTournament = useCallback((tournamentId: string) => {
+    setSelectedTournamentId(tournamentId);
+    localStorage.setItem('selectedTournamentId', tournamentId);
+  }, []);
+
+  const selectedTournament = tournaments.find(t => t.id === selectedTournamentId) ?? null;
+
   const handleUpdateAppSettings = useCallback(async (settings: Partial<AppSettings>) => {
       if (!currentUser || currentUser.role !== UserRole.ADMIN) {
           addToast('error.unauthorized', 'error');
@@ -115,10 +157,6 @@ const AppCore: React.FC = () => {
 
     setIsLoading(true);
 
-    const unsubscribeAppSettings = onAppSettingsUpdate((settings) => {
-        setIsBettingEnabled(settings.isBettingEnabled);
-    });
-
     const unsubscribeAuth = onFirebaseAuthStateChanged(async (appUserFromService) => {
       try {
         setCurrentUser(appUserFromService);
@@ -132,9 +170,23 @@ const AppCore: React.FC = () => {
     });
     return () => {
         unsubscribeAuth();
-        unsubscribeAppSettings();
     };
   }, [addToast, refreshLeaderboard, translate]);
+
+  // ...and re-run it whenever the signed-in user changes. appSettings requires
+  // auth, so subscribing once at start-up hit permission-denied before sign-in,
+  // and onSnapshot does not retry after such an error - the value then stayed
+  // wrong for the whole session.
+  useEffect(() => {
+    if (!isFirebaseReady || !currentUser) {
+      setIsBettingEnabled(false);
+      return;
+    }
+    const unsubscribe = onAppSettingsUpdate((settings) => {
+      setIsBettingEnabled(settings.isBettingEnabled);
+    });
+    return () => unsubscribe();
+  }, [isFirebaseReady, currentUser?.id]);
 
   const handleSignInWithGoogle = useCallback(async (): Promise<User | null> => {
     if (!isEnvironmentSupported) {
@@ -193,7 +245,8 @@ const AppCore: React.FC = () => {
     }
   }, [currentUser, refreshLeaderboard, isFirebaseReady, addToast, isEnvironmentSupported, translate]);
   
-  const canEdit = currentUser?.role === UserRole.ADMIN || (currentUser?.email?.endsWith('@vnext.vn') ?? false);
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const canEdit = isAdmin || (currentUser?.email?.endsWith('@vnext.vn') ?? false);
 
   const appContextValue: AppContextType = {
     currentUser,
@@ -209,6 +262,14 @@ const AppCore: React.FC = () => {
     isBettingEnabled,
     updateAppSettings: handleUpdateAppSettings,
     canEdit,
+    isAdmin,
+    tournaments,
+    selectedTournamentId,
+    selectedTournament,
+    isTournamentListLoading,
+    selectTournament,
+    refreshTournaments,
+    isSelectedTournamentArchived: selectedTournament?.status === 'archived',
   };
 
   // Combined loading state management
@@ -250,21 +311,25 @@ const AppCore: React.FC = () => {
     <AppContext.Provider value={appContextValue}>
       <div className="flex flex-col min-h-screen text-textPrimary bg-background">
         {!isLandingPage && <Header />}
-        {!isLandingPage && <AuthComponent />}
         <main className={`flex-grow flex flex-col ${!isHomePage && !isLandingPage ? 'container mx-auto px-4 py-8' : ''}`}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            {/* The season is now the only place a viewer needs: table, fixtures,
+                teams, scorers, squad and the draw are tabs inside it. */}
+            <Route path="/season" element={<SeasonPage />} />
             <Route path="/home" element={<CountdownPage />} />
-            <Route path="/betting" element={isBettingEnabled ? <MemberHomePage /> : <Navigate to="/tournament" replace />} />
+            <Route path="/betting" element={isBettingEnabled ? <MemberHomePage /> : <Navigate to="/season" replace />} />
             <Route path="/admin" element={
-              currentUser?.role === UserRole.ADMIN 
-                ? <AdminDashboardPage /> 
-                : <Navigate to="/home" replace />
+              currentUser?.role === UserRole.ADMIN
+                ? <AdminDashboardPage />
+                : <Navigate to="/season" replace />
             } />
-            {isBettingEnabled && <Route path="/leaderboard" element={currentUser?.role === UserRole.MEMBER ? <LeaderboardPage /> : <Navigate to="/home" replace />} />}
-            <Route path="/team-divider" element={<TeamDividerPage />} />
-            <Route path="/tournament" element={<TournamentPage />} />
-            <Route path="/player-info" element={<PlayerInfoPage />} />
+            {isBettingEnabled && <Route path="/leaderboard" element={currentUser?.role === UserRole.MEMBER ? <LeaderboardPage /> : <Navigate to="/season" replace />} />}
+            {/* Old top-level pages folded into the season shell. Kept as
+                redirects so existing links and bookmarks still land somewhere. */}
+            <Route path="/tournament" element={<Navigate to="/season" replace />} />
+            <Route path="/player-info" element={<Navigate to="/season" replace />} />
+            <Route path="/team-divider" element={<Navigate to="/season" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

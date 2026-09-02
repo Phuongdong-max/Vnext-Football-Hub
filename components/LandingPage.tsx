@@ -48,7 +48,7 @@ export const LandingPage: React.FC = () => {
     useEffect(() => {
         if (!isFirebaseReady) return;
         const unsubTournament = onTournamentUpdate(TOURNAMENT_DOC_ID, setTournament);
-        const unsubPlayers = onAllPlayersUpdate(setAllPlayers);
+        const unsubPlayers = onAllPlayersUpdate(TOURNAMENT_DOC_ID, setAllPlayers);
         return () => {
             unsubTournament();
             unsubPlayers();

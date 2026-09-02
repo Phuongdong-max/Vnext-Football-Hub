@@ -40,6 +40,11 @@ esbuild.context({
     servedir: projectRoot, // Serve files from the project root
     port: 8000,
     host: '127.0.0.1',
+    // Single-page app: the router owns paths like /season, but the browser asks
+    // the server for them on a reload or a pasted link, and there is no file by
+    // that name. Handing back index.html lets the router take over, which is
+    // what firebase.json's "**" -> /index.html rewrite does in production.
+    fallback: path.join(projectRoot, 'index.html'),
   });
   // esbuild rebuilds on each incoming request, so edits are picked up on reload.
   //

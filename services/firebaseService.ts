@@ -1,5 +1,5 @@
 import { firebaseConfig } from '../firebaseConfig';
-import { AppSettings, User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam, PlayerSkills } from '../types';
+import { AppSettings, User, UserRole, LeaderboardEntry, BettingRound, FootballMatch, Bet, BetTeamSelection, MatchResultTeam, BettingRoundStatus, TeamDivisionData, Tournament, TournamentMatch, TournamentPlayer, TournamentTeam, TournamentSummary, TournamentStatus, PlayerSkills } from '../types';
 import { INITIAL_USER_POINTS } from '../constants';
 
 // Declare Firebase types for global scope (since SDK is loaded via script tag)
@@ -234,9 +234,10 @@ export const onAppSettingsUpdate = (callback: (settings: AppSettings) => void): 
             callback({ isBettingEnabled: true });
         }
     }, (error: Error) => {
+        // Do NOT fall back to "enabled" here. This listener runs before sign-in
+        // too, where the rules deny the read; forcing it on made the app show
+        // betting features an admin had turned off.
         console.error("Error listening to app settings updates:", error);
-        // On error, default to enabled to avoid locking everyone out.
-        callback({ isBettingEnabled: true });
     });
 
     return unsubscribe;
@@ -529,22 +530,59 @@ export const updateTeamDivision = async (dataToSave: Partial<Pick<TeamDivisionDa
 
 // --- Tournament Functions ---
 
-export const getAllTournaments = async (): Promise<{ id: string; name: string }[]> => {
+// Sorted newest season first so the picker leads with the current one. Sorting
+// happens client-side because `season` and `status` are new: documents written
+// before this feature have neither, and an orderBy on a missing field drops
+// those documents from the result entirely.
+export const getAllTournaments = async (): Promise<TournamentSummary[]> => {
     if (!db) throw new Error("Firestore not initialized.");
-    const tournamentsSnapshot = await db.collection('tournaments').orderBy('name', 'asc').get();
-    return tournamentsSnapshot.docs.map((doc: any) => ({
-        id: doc.id,
-        name: doc.data().name || 'Unnamed Tournament',
-    }));
+    const tournamentsSnapshot = await db.collection('tournaments').get();
+    const rows: TournamentSummary[] = tournamentsSnapshot.docs
+        // The collection holds stray documents that only ever got {lastUpdated,
+        // updatedBy} written to them - no name, no schedule, no standings. The
+        // previous orderBy('name') query hid them by accident, because Firestore
+        // drops documents that lack the ordered field. Filtering on purpose
+        // keeps them out of the picker without touching the data.
+        .filter((doc: any) => typeof doc.data().name === 'string' && doc.data().name.trim() !== '')
+        .map((doc: any) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: data.name.trim(),
+                season: typeof data.season === 'number' ? data.season : undefined,
+                status: data.status === 'archived' ? 'archived' : 'active',
+                startDate: data.startDate?.toDate ? data.startDate.toDate() : null,
+                endDate: data.endDate?.toDate ? data.endDate.toDate() : null,
+            };
+        });
+
+    return rows.sort((a, b) => {
+        // Seasonless legacy tournaments sort last, then newest season first.
+        const seasonDiff = (b.season ?? -Infinity) - (a.season ?? -Infinity);
+        if (seasonDiff !== 0 && Number.isFinite(seasonDiff)) return seasonDiff;
+        if (a.season === undefined && b.season !== undefined) return 1;
+        if (b.season === undefined && a.season !== undefined) return -1;
+        return a.name.localeCompare(b.name);
+    });
 };
 
-export const createTournament = async (name: string, user: User): Promise<string> => {
+export const createTournament = async (
+    name: string,
+    season: number,
+    dates: { startDate: Date; endDate: Date | null },
+    user: User
+): Promise<string> => {
     if (!db) throw new Error("Firestore not initialized.");
     const newDocRef = db.collection('tournaments').doc();
     // Simplified Tournament object without players
     const newTournament: Omit<Tournament, 'players'> = {
         id: newDocRef.id,
         name: name,
+        season,
+        status: 'active',
+        startDate: window.firebase.firestore.Timestamp.fromDate(dates.startDate),
+        endDate: dates.endDate ? window.firebase.firestore.Timestamp.fromDate(dates.endDate) : null,
+        createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
         teams: [],
         schedule: [],
         standings: [],
@@ -555,10 +593,45 @@ export const createTournament = async (name: string, user: User): Promise<string
     return newDocRef.id;
 };
 
-export const deleteTournament = async (tournamentId: string): Promise<void> => {
+/**
+ * Permanently removes a season. Archiving is the everyday action; this exists
+ * for seasons created by mistake.
+ *
+ * Firestore does NOT cascade: deleting the tournament document leaves its
+ * players subcollection behind as orphans that no query surfaces and nothing
+ * cleans up, so the squad is removed first and the document last. Returns how
+ * many player documents went with it.
+ */
+export const deleteTournament = async (tournamentId: string): Promise<number> => {
     if (!db) throw new Error("Firestore not initialized.");
-    const docRef = db.collection('tournaments').doc(tournamentId);
-    await docRef.delete();
+
+    const playersRef = db.collection('tournaments').doc(tournamentId).collection(PLAYERS_SUBCOLLECTION);
+    const snap = await playersRef.get();
+
+    const CHUNK = 400; // Firestore caps a batch at 500 writes.
+    for (let i = 0; i < snap.docs.length; i += CHUNK) {
+        const batch = db.batch();
+        for (const doc of snap.docs.slice(i, i + CHUNK)) batch.delete(doc.ref);
+        await batch.commit();
+    }
+
+    await db.collection('tournaments').doc(tournamentId).delete();
+    return snap.size;
+};
+
+// Archiving is the reversible everyday alternative to deleting: past seasons
+// stay readable but are locked against edits.
+export const setTournamentStatus = async (
+    tournamentId: string,
+    status: TournamentStatus,
+    user: User | null
+): Promise<void> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    await db.collection('tournaments').doc(tournamentId).update({
+        status,
+        lastUpdated: window.firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: user ? { id: user.id, name: user.name } : { id: 'anonymous', name: 'Anonymous' },
+    });
 };
 
 
@@ -584,6 +657,10 @@ export const onTournamentUpdate = (
 
             if (tournamentData.lastUpdated && typeof tournamentData.lastUpdated.toDate === 'function') {
                 tournamentData.lastUpdated = tournamentData.lastUpdated.toDate();
+            }
+            for (const key of ['startDate', 'endDate'] as const) {
+                const value = tournamentData[key];
+                tournamentData[key] = value && typeof value.toDate === 'function' ? value.toDate() : (value ?? null);
             }
             if (tournamentData.schedule) {
                 tournamentData.schedule = tournamentData.schedule.map(match => ({
@@ -634,48 +711,40 @@ export const updateTournament = async (tournamentId: string, data: Partial<Tourn
     }
 };
 
-// --- Global Player Management ---
-const GLOBAL_PLAYERS_COLLECTION = 'globalPlayers';
+// --- Per-season squad management ---
+// Squads used to live in one shared `globalPlayers` collection, so deleting a
+// player who had left the club also blanked them out of every past season's
+// teams and top-scorer list. Each season now owns its own roster at
+// tournaments/{id}/players, keeping document ids so existing
+// teams[].members[].playerId references still resolve.
+const PLAYERS_SUBCOLLECTION = 'players';
 
-export const batchAddGlobalPlayers = async (players: TournamentPlayer[]): Promise<void> => {
-    if (!db) throw new Error("Firestore not initialized.");
-    if (!players || players.length === 0) return;
+const playersCollectionFor = (tournamentId: string) =>
+    db.collection('tournaments').doc(tournamentId).collection(PLAYERS_SUBCOLLECTION);
 
-    const batch = db.batch();
-    const playersCollection = db.collection(GLOBAL_PLAYERS_COLLECTION);
-
-    players.forEach(player => {
-        // Important: a player might already exist in the global list if they were
-        // added manually after the tournament was created. Using set will
-        // create or overwrite, ensuring the legacy data is the source of truth for this migration.
-        const playerRef = playersCollection.doc(player.id);
-        batch.set(playerRef, player);
-    });
-
-    try {
-        await batch.commit();
-    } catch (error) {
-        console.error("Error during player migration batch commit:", error);
-        throw new Error("Failed to migrate legacy players.");
-    }
-};
-
-export const onAllPlayersUpdate = (callback: (data: TournamentPlayer[]) => void): (() => void) => {
-  if (!db) return () => {};
-  const collectionRef = db.collection(GLOBAL_PLAYERS_COLLECTION).orderBy('name', 'asc');
+export const onAllPlayersUpdate = (
+  tournamentId: string,
+  callback: (data: TournamentPlayer[]) => void
+): (() => void) => {
+  if (!db || !tournamentId) return () => {};
+  const collectionRef = playersCollectionFor(tournamentId).orderBy('name', 'asc');
   const unsubscribe = collectionRef.onSnapshot((querySnapshot: any) => {
     const players = querySnapshot.docs.map((doc: any) => doc.data() as TournamentPlayer);
     callback(players);
   }, (error: Error) => {
-    console.error("Error listening to global players updates:", error);
+    console.error("Error listening to season squad updates:", error);
     callback([]);
   });
   return unsubscribe;
 };
 
-export const addPlayer = async (playerData: Omit<TournamentPlayer, 'id'>): Promise<TournamentPlayer> => {
+export const addPlayer = async (
+  tournamentId: string,
+  playerData: Omit<TournamentPlayer, 'id'>
+): Promise<TournamentPlayer> => {
     if (!db) throw new Error("Firestore not initialized.");
-    const newPlayerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc();
+    if (!tournamentId) throw new Error("No season selected.");
+    const newPlayerRef = playersCollectionFor(tournamentId).doc();
     const defaultSkills: PlayerSkills = {
       speed: 50, shooting: 50, passing: 50,
       dribbling: 50, defending: 50, physical: 50
@@ -689,10 +758,15 @@ export const addPlayer = async (playerData: Omit<TournamentPlayer, 'id'>): Promi
     return newPlayer;
 };
 
-export const updatePlayer = async (playerId: string, data: Partial<Omit<TournamentPlayer, 'id'>>): Promise<void> => {
+export const updatePlayer = async (
+  tournamentId: string,
+  playerId: string,
+  data: Partial<Omit<TournamentPlayer, 'id'>>
+): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized.");
-    const playerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc(playerId);
-    
+    if (!tournamentId) throw new Error("No season selected.");
+    const playerRef = playersCollectionFor(tournamentId).doc(playerId);
+
     // To handle nested objects like `skills`, we need to use dot notation
     // if we want to update individual fields.
     const flattenedData: { [key: string]: any } = {};
@@ -710,10 +784,35 @@ export const updatePlayer = async (playerId: string, data: Partial<Omit<Tourname
 };
 
 
-export const deletePlayer = async (playerId: string): Promise<void> => {
+export const deletePlayer = async (tournamentId: string, playerId: string): Promise<void> => {
     if (!db) throw new Error("Firestore not initialized.");
-    const playerRef = db.collection(GLOBAL_PLAYERS_COLLECTION).doc(playerId);
-    await playerRef.delete();
+    if (!tournamentId) throw new Error("No season selected.");
+    await playersCollectionFor(tournamentId).doc(playerId).delete();
     // Note: This does not perform a cascading delete from teams for simplicity.
     // The UI will handle rendering teams with missing player references.
 };
+
+// Copies a squad into a season, preserving ids. Used to seed a new season from
+// a previous one and by the one-off migration off `globalPlayers`.
+export const copyPlayersIntoTournament = async (
+  tournamentId: string,
+  players: TournamentPlayer[]
+): Promise<number> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    if (!tournamentId) throw new Error("No season selected.");
+    if (!players || players.length === 0) return 0;
+
+    // Firestore caps a batch at 500 writes.
+    const CHUNK = 400;
+    let written = 0;
+    for (let i = 0; i < players.length; i += CHUNK) {
+        const batch = db.batch();
+        for (const player of players.slice(i, i + CHUNK)) {
+            batch.set(playersCollectionFor(tournamentId).doc(player.id), player);
+        }
+        await batch.commit();
+        written += Math.min(CHUNK, players.length - i);
+    }
+    return written;
+};
+
