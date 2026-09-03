@@ -4,12 +4,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
-import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole } from '../types';
-import { onTeamDivisionUpdate, updateTeamDivision } from '../services/firebaseService';
+import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole, Tournament } from '../types';
+import { onTeamDivisionUpdate, updateTeamDivision, onTournamentUpdate } from '../services/firebaseService';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
 import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon } from '../components/icons';
-import { TeamDivisionSpinner, pickTargetTeam, assignToTeams, shuffled } from '../components/TeamDivisionSpinner';
+import {
+    TeamDivisionSpinner, pickTargetTeam, assignToTeams, shuffled,
+    buildEmptyTeams, teamDisplayName, teamHeaderColor, teamLogoSrc, TeamCrest, DrawTeam,
+} from '../components/TeamDivisionSpinner';
 
 interface TeamDividerPageProps {
     // Rendered as a tab of SeasonPage, which supplies the page heading.
@@ -24,7 +27,7 @@ interface TeamDividerPageProps {
 
 export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = false, onImmersiveChange }) => {
     const { translate, language } = useLanguage();
-    const { currentUser, isFirebaseReady, addToast, selectedTournament } = useAppContext();
+    const { currentUser, isFirebaseReady, addToast, selectedTournament, selectedTournamentId } = useAppContext();
 
     // Only admins own the roster: they edit it and their division is the one
     // that gets published. Everyone else reads it and may spin locally.
@@ -37,6 +40,10 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
 
     const [seedPlayers, setSeedPlayers] = useState({ GK: '', A: '', B: '', C: '', D: '', E: '' });
     const [numberOfTeams, setNumberOfTeams] = useState<number>(3);
+    // The season's own teams. When it has some, the draw fills those instead of
+    // inventing "Team 1..N": the number of boxes, their names and their colours
+    // all come from the Teams tab.
+    const [seasonTournament, setSeasonTournament] = useState<Tournament | null>(null);
     const [dividedTeams, setDividedTeams] = useState<DividedTeam[]>([]);
     const [lastUpdateInfo, setLastUpdateInfo] = useState<string | null>(null);
 
@@ -114,6 +121,36 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
         return () => unsubscribe();
     }, [isFirebaseReady, translate, language]);
 
+    useEffect(() => {
+        if (!isFirebaseReady || !selectedTournamentId) {
+            setSeasonTournament(null);
+            return;
+        }
+        const unsubscribe = onTournamentUpdate(selectedTournamentId, setSeasonTournament);
+        return () => unsubscribe();
+    }, [isFirebaseReady, selectedTournamentId]);
+
+    // Only named teams count - a half-created row in the Teams tab should not
+    // become a blank box on the wheel.
+    const seasonTeams: DrawTeam[] = (seasonTournament?.teams ?? [])
+        .filter(t => t?.name?.trim())
+        .map(t => ({ id: t.id, name: t.name.trim(), color: t.color ?? null, logoUrl: t.logoUrl ?? null }));
+
+    // With two or more real teams the count is not the admin's to choose: the
+    // draw has to land in exactly the teams the season plays with.
+    const usesSeasonTeams = seasonTeams.length >= 2;
+    const effectiveTeamCount = usesSeasonTeams ? seasonTeams.length : numberOfTeams;
+
+    /**
+     * Names shown for a saved division. A team renamed in the Teams tab after
+     * the draw should read with its new name, so the live team wins over the
+     * name frozen into the stored result.
+     */
+    const liveTeam = (team: DividedTeam): DividedTeam => {
+        const source = team.sourceTeamId ? seasonTeams.find(t => t.id === team.sourceTeamId) : undefined;
+        return source ? { ...team, name: source.name, color: source.color ?? null, logoUrl: source.logoUrl ?? null } : team;
+    };
+
     /**
      * Reads the six lists into players and validates the draw. Shared by both
      * buttons so "spin" and "divide now" can never disagree about who is in, or
@@ -123,7 +160,7 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
     const collectPlayers = (): Player[] | null => {
         setMessage('');
 
-        if (numberOfTeams < 2) {
+        if (effectiveTeamCount < 2) {
             setMessage(translate('teamDivider.message.minPlayersToSplit', { count: 2 }));
             return null;
         }
@@ -149,8 +186,8 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
             return null;
         }
 
-        if (allPlayers.length < numberOfTeams) {
-            setMessage(translate('teamDivider.message.minPlayersToSplit', { count: numberOfTeams }));
+        if (allPlayers.length < effectiveTeamCount) {
+            setMessage(translate('teamDivider.message.minPlayersToSplit', { count: effectiveTeamCount }));
             return null;
         }
 
@@ -212,9 +249,7 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
         const allPlayers = collectPlayers();
         if (!allPlayers) return;
 
-        let teams: DividedTeam[] = Array.from({ length: numberOfTeams }, (_, i) => ({
-            id: i + 1, players: [], totalSeedValue: 0, playerCount: 0,
-        }));
+        let teams: DividedTeam[] = buildEmptyTeams(effectiveTeamCount, seasonTeams);
         let fallbackCount = 0;
         shuffled(allPlayers).forEach(player => {
             const { team, usedFallback } = pickTargetTeam(player, teams);
@@ -246,7 +281,8 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
         return (
             <TeamDivisionSpinner
                 players={playersToDivide}
-                numberOfTeams={numberOfTeams}
+                numberOfTeams={effectiveTeamCount}
+                seasonTeams={seasonTeams}
                 onComplete={handleDivisionComplete}
                 onCancel={() => setDivisionState('idle')}
             />
@@ -276,11 +312,17 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                         </div>
 
                         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-                            {dividedTeams.map(team => (
+                            {dividedTeams.map(liveTeam).map(team => (
                                 <div key={team.id} className="flex flex-col overflow-hidden rounded-xl bg-surface shadow-2xl">
-                                    <div className="flex items-baseline justify-between bg-primary px-4 py-2.5">
-                                        <h3 className="font-bold text-white">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
-                                        <span className="font-mono text-xs text-white/80">{team.playerCount}</span>
+                                    <div
+                                        className="flex items-center justify-between gap-2 px-4 py-2.5"
+                                        style={{ backgroundColor: teamHeaderColor(team) }}
+                                    >
+                                        <div className="flex min-w-0 items-center gap-2.5">
+                                            <TeamCrest src={teamLogoSrc(team)} name={teamDisplayName(team, translate)} className="h-9 w-9" />
+                                            <h3 className="break-words font-bold text-white">{teamDisplayName(team, translate)}</h3>
+                                        </div>
+                                        <span className="flex-shrink-0 font-mono text-xs text-white/80">{team.playerCount}</span>
                                     </div>
                                     <ul className="flex-grow divide-y divide-border">
                                         {team.players.map((player, i) => (
@@ -416,41 +458,90 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-wrap items-end justify-center gap-4 border-t border-border bg-background p-4 dark:bg-slate-800/40">
-                    <div>
-                        <label htmlFor="numberOfTeams" className="mb-1 block text-center text-xs font-semibold uppercase tracking-wide text-textSecondary">
-                            {translate('teamDivider.numberOfTeamsLabel')}
-                        </label>
-                        <input
-                            id="numberOfTeams"
-                            type="number"
-                            min="2"
-                            max="10"
-                            value={numberOfTeams || ''}
-                            onChange={e => setNumberOfTeams(Number(e.target.value))}
-                            onBlur={() => { if (numberOfTeams < 2) setNumberOfTeams(2); }}
-                            className="w-24 rounded-md border border-border bg-surface p-2 text-center text-textPrimary shadow-sm focus:border-primary focus:ring-2 focus:ring-primary dark:bg-slate-700"
-                        />
+                <div className="border-t border-border bg-background p-4 dark:bg-slate-800/40">
+                    <div className="flex flex-wrap items-end justify-center gap-4">
+                        <div>
+                            <label htmlFor="numberOfTeams" className="mb-1 block text-center text-xs font-semibold uppercase tracking-wide text-textSecondary">
+                                {translate('teamDivider.numberOfTeamsLabel')}
+                            </label>
+                            {usesSeasonTeams ? (
+                                // Not editable: the draw lands in the season's own teams,
+                                // so the count is whatever the Teams tab says.
+                                <div
+                                    id="numberOfTeams"
+                                    className="flex h-[42px] w-24 items-center justify-center rounded-md border border-border bg-black/[0.03] text-lg font-bold text-textPrimary dark:bg-white/5"
+                                    title={translate('teamDivider.teamsFromSeason', { count: seasonTeams.length })}
+                                >
+                                    {seasonTeams.length}
+                                </div>
+                            ) : (
+                                <input
+                                    id="numberOfTeams"
+                                    type="number"
+                                    min="2"
+                                    max="10"
+                                    value={numberOfTeams || ''}
+                                    onChange={e => setNumberOfTeams(Number(e.target.value))}
+                                    onBlur={() => { if (numberOfTeams < 2) setNumberOfTeams(2); }}
+                                    className="w-24 rounded-md border border-border bg-surface p-2 text-center text-textPrimary shadow-sm focus:border-primary focus:ring-2 focus:ring-primary dark:bg-slate-700"
+                                />
+                            )}
+                        </div>
+                        <Button
+                            onClick={handlePrepareAndStartDivision}
+                            disabled={isSaving || effectiveTeamCount < 2 || totalEntered === 0}
+                            size="lg"
+                            className="h-[42px]"
+                        >
+                            <PlayIcon className="mr-2 h-5 w-5" />
+                            {translate('teamDivider.spinDivideButton')}
+                        </Button>
+                        <Button
+                            onClick={handleInstantDivide}
+                            disabled={isSaving || effectiveTeamCount < 2 || totalEntered === 0}
+                            variant="outline"
+                            size="lg"
+                            className="h-[42px]"
+                        >
+                            <UsersIcon className="mr-2 h-5 w-5" />
+                            {isSaving ? translate('teamDivider.message.saving') : translate('teamDivider.divideButton')}
+                        </Button>
                     </div>
-                    <Button
-                        onClick={handlePrepareAndStartDivision}
-                        disabled={isSaving || numberOfTeams < 2 || totalEntered === 0}
-                        size="lg"
-                        className="h-[42px]"
-                    >
-                        <PlayIcon className="mr-2 h-5 w-5" />
-                        {translate('teamDivider.spinDivideButton')}
-                    </Button>
-                    <Button
-                        onClick={handleInstantDivide}
-                        disabled={isSaving || numberOfTeams < 2 || totalEntered === 0}
-                        variant="outline"
-                        size="lg"
-                        className="h-[42px]"
-                    >
-                        <UsersIcon className="mr-2 h-5 w-5" />
-                        {isSaving ? translate('teamDivider.message.saving') : translate('teamDivider.divideButton')}
-                    </Button>
+
+                    {/* Say where the teams come from, and show them: otherwise a
+                        locked number box looks like a bug. */}
+                    {usesSeasonTeams ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5">
+                            <span className="text-xs text-textSecondary">
+                                {translate('teamDivider.teamsFromSeason', { count: seasonTeams.length })}
+                            </span>
+                            {seasonTeams.map(team => {
+                                const logo = teamLogoSrc(team);
+                                return (
+                                    <span
+                                        key={team.id}
+                                        className="flex items-center gap-1.5 rounded-full border border-border bg-surface py-0.5 pl-1 pr-2.5 text-xs font-semibold text-textPrimary"
+                                    >
+                                        {/* The crest identifies the team on its own; the colour
+                                            dot only stands in when there is no crest. */}
+                                        {logo ? (
+                                            <TeamCrest src={logo} name={team.name} className="h-5 w-5" />
+                                        ) : (
+                                            <span
+                                                className="ml-1 h-2 w-2 flex-shrink-0 rounded-full"
+                                                style={{ backgroundColor: team.color || '#64748b' }}
+                                            />
+                                        )}
+                                        {team.name}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="mt-3 text-center text-xs text-textSecondary">
+                            {translate('teamDivider.noSeasonTeamsHint')}
+                        </p>
+                    )}
                 </div>
 
                 {message && <p className="border-t border-border p-3 text-center text-danger">{message}</p>}
@@ -473,11 +564,17 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
 
                 {dividedTeams.length > 0 ? (
                     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-                        {dividedTeams.map(team => (
+                        {dividedTeams.map(liveTeam).map(team => (
                             <div key={team.id} id={`team-box-${team.id}`} className="flex flex-col overflow-hidden rounded-xl bg-surface shadow-lg">
-                                <div className="flex items-baseline justify-between bg-primary px-4 py-2.5">
-                                    <h3 className="font-bold text-white">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
-                                    <span className="text-xs font-medium text-white/80">
+                                <div
+                                    className="flex items-center justify-between gap-2 px-4 py-2.5"
+                                    style={{ backgroundColor: teamHeaderColor(team) }}
+                                >
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                        <TeamCrest src={teamLogoSrc(team)} name={teamDisplayName(team, translate)} className="h-8 w-8" />
+                                        <h3 className="break-words font-bold text-white">{teamDisplayName(team, translate)}</h3>
+                                    </div>
+                                    <span className="flex-shrink-0 text-xs font-medium text-white/80">
                                         {translate('teamDivider.playerCount')}: {team.playerCount}
                                     </span>
                                 </div>

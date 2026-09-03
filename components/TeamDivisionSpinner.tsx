@@ -4,14 +4,86 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { Button } from './shared/Button';
 import { PlayIcon, ArrowLeftIcon } from './icons';
+import { getTeamLogo } from '../constants';
+
+/** A team of the current season, reduced to what the draw needs from it. */
+export interface DrawTeam {
+    id: string;
+    name: string;
+    color?: string | null;
+    logoUrl?: string | null;
+}
 
 interface TeamDivisionSpinnerProps {
     players: Player[];
     numberOfTeams: number;
+    /**
+     * The season's own teams, in order. When present the wheel draws into
+     * these - their names and colours - instead of anonymous "Team 1..N"
+     * boxes. Shorter than numberOfTeams is allowed; the extra boxes stay
+     * generic.
+     */
+    seasonTeams?: DrawTeam[];
     onComplete: (teams: DividedTeam[]) => void;
     /** Leave the draw and go back to the squad list. */
     onCancel?: () => void;
 }
+
+/**
+ * Header colour of a team box. A box standing for a season team falls back to
+ * the same slate the Teams tab uses, so an uncoloured team looks identical in
+ * both places; a generic "Team N" box keeps the app's orange.
+ */
+export const teamHeaderColor = (team: Pick<DividedTeam, 'color' | 'sourceTeamId'>): string =>
+    team.color || (team.sourceTeamId ? '#64748b' : '#F97316');
+
+/**
+ * The empty boxes a draw starts from. Built here rather than in each caller so
+ * the wheel and the instant divide always produce the same shape, including the
+ * link back to the season's teams.
+ */
+export const buildEmptyTeams = (count: number, seasonTeams?: DrawTeam[]): DividedTeam[] =>
+    Array.from({ length: count }, (_, i) => {
+        const source = seasonTeams?.[i];
+        return {
+            id: i + 1,
+            name: source?.name,
+            color: source?.color ?? null,
+            logoUrl: source?.logoUrl ?? null,
+            sourceTeamId: source?.id,
+            players: [],
+            totalSeedValue: 0,
+            playerCount: 0,
+        };
+    });
+
+export const teamDisplayName = (
+    team: Pick<DividedTeam, 'id' | 'name'>,
+    translate: (key: string, replacements?: Record<string, string | number>) => string,
+): string => team.name?.trim() || translate('teamDivider.teamLabel', { id: team.id });
+
+/**
+ * The crest to draw for a team box: what the admin picked, else the one that
+ * ships with the team's name, else nothing. Returning null rather than a
+ * placeholder matters - see getTeamLogo.
+ */
+export const teamLogoSrc = (team: Pick<DividedTeam, 'name' | 'logoUrl'>): string | null =>
+    team.logoUrl?.trim() || (team.name ? getTeamLogo(team.name) : null);
+
+/** Crest rendered next to a team name. Sized by the caller. */
+export const TeamCrest: React.FC<{ src: string | null; name: string; className?: string }> = ({ src, name, className = 'h-6 w-6' }) =>
+    src ? (
+        <img
+            src={src}
+            alt=""
+            aria-hidden="true"
+            title={name}
+            // A crest that fails to load must not leave a broken-image icon in
+            // the middle of the header.
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            className={`${className} flex-shrink-0 object-contain drop-shadow-sm`}
+        />
+    ) : null;
 
 const seedValues: Record<PlayerSeed, number> = { GK: 0, A: 5, B: 4, C: 3, D: 2, E: 1 };
 
@@ -107,7 +179,7 @@ const makeConfetti = (count: number): ConfettiPiece[] =>
     }));
 
 
-export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, onComplete, onCancel }) => {
+export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, seasonTeams, onComplete, onCancel }) => {
     const { translate } = useLanguage();
     const { addToast } = useAppContext();
 
@@ -163,16 +235,17 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
         return `conic-gradient(${gradientParts.join(', ')})`;
     };
 
+    // Depend on the contents, not the array identity: seasonTeams is rebuilt on
+    // every parent render, and resetting the boxes mid-draw would throw away
+    // every player already placed.
+    const seasonTeamsKey = (seasonTeams ?? []).map(t => `${t.id}:${t.name}:${t.color ?? ''}:${t.logoUrl ?? ''}`).join('|');
+
     useEffect(() => {
-        const initialTeams = Array.from({ length: numberOfTeams }, (_, i) => ({
-            id: i + 1,
-            players: [],
-            totalSeedValue: 0,
-            playerCount: 0,
-        }));
+        const initialTeams = buildEmptyTeams(numberOfTeams, seasonTeams);
         setTeams(initialTeams);
         teamsRef.current = initialTeams;
-    }, [numberOfTeams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [numberOfTeams, seasonTeamsKey]);
 
     useEffect(() => {
         teamsRef.current = teams;
@@ -372,7 +445,17 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                         <span className="text-xs uppercase tracking-wider text-textSecondary">{translate('teamDivider.spinner.winnerLabel')}</span>
                         <span className="text-2xl font-extrabold text-primary">{lastWinner.player.name}</span>
                         <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">{lastWinner.player.seed}</span>
-                        <span className="text-sm font-semibold text-textPrimary">→ {translate('teamDivider.teamLabel', { id: lastWinner.teamId })}</span>
+                        {(() => {
+                            const winnerTeam: Pick<DividedTeam, 'id' | 'name' | 'logoUrl'> =
+                                teams.find(t => t.id === lastWinner.teamId) ?? { id: lastWinner.teamId };
+                            const name = teamDisplayName(winnerTeam, translate);
+                            return (
+                                <span className="flex items-center gap-1.5 text-sm font-semibold text-textPrimary">
+                                    → <TeamCrest src={teamLogoSrc(winnerTeam)} name={name} className="h-6 w-6" />
+                                    {name}
+                                </span>
+                            );
+                        })()}
                     </div>
                 )}
             </div>
@@ -581,9 +664,19 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                             id={`team-box-${team.id}`}
                             className={`flex flex-col overflow-hidden rounded-xl bg-surface shadow-md transition-all duration-300 ${isTarget ? 'ring-2 ring-primary' : ''}`}
                         >
-                            <div className="flex items-baseline justify-between bg-primary px-3 py-1.5">
-                                <h3 className="text-sm font-bold text-white">{translate('teamDivider.teamLabel', { id: team.id })}</h3>
-                                <span className="font-mono text-xs text-white/80">{team.playerCount}</span>
+                            {/* Coloured by the season team this box stands for, so the
+                                room can match the wheel to the shirts. */}
+                            <div
+                                className="flex items-center justify-between gap-2 px-3 py-1.5"
+                                style={{ backgroundColor: teamHeaderColor(team) }}
+                            >
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <TeamCrest src={teamLogoSrc(team)} name={teamDisplayName(team, translate)} className="h-7 w-7" />
+                                    <h3 className="truncate text-sm font-bold text-white" title={teamDisplayName(team, translate)}>
+                                        {teamDisplayName(team, translate)}
+                                    </h3>
+                                </div>
+                                <span className="flex-shrink-0 font-mono text-xs text-white/80">{team.playerCount}</span>
                             </div>
                             <ul className="flex flex-grow flex-col gap-1 p-2">
                                 {team.players.map((p, i) => (

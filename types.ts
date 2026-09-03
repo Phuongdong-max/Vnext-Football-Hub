@@ -154,6 +154,15 @@ export interface Player {
 
 export interface DividedTeam {
   id: number;
+  // The draw fills the season's real teams, so a box carries that team's
+  // identity. All three are optional: divisions drawn before the wheel was
+  // wired to the season, or drawn while the season had no teams yet, fall back
+  // to the generic "Team {{id}}" label.
+  name?: string;
+  color?: string | null;
+  logoUrl?: string | null;
+  /** The tournaments/{id}.teams[] entry this box stands for. */
+  sourceTeamId?: string;
   players: Player[];
   totalSeedValue: number;
   playerCount: number;

@@ -74,11 +74,15 @@ service cloud.firestore {
 
       // Season squads. A parent match does NOT cover subcollections, so without
       // this block every read and write under tournaments/{id}/players is denied
-      // by default. Public read like the tournament itself; writes are limited to
-      // admins, who own the roster of a season.
+      // by default. Public read, like the tournament itself.
       match /players/{playerId} {
         allow read: if true;
-        allow write: if isAdmin();
+        // Filling in a player's details is day-to-day upkeep, open to any
+        // signed-in member - the same bar as recording scores on the parent doc.
+        allow update: if request.auth != null;
+        // Who is in the squad at all is the admin's call, and a delete cannot
+        // be undone.
+        allow create, delete: if isAdmin();
       }
     }
   }

@@ -11,16 +11,22 @@ const skillOrder: (keyof PlayerSkills)[] = ['speed', 'shooting', 'passing', 'dri
 
 export const PlayerSkillChart: React.FC<PlayerSkillChartProps> = ({ skills, size = 300 }) => {
     const { translate } = useLanguage();
-    const center = size / 2;
-    // Add padding to ensure labels are not clipped by the SVG boundary
-    const padding = size * 0.15;
-    const radius = center - padding; // Radius of the outermost grid line
+    // The chart is wider than it is tall on purpose. Labels sit to the left and
+    // right of the hexagon and are far wider than they are tall, so a square
+    // canvas either clipped them ("Physical" arrived as "hysical") or forced the
+    // hexagon down to a stub to make room. `size` is the hexagon's box; the
+    // canvas grows sideways around it.
+    const width = size * 1.4;
+    const height = size;
+    const cx = width / 2;
+    const cy = height / 2;
+    const radius = cy - size * 0.1; // Radius of the outermost grid line
     const levels = 4;
 
     const getPoint = (angle: number, value: number) => {
         const r = radius * (value / 100);
-        const x = center + r * Math.cos(angle * Math.PI / 180);
-        const y = center + r * Math.sin(angle * Math.PI / 180);
+        const x = cx + r * Math.cos(angle * Math.PI / 180);
+        const y = cy + r * Math.sin(angle * Math.PI / 180);
         return { x, y };
     };
 
@@ -35,7 +41,14 @@ export const PlayerSkillChart: React.FC<PlayerSkillChartProps> = ({ skills, size
     }).map(p => `${p.x},${p.y}`).join(' ');
 
     return (
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            // Never push the panel sideways on a narrow screen.
+            style={{ maxWidth: '100%', height: 'auto' }}
+            role="img"
+        >
             {/* Grid Levels */}
             {[...Array(levels)].map((_, levelIndex) => {
                 const levelValue = 100 - (levelIndex * (100 / levels));
@@ -60,7 +73,7 @@ export const PlayerSkillChart: React.FC<PlayerSkillChartProps> = ({ skills, size
             {hexagonPoints.map((point, i) => (
                 <line
                     key={i}
-                    x1={center} y1={center}
+                    x1={cx} y1={cy}
                     x2={point.x} y2={point.y}
                     stroke="var(--color-secondary)"
                     strokeOpacity="0.3"
@@ -75,9 +88,9 @@ export const PlayerSkillChart: React.FC<PlayerSkillChartProps> = ({ skills, size
             {skillOrder.map((key, i) => {
                 const angle = i * 60 - 90;
                 // Position labels just outside the main grid, with enough space
-                const labelRadius = radius + 15;
-                const x = center + labelRadius * Math.cos(angle * Math.PI / 180);
-                const y = center + labelRadius * Math.sin(angle * Math.PI / 180);
+                const labelRadius = radius + 14;
+                const x = cx + labelRadius * Math.cos(angle * Math.PI / 180);
+                const y = cy + labelRadius * Math.sin(angle * Math.PI / 180);
 
                 const textAnchor = angle === 90 || angle === -90 ? 'middle' : (angle > 90 || angle < -90 ? 'end' : 'start');
                  
@@ -88,10 +101,9 @@ export const PlayerSkillChart: React.FC<PlayerSkillChartProps> = ({ skills, size
                         y={y}
                         dy="0.3em" // Vertically center
                         textAnchor={textAnchor}
-                        fill="var(--color-text-primary)" // Brighter text color
-                        fontSize={size > 200 ? "13" : "11"} // Slightly larger font
-                        fontWeight="bold" // Bolder font
-                        style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.7))' }} // Add shadow for pop
+                        fill="var(--color-text-secondary)"
+                        fontSize={size > 200 ? "12" : "10"}
+                        fontWeight="600"
                     >
                         {translate(`playerSkills.${key}`)}
                     </text>

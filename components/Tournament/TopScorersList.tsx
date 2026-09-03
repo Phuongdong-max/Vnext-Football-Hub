@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { StarIcon } from '../icons';
 import { TournamentTeam } from '../../types';
+import { TeamCrest, teamLogoSrc } from '../TeamDivisionSpinner';
 
 interface TopScorer {
     name: string;
@@ -57,6 +58,7 @@ export const TopScorersList: React.FC<TopScorersListProps> = ({ scorers, teams }
                                 </p>
                                 <p className="text-xs text-textSecondary flex items-center gap-2">
                                     <div style={{ backgroundColor: teamColor }} className="w-1 h-3 rounded-full inline-block"></div>
+                                    {team && <TeamCrest src={teamLogoSrc(team)} name={team.name} className="h-5 w-5" />}
                                     <span>
                                         {scorer.teamName}
                                         {scorer.isGuest ? translate('topScorersList.guest') : ''}

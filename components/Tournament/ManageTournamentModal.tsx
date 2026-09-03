@@ -7,6 +7,7 @@ import { Tournament, TournamentTeam, TournamentPlayer } from '../../types';
 import { updateTournament, addPlayer, updatePlayer, deletePlayer, copyPlayersIntoTournament } from '../../services/firebaseService';
 import { PlusIcon, XIcon, InformationCircleIcon } from '../icons';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
+import { TeamLogoPicker } from './TeamLogoPicker';
 
 interface ManageTournamentModalProps {
     isOpen: boolean;
@@ -293,6 +294,16 @@ export const ManageTournamentModal: React.FC<ManageTournamentModalProps> = ({ is
                                 </div>
                                 <Button type="button" onClick={() => handleRemoveTeam(team.id)} variant="danger" size="sm"><XIcon className="w-4 h-4 mr-1"/>{translate('manageTournament.button.removeTeam')}</Button>
                             </div>
+
+                            {/* Crest. Left unset, a team whose name matches one we
+                                ship art for still gets that art automatically, so
+                                this is only needed to override or to give a crest
+                                to a name we do not know. */}
+                            <TeamLogoPicker
+                                teamName={team.name}
+                                value={team.logoUrl}
+                                onChange={logoUrl => setTeams(prev => prev.map(t => t.id === team.id ? { ...t, logoUrl } : t))}
+                            />
                             <div className="space-y-2 mb-2">
                                 {team.members.map(memberRef => {
                                     const member = availablePlayersForLookup.find(p => p.id === memberRef.playerId);

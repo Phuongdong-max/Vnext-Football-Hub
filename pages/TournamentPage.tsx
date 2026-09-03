@@ -20,6 +20,7 @@ import { TopScorersList } from '../components/Tournament/TopScorersList';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 import { TeamAnalysisModal } from '../components/Tournament/TeamAnalysisModal';
 import { TournamentMatchAnalysisModal } from '../components/Tournament/TournamentMatchAnalysisModal';
+import { TeamCrest, teamLogoSrc } from '../components/TeamDivisionSpinner';
 
 // --- Edit Match Modal (defined inside TournamentPage) ---
 interface EditMatchModalProps {
@@ -102,6 +103,7 @@ const TeamDisplay = ({ teamId, alignment = 'start', teams }: { teamId: string, a
     return (
         <div className={`flex items-center justify-center ${textAlign} w-full md:w-2/5 font-semibold text-textPrimary ${alignClass} gap-3`}>
             <div style={{ backgroundColor: teamColor }} className={`w-1 h-4 rounded-full flex-shrink-0`}></div>
+            <TeamCrest src={teamLogoSrc(team)} name={team.name} className="h-6 w-6" />
             <span>{team.name}</span>
         </div>
     );
@@ -125,6 +127,7 @@ const ScheduleTeam = ({ teamId, teams, align, isWinner, dimmed }: {
     const content = (
         <>
             <span style={{ backgroundColor: team?.color || '#a1a1aa' }} className="h-5 w-1 flex-shrink-0 rounded-full" />
+            {team && <TeamCrest src={teamLogoSrc(team)} name={team.name} className="h-6 w-6" />}
             <span className={`truncate text-sm sm:text-base ${isWinner ? 'font-bold text-textPrimary' : dimmed ? 'font-medium text-textSecondary' : 'font-semibold text-textPrimary'}`}>
                 {team?.name || teamId}
             </span>
@@ -157,6 +160,12 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
     // An archived season is a historical record: readable by everyone, editable
     // by nobody, so every edit affordance folds away rather than failing on save.
     const canEdit = canEditRaw && !isSelectedTournamentArchived;
+
+    // Squad composition and the manage dialog belong to the season owner alone.
+    // canEdit is deliberately wider - it lets any @vnext.vn address enter scores
+    // and goals on the day - but that must not stretch to rewriting the lineup
+    // or adding and deleting players.
+    const canManageTeams = isAdmin && !isSelectedTournamentArchived;
 
     const [tournament, setTournament] = useState<Tournament | null>(null);
     const [allPlayers, setAllPlayers] = useState<TournamentPlayer[]>([]);
@@ -280,6 +289,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
     const [isSavingTeams, setIsSavingTeams] = useState(false);
 
     const startEditingTeams = () => {
+        if (!canManageTeams) return;
         const drafts: Record<string, string[]> = {};
         (tournament?.teams ?? []).forEach(team => {
             drafts[team.id] = (team.members ?? []).map(m => m.playerId);
@@ -302,7 +312,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
     };
 
     const handleSaveTeams = async () => {
-        if (!currentUser || !tournament || !selectedTournamentId) return;
+        if (!canManageTeams || !currentUser || !tournament || !selectedTournamentId) return;
         setIsSavingTeams(true);
         try {
             const teams: TournamentTeam[] = (tournament.teams ?? []).map(team => ({
@@ -521,12 +531,23 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border bg-surface">
-                                            {standings?.map((s, index) => (
+                                            {standings?.map((s, index) => {
+                                                // Standings are stored, not recomputed on render, so a
+                                                // row written before crests existed carries no logoUrl.
+                                                // Read it off the live team instead, which also keeps a
+                                                // later crest change visible without a recalculation.
+                                                const liveTeam = teams?.find(t => t.id === s.teamId);
+                                                return (
                                                 <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                                                         <div className="flex items-center">
                                                             <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>
-                                                            <div style={{ backgroundColor: s.teamColor || '#a1a1aa' }} className="w-1.5 h-6 rounded-full mr-4 flex-shrink-0 shadow-sm"></div>
+                                                            <div style={{ backgroundColor: liveTeam?.color || s.teamColor || '#a1a1aa' }} className="w-1.5 h-6 rounded-full mr-3 flex-shrink-0 shadow-sm"></div>
+                                                            <TeamCrest
+                                                                src={teamLogoSrc({ name: s.teamName, logoUrl: liveTeam?.logoUrl ?? s.logoUrl })}
+                                                                name={s.teamName}
+                                                                className="mr-2.5 h-7 w-7"
+                                                            />
                                                             <div className="font-semibold text-base text-textPrimary">{s.teamName}</div>
                                                         </div>
                                                     </td>
@@ -539,7 +560,8 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                                                     <td className="whitespace-nowrap px-2 py-4 text-center text-base font-bold text-textPrimary">{s.goalDifference > 0 ? `+${s.goalDifference}` : s.goalDifference}</td>
                                                     <td className="whitespace-nowrap px-4 py-4 text-center"><span className="inline-block bg-primary text-white text-base font-bold px-3 py-1 rounded-md shadow-md">{s.points}</span></td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -665,7 +687,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                       <div className="space-y-4">
                         {/* Managing teams and rosters is season content, not season
                             lifecycle, so it stays here rather than moving to /admin. */}
-                        {canEdit && (
+                        {canManageTeams && (
                             <div className="flex flex-wrap justify-end gap-2">
                                 {isEditingTeams ? (
                                     <>
@@ -700,7 +722,10 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                                         className="flex items-center justify-between gap-2 px-3 py-2"
                                         style={{ backgroundColor: team.color || '#64748b' }}
                                     >
-                                        <h3 className="truncate font-bold text-white">{team.name}</h3>
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <TeamCrest src={teamLogoSrc(team)} name={team.name} className="h-7 w-7" />
+                                            <h3 className="truncate font-bold text-white">{team.name}</h3>
+                                        </div>
                                         <div className="flex flex-shrink-0 items-center gap-1">
                                             <span className="rounded bg-black/20 px-1.5 py-0.5 font-mono text-[11px] text-white">
                                                 {team.members?.length ?? 0}
@@ -716,7 +741,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                                         </div>
                                     </div>
 
-                                    {isEditingTeams && canEdit ? (
+                                    {isEditingTeams && canManageTeams ? (
                                         <div className="flex flex-grow flex-col">
                                             <ul className="flex-grow divide-y divide-border">
                                                 {(teamDrafts[team.id] ?? []).map(playerId => {
@@ -821,7 +846,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
 
             {renderContent()}
 
-            {isManageModalOpen && canEdit && tournament && (
+            {isManageModalOpen && canManageTeams && tournament && (
                 <ManageTournamentModal 
                     isOpen={isManageModalOpen} 
                     onClose={() => setIsManageModalOpen(false)} 

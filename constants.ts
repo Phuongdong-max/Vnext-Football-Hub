@@ -57,9 +57,9 @@ const TEAM_STYLES: TeamStyleMap = {
     'Không thể cản phá': { imageSrc: 'assets/turtle.png', borderColor: '#6A8A6F', aliases: ['Không Thể Cản Phá'] },
 };
 
-export const getTeamStyle = (teamName: string): TeamStyle => {
+const findTeamStyle = (teamName: string): TeamStyle | null => {
   const lowerCaseTeamName = teamName.toLowerCase().trim();
-  
+
   // Direct match
   const directMatchKey = Object.keys(TEAM_STYLES).find(k => k.toLowerCase().trim() === lowerCaseTeamName);
   if (directMatchKey) return TEAM_STYLES[directMatchKey];
@@ -70,10 +70,34 @@ export const getTeamStyle = (teamName: string): TeamStyle => {
       return TEAM_STYLES[key];
     }
   }
-  
-  // Fallback style if no match is found
-  return { imageSrc: 'assets/VFLogo-fix.png', borderColor: '#cccccc' };
+
+  return null;
 };
+
+export const getTeamStyle = (teamName: string): TeamStyle =>
+  // Fallback style if no match is found
+  findTeamStyle(teamName) ?? { imageSrc: 'assets/VFLogo-fix.png', borderColor: '#cccccc' };
+
+/**
+ * The crest shipped for a team name, or null when there is none.
+ *
+ * Unlike getTeamStyle this does NOT fall back to the app logo. Where several
+ * teams sit side by side - the draw, the Teams tab - an unrecognised name must
+ * show no crest at all, because falling back would give every unrecognised team
+ * the same picture and they would stop being telling apart.
+ */
+export const getTeamLogo = (teamName: string): string | null =>
+  findTeamStyle(teamName)?.imageSrc ?? null;
+
+/** Crests an admin can pick for a team, beyond the automatic match by name. */
+export const TEAM_LOGO_CHOICES: { id: string; src: string }[] = [
+  { id: 'dragon',  src: 'assets/dragon.png' },
+  { id: 'phoenix', src: 'assets/phoenix.png' },
+  { id: 'tiger',   src: 'assets/tiger.png' },
+  { id: 'turtle',  src: 'assets/turtle.png' },
+  { id: 'vnext',   src: 'assets/vnext.png' },
+  { id: 'vf',      src: 'assets/VFLogo-fix.png' },
+];
 
 // This static list is used for immediate display on landing pages
 // to prevent the UI from being empty while live data is fetched.
