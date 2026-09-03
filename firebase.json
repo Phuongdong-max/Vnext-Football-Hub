@@ -11,6 +11,35 @@
         "source": "**",
         "destination": "/index.html"
       }
+    ],
+    "headers": [
+      {
+        "comment": "Split chunks carry a content hash, so a changed file is a changed URL. Listed first, and matching nothing the rules below match, so there is no overlap to reason about.",
+        "source": "**/*-????????.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "comment": "The entry bundle has no hash in its name. Hosting's default max-age=3600 therefore left every visitor on the previous deploy for up to an hour after a release - which is exactly how a shipped change appears not to have shipped. Revalidate instead; the ETag makes an unchanged file a cheap 304.",
+        "source": "/index.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "comment": "Same for the shell. \"/\" is its own request path and is not covered by an *.html glob, so it needs saying twice.",
+        "source": "/",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      }
     ]
   },
   "functions": [

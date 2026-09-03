@@ -11,7 +11,7 @@ import { Button } from '../components/shared/Button';
 import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon } from '../components/icons';
 import {
     TeamDivisionSpinner, pickTargetTeam, assignToTeams, shuffled,
-    buildEmptyTeams, teamDisplayName, teamHeaderColor, teamLogoSrc, TeamCrest, DrawTeam,
+    buildEmptyTeams, teamDisplayName, teamHeaderColor, teamLogoSrc, TeamCrest, DrawTeam, dealOrder,
 } from '../components/TeamDivisionSpinner';
 
 interface TeamDividerPageProps {
@@ -251,7 +251,7 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
 
         let teams: DividedTeam[] = buildEmptyTeams(effectiveTeamCount, seasonTeams);
         let fallbackCount = 0;
-        shuffled(allPlayers).forEach(player => {
+        dealOrder(allPlayers).forEach(player => {
             const { team, usedFallback } = pickTargetTeam(player, teams);
             if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
             teams = assignToTeams(teams, player, team.id);

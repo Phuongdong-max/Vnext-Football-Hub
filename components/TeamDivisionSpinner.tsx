@@ -121,25 +121,39 @@ const sliceColorAt = (index: number, total: number) => {
 // run the exact same rule; spin-all folds it over a local working copy of the
 // teams instead of waiting for a state update between players.
 export const pickTargetTeam = (player: Player, teams: DividedTeam[]): { team: DividedTeam; usedFallback: boolean } => {
-    // Ideal candidates are teams that DO NOT have this player's seed yet.
-    const idealCandidates = teams.filter(t => !t.players.some(p => p.seed === player.seed));
-    const usedFallback = idealCandidates.length === 0;
-    const candidates = usedFallback ? [...teams] : idealCandidates;
-
-    candidates.sort((a, b) => {
-        // 1. Primary sort: fewest players
+    // Squad size is a hard rule; spreading the seeds is a preference.
+    //
+    // This used to be the other way round: teams that already held the player's
+    // seed were filtered out before the size sort, so a team with two players
+    // could be passed over for one with five purely because the small team
+    // already had a "B". With 24 players over 4 teams that produced a 5/5/6/8
+    // split often enough to notice - the sizes only came out even when every
+    // seed happened to divide by the number of teams.
+    //
+    // Pre-shuffled so equal candidates are picked uniformly: sort is stable in
+    // modern JS, and a `Math.random() - 0.5` comparator is not a valid ordering.
+    const ranked = shuffled(teams).sort((a, b) => {
+        // 1. Fewest players. Nothing overrides this, so the squads can never
+        //    differ by more than one.
         const playerCountDiff = a.playerCount - b.playerCount;
         if (playerCountDiff !== 0) return playerCountDiff;
 
-        // 2. Secondary sort: lowest total seed value
-        const seedValueDiff = a.totalSeedValue - b.totalSeedValue;
-        if (seedValueDiff !== 0) return seedValueDiff;
+        // 2. Among teams of the same size, prefer one that has nobody of this
+        //    seed yet.
+        const aHasSeed = a.players.some(p => p.seed === player.seed) ? 1 : 0;
+        const bHasSeed = b.players.some(p => p.seed === player.seed) ? 1 : 0;
+        if (aHasSeed !== bHasSeed) return aHasSeed - bHasSeed;
 
-        // 3. Tertiary sort: random tie-breaker
-        return Math.random() - 0.5;
+        // 3. Then the weaker side by seed value.
+        return a.totalSeedValue - b.totalSeedValue;
     });
 
-    return { team: candidates[0], usedFallback };
+    const team = ranked[0];
+    // Reported when the player doubles up a seed in the team they landed in,
+    // which is what the warning has always meant to the person reading it.
+    const usedFallback = team.players.some(p => p.seed === player.seed);
+
+    return { team, usedFallback };
 };
 
 export const assignToTeams = (teams: DividedTeam[], player: Player, teamId: number): DividedTeam[] =>
@@ -150,6 +164,27 @@ export const assignToTeams = (teams: DividedTeam[], player: Player, teamId: numb
         totalSeedValue: team.totalSeedValue + seedValues[player.seed],
         playerCount: team.playerCount + 1,
     });
+
+/**
+ * Order to deal a whole squad in: seed by seed, shuffled inside each seed and
+ * with the seeds themselves in random order.
+ *
+ * Dealing a flat shuffle lets several players of one seed arrive back to back,
+ * and by the time the rest of that seed comes round the smallest teams already
+ * hold it - so somebody doubles up. Going seed by seed makes the placement a
+ * round robin, which spreads each seed one-per-team for free. Only used where
+ * the order is invisible: the whole-squad draws. The wheel keeps picking at
+ * random one player at a time, because that is the point of the wheel.
+ */
+export const dealOrder = (players: Player[]): Player[] => {
+    const bySeed = new Map<PlayerSeed, Player[]>();
+    players.forEach(p => {
+        const group = bySeed.get(p.seed);
+        if (group) group.push(p);
+        else bySeed.set(p.seed, [p]);
+    });
+    return shuffled([...bySeed.keys()]).flatMap(seed => shuffled(bySeed.get(seed)!));
+};
 
 export const shuffled = <T,>(items: T[]): T[] => {
     const copy = [...items];
@@ -349,8 +384,8 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
             let workingTeams = teamsRef.current;
             let fallbackCount = 0;
 
-            // Random draw order, so spin-all is not just "input order".
-            shuffled(unassignedPlayers).forEach(player => {
+            // Seed by seed, shuffled within each: see dealOrder.
+            dealOrder(unassignedPlayers).forEach(player => {
                 const { team, usedFallback } = pickTargetTeam(player, workingTeams);
                 if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
                 workingTeams = assignToTeams(workingTeams, player, team.id);
