@@ -252,7 +252,7 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
         let teams: DividedTeam[] = buildEmptyTeams(effectiveTeamCount, seasonTeams);
         let fallbackCount = 0;
         dealOrder(allPlayers).forEach(player => {
-            const { team, usedFallback } = pickTargetTeam(player, teams);
+            const { team, usedFallback } = pickTargetTeam(player, teams, allPlayers.length);
             if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
             teams = assignToTeams(teams, player, team.id);
         });

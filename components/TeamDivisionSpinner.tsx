@@ -120,29 +120,67 @@ const sliceColorAt = (index: number, total: number) => {
 // Picking a team is pure so that the one-at-a-time spin and the spin-all draw
 // run the exact same rule; spin-all folds it over a local working copy of the
 // teams instead of waiting for a state update between players.
-export const pickTargetTeam = (player: Player, teams: DividedTeam[]): { team: DividedTeam; usedFallback: boolean } => {
-    // Squad size is a hard rule; spreading the seeds is a preference.
-    //
-    // This used to be the other way round: teams that already held the player's
-    // seed were filtered out before the size sort, so a team with two players
-    // could be passed over for one with five purely because the small team
-    // already had a "B". With 24 players over 4 teams that produced a 5/5/6/8
-    // split often enough to notice - the sizes only came out even when every
-    // seed happened to divide by the number of teams.
+/**
+ * Which teams may still take a player without the final squads coming out
+ * uneven.
+ *
+ * "Only the smallest team" is the obvious rule and it is too strict. It leaves
+ * exactly one candidate for most of the draw, so a C has to go to the small
+ * team even when that team already holds two and another holds none - which is
+ * how the wheel kept producing 1/2/2/3 out of eight players of one grade.
+ *
+ * What actually has to hold is only the *final* split: with `total` players over
+ * `n` teams, every team ends on floor(total/n), and `total % n` of them end one
+ * higher. So a team is eligible while it is below that floor, and may go one
+ * over only while fewer than that many teams already have. Balance is still
+ * guaranteed, but mid-draw there is room to place a player well.
+ */
+const eligibleTeams = (teams: DividedTeam[], totalPlayers?: number): DividedTeam[] => {
+    if (!totalPlayers || teams.length === 0) {
+        // Caller does not know the squad size: fall back to the strict rule.
+        const fewest = Math.min(...teams.map(t => t.playerCount));
+        return teams.filter(t => t.playerCount === fewest);
+    }
+    const base = Math.floor(totalPlayers / teams.length);
+    const oversized = totalPlayers % teams.length;
+    const alreadyOver = teams.filter(t => t.playerCount >= base + 1).length;
+
+    const eligible = teams.filter(t =>
+        t.playerCount < base || (t.playerCount === base && alreadyOver < oversized)
+    );
+    // Never hand back nothing - a squad larger than expected would otherwise
+    // strand the draw.
+    if (eligible.length > 0) return eligible;
+    const fewest = Math.min(...teams.map(t => t.playerCount));
+    return teams.filter(t => t.playerCount === fewest);
+};
+
+export const pickTargetTeam = (
+    player: Player,
+    teams: DividedTeam[],
+    /** Size of the whole squad being drawn. Without it the strict rule is used. */
+    totalPlayers?: number,
+): { team: DividedTeam; usedFallback: boolean } => {
+    // Even squads are guaranteed by who is allowed to receive a player at all,
+    // not by the ordering - see eligibleTeams. That leaves the ordering free to
+    // do the job it is actually good at: spreading the grades.
     //
     // Pre-shuffled so equal candidates are picked uniformly: sort is stable in
     // modern JS, and a `Math.random() - 0.5` comparator is not a valid ordering.
-    const ranked = shuffled(teams).sort((a, b) => {
-        // 1. Fewest players. Nothing overrides this, so the squads can never
-        //    differ by more than one.
+    const ranked = shuffled(eligibleTeams(teams, totalPlayers)).sort((a, b) => {
+        // 1. Fewest of this player's grade.
+        //
+        //    This used to ask only "does the team have this grade at all?". A
+        //    team with two Cs and a team with one C looked identical, so once
+        //    every team had a C the choice fell through to seed value and a
+        //    team already holding two could be handed a third.
+        const aSeedCount = a.players.reduce((n, p) => p.seed === player.seed ? n + 1 : n, 0);
+        const bSeedCount = b.players.reduce((n, p) => p.seed === player.seed ? n + 1 : n, 0);
+        if (aSeedCount !== bSeedCount) return aSeedCount - bSeedCount;
+
+        // 2. Then the smaller squad, so teams fill at a similar rate.
         const playerCountDiff = a.playerCount - b.playerCount;
         if (playerCountDiff !== 0) return playerCountDiff;
-
-        // 2. Among teams of the same size, prefer one that has nobody of this
-        //    seed yet.
-        const aHasSeed = a.players.some(p => p.seed === player.seed) ? 1 : 0;
-        const bHasSeed = b.players.some(p => p.seed === player.seed) ? 1 : 0;
-        if (aHasSeed !== bHasSeed) return aHasSeed - bHasSeed;
 
         // 3. Then the weaker side by seed value.
         return a.totalSeedValue - b.totalSeedValue;
@@ -334,7 +372,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
         setTimeout(() => {
             setAnnouncement(translate('teamDivider.spinner.selected', { playerName: selectedPlayer.name, playerSeed: selectedPlayer.seed }));
 
-            const { team: targetTeam, usedFallback } = pickTargetTeam(selectedPlayer, teamsRef.current);
+            const { team: targetTeam, usedFallback } = pickTargetTeam(selectedPlayer, teamsRef.current, players.length);
             if (usedFallback && selectedPlayer.seed !== 'GK') {
                 addToast('teamDivider.spinner.unbalancedWarning', 'warning', { playerName: selectedPlayer.name });
             }
@@ -399,7 +437,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
 
             // Seed by seed, shuffled within each: see dealOrder.
             dealOrder(unassignedPlayers).forEach(player => {
-                const { team, usedFallback } = pickTargetTeam(player, workingTeams);
+                const { team, usedFallback } = pickTargetTeam(player, workingTeams, players.length);
                 if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
                 workingTeams = assignToTeams(workingTeams, player, team.id);
             });
