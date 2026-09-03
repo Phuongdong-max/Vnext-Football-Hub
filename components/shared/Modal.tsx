@@ -26,7 +26,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4 transition-opacity duration-300 ease-in-out" onClick={onClose}>
       <div 
-        className={`bg-surface rounded-lg shadow-2xl ${sizeClasses[size]} w-full m-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalShow`}
+        className={`bg-surface/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl ${sizeClasses[size]} w-full m-4 transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalShow`}
         onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
       >
         <div className="flex items-center justify-between p-4 border-b border-border">

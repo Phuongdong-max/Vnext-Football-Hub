@@ -37,7 +37,7 @@ export const TopScorersList: React.FC<TopScorersListProps> = ({ scorers, teams }
                     const teamColor = team?.color || '#a1a1aa'; // default slate-400
                     
                     return (
-                        <li key={`${scorer.name}-${scorer.teamName}`} className="flex items-center p-3 bg-background dark:bg-slate-800/60 hover:bg-gray-100 dark:hover:bg-slate-700/80 rounded-lg transition-transform duration-200 hover:scale-[1.02] shadow-sm">
+                        <li key={`${scorer.name}-${scorer.teamName}`} className="flex items-center p-3 bg-background dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-transform duration-200 hover:scale-[1.02] shadow-sm">
                             <div className="flex items-center font-bold text-lg w-10">
                                {index < 3 ? 
                                     <StarIcon className={`w-6 h-6 mr-1 ${

@@ -75,7 +75,7 @@ export const TournamentMatchAnalysisModal: React.FC<TournamentMatchAnalysisModal
         if (!analysis || !homeTeam || !awayTeam) return null;
 
         const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-            <div className="p-4 bg-background dark:bg-slate-800/50 rounded-lg">
+            <div className="p-4 bg-background dark:bg-white/5 rounded-2xl">
                 <h4 className="font-bold text-lg text-primary mb-2">{title}</h4>
                 <div className="text-sm text-textSecondary space-y-2">{children}</div>
             </div>
@@ -83,7 +83,7 @@ export const TournamentMatchAnalysisModal: React.FC<TournamentMatchAnalysisModal
 
         return (
             <div className="space-y-4">
-                <div className="text-center p-4 bg-surface dark:bg-slate-700/50 rounded-lg">
+                <div className="text-center p-4 bg-surface dark:bg-white/5 rounded-2xl">
                     <h3 className="text-xl font-bold text-textPrimary">{translate('tournament.matchAnalysis.prediction')}</h3>
                     <p className="text-3xl font-black text-primary my-2">{analysis.predictedScore}</p>
                     <p className="font-semibold text-textSecondary">{analysis.matchSummary}</p>

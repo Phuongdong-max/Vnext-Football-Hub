@@ -21,6 +21,9 @@ import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
 import { TeamAnalysisModal } from '../components/Tournament/TeamAnalysisModal';
 import { TournamentMatchAnalysisModal } from '../components/Tournament/TournamentMatchAnalysisModal';
 import { TeamCrest, teamLogoSrc } from '../components/TeamDivisionSpinner';
+import { Scene3DBoundary } from '../components/three/Scene3DBoundary';
+
+const TrophyScene = React.lazy(() => import('../components/three/TrophyScene'));
 
 // --- Edit Match Modal (defined inside TournamentPage) ---
 interface EditMatchModalProps {
@@ -442,7 +445,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
         return <div className="flex justify-center items-center py-10"><LoadingSpinner size="lg" /><p className="ml-4 text-textPrimary">{translate('tournament.loading')}</p></div>;
     }
 
-    const panelClasses = "bg-surface shadow-lg rounded-lg";
+    const panelClasses = "bg-surface shadow-lg rounded-2xl";
 
     const renderContent = () => {
         if (isSwitchingTournament) {
@@ -466,7 +469,14 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
         }
         
         const { name, teams, schedule, standings, lastUpdated, updatedBy } = tournament;
-        
+
+        // The tournament is "decided" only once every scheduled match has actually been played:
+        // all non-postponed matches must be finished, and at least one match must have been
+        // played at all (otherwise an all-postponed schedule would still trigger the banner).
+        const isTournamentFinished = !!schedule && schedule.length > 0
+            && schedule.every(m => m.status === 'finished' || m.status === 'postponed')
+            && schedule.some(m => m.status === 'finished');
+
         const tabs = [
             { id: 'standings', label: 'tournament.tab.standings', icon: <TableCellsIcon className="w-5 h-5" /> },
             { id: 'schedule', label: 'tournament.tab.schedule', icon: <CalendarIcon className="w-5 h-5" /> },
@@ -514,10 +524,24 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                 <div className="mt-4">
                     {activeTab === 'standings' && (
                         <section>
+                            {standings && standings.length > 0 && isTournamentFinished && (
+                                <div className="mb-4 rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 to-slate-800 shadow-lg">
+                                    <Scene3DBoundary
+                                        className="h-56 relative"
+                                        fallback={<div className="h-56 flex items-center justify-center"><TrophyIcon className="w-24 h-24 text-accentGold" /></div>}
+                                    >
+                                        <TrophyScene />
+                                    </Scene3DBoundary>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4 text-center">
+                                        <span className="text-xs font-semibold text-white/70 uppercase tracking-widest">Champion</span>
+                                        <span className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg mt-1">{standings[0].teamName}</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className={`${panelClasses} overflow-hidden`}>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full">
-                                        <thead className="bg-slate-100 dark:bg-slate-800">
+                                        <thead className="bg-black/5 dark:bg-white/5">
                                             <tr>
                                                 <th scope="col" className="w-1/3 pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-textPrimary sm:pl-6">{translate('standingsTable.team')}</th>
                                                 <th scope="col" className="px-2 py-3.5 text-center text-sm font-semibold text-textPrimary" title={translate('standingsTable.played')}>{translate('standingsTable.played')}</th>
@@ -538,7 +562,7 @@ export const TournamentPage: React.FC<TournamentPageProps> = ({ embeddedTab }) =
                                                 // later crest change visible without a recalculation.
                                                 const liveTeam = teams?.find(t => t.id === s.teamId);
                                                 return (
-                                                <tr key={s.teamId} className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors duration-200">
+                                                <tr key={s.teamId} className="hover:bg-black/10 dark:hover:bg-white/10 transition-colors duration-200">
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                                                         <div className="flex items-center">
                                                             <span className="w-6 text-center mr-3 font-bold text-lg text-textSecondary">{index + 1}</span>

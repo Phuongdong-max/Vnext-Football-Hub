@@ -94,11 +94,11 @@ export const TournamentJerseyDrawModal: React.FC<TournamentJerseyDrawModalProps>
 
     const getTeamBoxClass = (teamId: string) => {
         const jerseyKey = assignedJerseys[teamId];
-        if (!jerseyKey) return 'bg-gray-100 dark:bg-slate-800';
+        if (!jerseyKey) return 'bg-black/5 dark:bg-white/5';
         if (jerseyKey === 'jerseys.vnextPink') return 'bg-pink-100 dark:bg-pink-900/50 border-pink-400';
         if (jerseyKey === 'jerseys.vnextNew') return 'bg-blue-100 dark:bg-blue-900/50 border-blue-400';
         if (jerseyKey === 'jerseys.pitch') return 'bg-green-100 dark:bg-green-900/50 border-green-400';
-        return 'bg-gray-100 dark:bg-slate-800';
+        return 'bg-black/5 dark:bg-white/5';
     };
     
     const unassignedTeams = shuffledTeams.filter(t => !assignedJerseys[t.id]);
@@ -109,7 +109,7 @@ export const TournamentJerseyDrawModal: React.FC<TournamentJerseyDrawModalProps>
             <div className="flex flex-col h-[70vh]">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     {shuffledTeams.map(team => (
-                         <div key={team.id} className={`p-4 rounded-lg text-center border-b-4 transition-all duration-500 ${getTeamBoxClass(team.id)}`}>
+                         <div key={team.id} className={`p-4 rounded-2xl text-center border-b-4 transition-all duration-500 ${getTeamBoxClass(team.id)}`}>
                             <h4 className="font-bold text-lg text-textPrimary">{team.name}</h4>
                             <div className="h-8 mt-2 flex items-center justify-center">
                                {assignedJerseys[team.id] ? (
@@ -123,7 +123,7 @@ export const TournamentJerseyDrawModal: React.FC<TournamentJerseyDrawModalProps>
                 </div>
 
                 <div className="flex flex-col items-center justify-center my-6 text-center flex-grow">
-                     <div className="w-64 h-24 bg-surface dark:bg-slate-700 rounded-lg flex items-center justify-center shadow-inner">
+                     <div className="w-64 h-24 bg-surface dark:bg-white/5 rounded-2xl flex items-center justify-center shadow-inner">
                         <span className="text-xl font-bold text-primary transition-all duration-100">
                            {drawState === 'drawing' ? diceDisplayText : (assignedJerseys[unassignedTeams[0]?.id] || diceDisplayText || '🎲')}
                         </span>

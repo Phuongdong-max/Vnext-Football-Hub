@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# esbuild dev server output (scripts/dev.js writes split chunks to repo root
+# so ctx.serve() can serve them at /index.js, /chunk-*.js)
+/index.js
+/chunk-*.js
+# Lazily-loaded chunks land here too, named <Component>-<8 char hash>.js.
+# The two rules above missed them, so BallScene-*.js and TrophyScene-*.js
+# showed up as untracked files after every dev run.
+/*-????????.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -27,3 +36,5 @@ firebaseConfig.ts
 firestore.rule.json
 firestore.rules
 firebaseConfig.ts
+# Firebase deploy cache: a build artefact that conflicts on every merge.
+.firebase/

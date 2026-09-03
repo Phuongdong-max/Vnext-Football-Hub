@@ -381,7 +381,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
     const labelBand = Math.max(40, wheelRadius - hubRadius - 10);
 
     return (
-        <div className="relative min-h-[80vh] rounded-lg bg-background p-4 dark:bg-slate-900/50">
+        <div className="relative min-h-[80vh] rounded-2xl bg-background p-4 dark:bg-white/5">
             <style>{`
               @keyframes tds-confetti-fall {
                 0%   { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }

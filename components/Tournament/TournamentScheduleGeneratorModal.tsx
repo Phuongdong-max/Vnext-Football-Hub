@@ -135,14 +135,14 @@ export const TournamentScheduleGeneratorModal: React.FC<TournamentScheduleGenera
                 {/* Schedule Preview */}
                 <div className="mt-4 pt-4 border-t border-border">
                     <h3 className="font-semibold text-textPrimary mb-2 text-center">{translate('tournament.generatorModal.schedulePreview')}</h3>
-                    <div className="max-h-[45vh] overflow-y-auto space-y-3 p-2 bg-background dark:bg-slate-800/50 rounded-md">
+                    <div className="max-h-[45vh] overflow-y-auto space-y-3 p-2 bg-background dark:bg-white/5 rounded-2xl">
                         {previewSchedule ? (
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                                 {previewSchedule.map((match, index) => {
                                     const homeInfo = getTeamDisplayInfo(match.homeTeamId);
                                     const awayInfo = getTeamDisplayInfo(match.awayTeamId);
                                     return (
-                                        <div key={match.id} className="p-3 bg-surface rounded-lg shadow-sm">
+                                        <div key={match.id} className="p-3 bg-surface rounded-2xl shadow-sm">
                                             <p className="font-bold text-textSecondary text-xs mb-2">
                                                 {match.matchLabel || translate('schedule.match', { matchNumber: index + 1 })}
                                             </p>

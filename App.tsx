@@ -16,7 +16,6 @@ import {
 import { Header } from './components/Header';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MemberHomePage } from './pages/MemberHomePage';
-import { LeaderboardPage } from './pages/LeaderboardPage';
 import { SeasonPage } from './pages/SeasonPage';
 import { CountdownPage } from './pages/CountdownPage'; 
 import { LandingPage } from './pages/LandingPage'; // Import the new landing page
@@ -324,7 +323,8 @@ const AppCore: React.FC = () => {
                 ? <AdminDashboardPage />
                 : <Navigate to="/season" replace />
             } />
-            {isBettingEnabled && <Route path="/leaderboard" element={currentUser?.role === UserRole.MEMBER ? <LeaderboardPage /> : <Navigate to="/season" replace />} />}
+            {/* The leaderboard screen was removed upstream; the points data
+                model behind it is still maintained. */}
             {/* Old top-level pages folded into the season shell. Kept as
                 redirects so existing links and bookmarks still land somewhere. */}
             <Route path="/tournament" element={<Navigate to="/season" replace />} />

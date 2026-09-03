@@ -45,7 +45,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({ isOpen, on
                 {/* Bio */}
                 <div>
                     <h3 className="text-lg font-semibold text-textPrimary">{translate('playerInfo.bio')}</h3>
-                    <p className="mt-1 text-textSecondary whitespace-pre-wrap bg-gray-50 dark:bg-slate-800/50 p-3 rounded-md min-h-[80px]">
+                    <p className="mt-1 text-textSecondary whitespace-pre-wrap bg-black/5 dark:bg-white/5 p-3 rounded-2xl min-h-[80px]">
                         {player.bio || 'N/A'}
                     </p>
                 </div>

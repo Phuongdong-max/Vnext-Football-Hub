@@ -16,10 +16,10 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]';
 
   const variantStyles = {
-    primary: 'bg-primary text-white hover:bg-opacity-90 focus:ring-primary',
+    primary: 'bg-primary-fill text-white hover:bg-opacity-90 hover:shadow-lg hover:shadow-primary/40 focus:ring-primary',
     secondary: 'bg-secondary text-white hover:bg-opacity-90 focus:ring-secondary',
     danger: 'bg-danger text-white hover:bg-opacity-90 focus:ring-danger',
     warning: 'bg-warning text-textPrimary hover:bg-opacity-90 focus:ring-warning',

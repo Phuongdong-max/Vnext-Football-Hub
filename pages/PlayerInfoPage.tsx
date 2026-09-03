@@ -232,7 +232,7 @@ export const PlayerInfoPage: React.FC<PlayerInfoPageProps> = ({ embedded = false
     }, [allPlayers, searchTerm]);
     
     const inputClasses = "w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-surface dark:bg-slate-700 text-textPrimary placeholder-gray-400";
-    const panelClasses = "bg-surface shadow-lg rounded-lg p-4 sm:p-6";
+    const panelClasses = "bg-surface shadow-lg rounded-2xl p-4 sm:p-6";
 
     // Squad size is the first thing you want to know; the old design made you
     // count the list yourself.

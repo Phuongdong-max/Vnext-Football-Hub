@@ -28,7 +28,7 @@ export const LanguageToggleButton: React.FC = () => {
         onClick={() => setIsMenuOpen(!isMenuOpen)}
         variant="outline"
         size="sm"
-        className="border-gray-300 dark:border-slate-600 text-textPrimary dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 w-12" // Fixed width for EN/VI
+        className="border-gray-300 dark:border-slate-600 text-textPrimary dark:text-slate-200 hover:bg-black/10 dark:hover:bg-white/10 w-12" // Fixed width for EN/VI
         aria-label={`Current language: ${language}. Change language.`}
         title={translate(language === 'en' ? 'lang.english' : 'lang.vietnamese')}
       >
@@ -36,7 +36,7 @@ export const LanguageToggleButton: React.FC = () => {
       </Button>
       {isMenuOpen && (
         <div 
-            className="absolute right-0 mt-2 w-40 bg-surface rounded-md shadow-lg py-1 z-50 border border-border"
+            className="absolute right-0 mt-2 w-40 bg-surface rounded-2xl shadow-lg py-1 z-50 border border-border"
             role="menu"
             aria-orientation="vertical"
             aria-labelledby="language-options-menu"
@@ -48,7 +48,7 @@ export const LanguageToggleButton: React.FC = () => {
               className={`w-full text-left px-4 py-2 text-sm flex items-center
                           ${language === option.value 
                             ? 'bg-primary/20 text-primary font-semibold' 
-                            : 'text-textPrimary hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-700'}`}
+                            : 'text-textPrimary hover:bg-black/10 dark:text-slate-200 dark:hover:bg-white/10'}`}
               role="menuitem"
             >
               {/* Option to add small flag icons here later if desired */}

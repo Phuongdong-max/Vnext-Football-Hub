@@ -58,15 +58,16 @@ assetsToCopy.forEach(asset => {
 
 // esbuild build configuration
 const footballApiKey = process.env.FOOTBALL_DATA_API_KEY || "";
-// Read GEMINI_API_KEY from .env, but we will define it as process.env.API_KEY for the client
-const geminiApiKeyFromEnv = process.env.GEMINI_API_KEY || ""; 
-const geminiApiKey2FromEnv = process.env.GEMINI_API_KEY_2 || "";
+// Read QWEN_API_KEY from .env, but we will define it as process.env.API_KEY for the client
+const geminiApiKeyFromEnv = process.env.QWEN_API_KEY || "";
+const geminiApiKey2FromEnv = process.env.QWEN_API_KEY_2 || "";
 
 esbuild.build({
   entryPoints: [path.join(projectRoot, 'index.tsx')],
   
   bundle: true,
-  outfile: path.join(distDir, 'index.js'),
+  outdir: distDir,
+  splitting: true,
   platform: 'browser',
   format: 'esm',
   jsx: 'automatic',

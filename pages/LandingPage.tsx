@@ -7,6 +7,9 @@ import { Tournament, TournamentTeam, TournamentPlayer } from '../types';
 import { getTeamStyle, FALLBACK_TEAMS_FOR_DISPLAY } from '../constants';
 import { TeamDetailModal } from '../components/Tournament/TeamDetailModal';
 import { PlayerDetailModal } from '../components/Tournament/PlayerDetailModal';
+import { Scene3DBoundary } from '../components/three/Scene3DBoundary';
+
+const BallScene = React.lazy(() => import('../components/three/BallScene'));
 
 
 const diamondSponsors = [
@@ -143,12 +146,18 @@ Trân trọng,
 
   return (
     <>
-      <div 
+      <div
         ref={containerRef}
-        className="min-h-screen bg-cover bg-center text-white font-sans overflow-hidden transition-all duration-500 ease-out" 
+        className="min-h-screen bg-cover bg-center text-white font-sans overflow-hidden transition-all duration-500 ease-out relative"
         style={{ backgroundImage: "url('assets/stadium-bg.jpg')" }}
       >
-        <div className="min-h-screen bg-black/40 backdrop-blur-[2px] p-4 sm:p-6 flex flex-col relative overflow-hidden shine-effect">
+        <Scene3DBoundary
+          className="absolute inset-0 z-0 opacity-70"
+          fallback={<div />}
+        >
+          <BallScene />
+        </Scene3DBoundary>
+        <div className="min-h-screen bg-black/40 backdrop-blur-[2px] p-4 sm:p-6 flex flex-col relative overflow-hidden shine-effect z-10">
           <div ref={contentRef} className="flex flex-col flex-grow transition-transform duration-500 ease-out relative z-10">
 
             {/* Header */}
@@ -180,11 +189,11 @@ Trân trọng,
                 <div className="relative bg-black py-2 sm:py-4 px-8 sm:px-24 border-4 sm:border-8 border-orange-400 -skew-x-12 shadow-2xl transition-all duration-300 hover:scale-[1.03] hover:shadow-lg hover:shadow-orange-400/40">
                   <div className="absolute -top-3 -left-10 sm:-top-4 sm:-left-12 w-6 h-6 sm:w-8 sm:h-8 bg-purple-600"></div>
                   <div className="absolute -bottom-3 -right-10 sm:-bottom-4 sm:-right-12 w-6 h-6 sm:w-8 sm:h-8 bg-purple-600"></div>
-                  <h1 className="text-3xl sm:text-6xl font-black tracking-wider skew-x-12">VNEXT JAPAN</h1>
-                  <h2 className="text-4xl sm:text-7xl font-black text-orange-400 tracking-wider skew-x-12">OPEN CUP</h2>
+                  <h1 className="text-3xl sm:text-6xl font-black tracking-wider skew-x-12 font-display tracking-wide">VNEXT JAPAN</h1>
+                  <h2 className="text-4xl sm:text-7xl font-black text-orange-400 tracking-wider skew-x-12 font-display tracking-wide">OPEN CUP</h2>
                 </div>
                 <div className="mt-8">
-                  <h3 className="text-4xl sm:text-6xl font-extrabold tracking-tight">TỨ HÙNG TRANH ĐẤU</h3>
+                  <h3 className="text-4xl sm:text-6xl font-extrabold tracking-tight font-display tracking-wide">TỨ HÙNG TRANH ĐẤU</h3>
                   <p className="mt-2 text-lg sm:text-2xl font-semibold text-gray-200">Khát vọng bứt phá - Kết nối đam mê</p>
                 </div>
               </div>
@@ -289,7 +298,7 @@ Trân trọng,
             style={{ animation: 'fadeIn 0.3s ease-out forwards' }}
         >
             <div 
-                className="bg-white text-black rounded-lg shadow-2xl max-w-lg w-full m-4 p-6 relative max-h-[90vh] overflow-y-auto"
+                className="bg-white text-black rounded-2xl shadow-2xl max-w-lg w-full m-4 p-6 relative max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
                 style={{ animation: 'scaleIn 0.3s ease-out forwards' }}
             >
