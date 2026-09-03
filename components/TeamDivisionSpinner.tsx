@@ -764,15 +764,32 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
                                 </div>
                                 <span className="flex-shrink-0 font-mono text-xs text-white/80">{team.playerCount}</span>
                             </div>
+                            {/* Every row is the same fixed height, filled or empty.
+                                Two things used to move the list about as each
+                                player landed: the empty slots were `flex-1`, so
+                                they shared out whatever space was left and all
+                                resized whenever one was consumed; and a filled row
+                                was as tall as its text, so a name long enough to
+                                wrap pushed everything under it down. A drawn
+                                player now simply replaces a slot of identical
+                                size, and nothing below it moves. */}
                             <ul className="flex flex-grow flex-col gap-1 p-2">
                                 {team.players.map((p, i) => (
-                                    <li key={`${p.name}-${team.id}-${i}`} className="flex items-center justify-between gap-2 rounded bg-background px-2 py-1 dark:bg-slate-700/60">
-                                        <span className="break-words text-[13px] font-medium leading-tight text-textPrimary">{p.name}</span>
+                                    <li
+                                        key={`${p.name}-${team.id}-${i}`}
+                                        className="flex h-7 flex-shrink-0 items-center justify-between gap-2 rounded bg-background px-2 dark:bg-slate-700/60"
+                                    >
+                                        {/* One line, with the full name on hover: a
+                                            name that wraps is what makes the row
+                                            grow. */}
+                                        <span title={p.name} className="truncate text-[13px] font-medium leading-none text-textPrimary">
+                                            {p.name}
+                                        </span>
                                         <span className="flex-shrink-0 font-mono text-[10px] text-textSecondary">{p.seed}</span>
                                     </li>
                                 ))}
                                 {Array.from({ length: emptySlots }).map((_, i) => (
-                                    <li key={`slot-${team.id}-${i}`} className="min-h-[26px] flex-1 rounded border border-dashed border-border" />
+                                    <li key={`slot-${team.id}-${i}`} className="h-7 flex-shrink-0 rounded border border-dashed border-border" />
                                 ))}
                             </ul>
                             <div className="border-t border-border px-2 py-1 text-center text-[10px] text-textSecondary">
