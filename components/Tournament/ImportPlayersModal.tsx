@@ -7,7 +7,24 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { UserCircleIcon } from '../icons';
-import { normaliseName } from '../../utils/vietnameseName';
+
+/**
+ * Names are matched with the diacritics stripped and the case flattened.
+ * The 2025 squad was typed with Vietnamese tone marks and the 2026 one without,
+ * so "NGUYỄN PHI HÙNG" and "NGUYEN PHI HUNG" are the same person and a plain
+ * string compare would have found nobody at all.
+ */
+export const normaliseName = (name: string): string =>
+    String(name || '')
+        .normalize('NFD')
+        // Escaped rather than written literally: a range of bare combining
+        // marks in source is invisible and easily mangled by tooling.
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toUpperCase()
+        .replace(/\s+/g, ' ')
+        .trim();
 
 /** What importing one source player would do to this season. */
 type Action = 'add' | 'fill' | 'nothing';
