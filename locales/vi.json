@@ -555,5 +555,20 @@
   "teamList.saveError": "Không lưu được đội hình: {{message}}",
   "teamList.removeMember": "Bỏ khỏi đội",
   "teamList.addMember": "Thêm cầu thủ ({{count}} người chưa có đội)",
-  "teamList.allAssigned": "Mọi cầu thủ đã có đội"
+  "teamList.allAssigned": "Mọi cầu thủ đã có đội",
+  "admin.fixedTeams.title": "Đội hình cố định",
+  "admin.fixedTeams.subtitle": "Chốt sẵn ai đá đội nào. Ghi nhớ theo TÊN, nên đổi thứ tự ở tab Chia đội vẫn ra đúng đội đó.",
+  "admin.fixedTeams.on": "Đang bật",
+  "admin.fixedTeams.off": "Đang tắt",
+  "admin.fixedTeams.teamLabel": "Đội {{number}}",
+  "admin.fixedTeams.placeholder": "Mỗi dòng một tên",
+  "admin.fixedTeams.save": "Lưu đội hình",
+  "admin.fixedTeams.saved": "Đã chốt đội cho {{count}} cầu thủ.",
+  "admin.fixedTeams.saveError": "Không lưu được: {{message}}",
+  "admin.fixedTeams.duplicate": "Một người đang nằm ở hai đội: {{names}}",
+  "admin.fixedTeams.hint": "Đang nhập {{total}} tên · đã lưu {{saved}}. Không phân biệt dấu và hoa thường khi đối chiếu tên.",
+  "admin.fixedTeams.useSuggested": "Điền đội hình 2026",
+  "teamDivider.fixed.applyButton": "Chia theo đội đã chốt",
+  "teamDivider.fixed.status": "Đội hình cố định đang bật, khớp {{known}}/{{total}} cầu thủ đang nhập.",
+  "teamDivider.fixed.someUnknown": "{{count}} người chưa có trong đội hình cố định nên được xếp tự động: {{names}}…"
 }

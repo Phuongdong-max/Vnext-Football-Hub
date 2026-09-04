@@ -179,6 +179,14 @@ export interface TeamDivisionData {
     E: string;
   };
   dividedTeams: DividedTeam[];
+  /**
+   * A line-up the admin agreed in advance: normalised player name -> zero-based
+   * team slot. Keyed by name rather than by position, so reordering the six
+   * grade columns - or retyping the list - still puts everyone in the same team.
+   */
+  fixedTeams?: Record<string, { slot: number; name: string }>;
+  /** Whether the fixed line-up is offered on the draw screen at all. */
+  fixedTeamsEnabled?: boolean;
   lastUpdated?: any; // Firestore Timestamp
   updatedBy?: {
     id: string;

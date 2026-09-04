@@ -555,5 +555,20 @@
   "teamList.saveError": "Could not save the squads: {{message}}",
   "teamList.removeMember": "Remove from team",
   "teamList.addMember": "Add a player ({{count}} available)",
-  "teamList.allAssigned": "Everyone is already on a team"
+  "teamList.allAssigned": "Everyone is already on a team",
+  "admin.fixedTeams.title": "Fixed line-up",
+  "admin.fixedTeams.subtitle": "Decide in advance who plays for which team. Remembered by NAME, so reordering the draw list still gives the same teams.",
+  "admin.fixedTeams.on": "On",
+  "admin.fixedTeams.off": "Off",
+  "admin.fixedTeams.teamLabel": "Team {{number}}",
+  "admin.fixedTeams.placeholder": "One name per line",
+  "admin.fixedTeams.save": "Save line-up",
+  "admin.fixedTeams.saved": "Teams fixed for {{count}} players.",
+  "admin.fixedTeams.saveError": "Could not save: {{message}}",
+  "admin.fixedTeams.duplicate": "Someone is in two teams: {{names}}",
+  "admin.fixedTeams.hint": "{{total}} names entered, {{saved}} saved. Names are matched ignoring tone marks and case.",
+  "admin.fixedTeams.useSuggested": "Fill in the 2026 line-up",
+  "teamDivider.fixed.applyButton": "Use the fixed teams",
+  "teamDivider.fixed.status": "Fixed line-up is on, matching {{known}}/{{total}} of the players entered.",
+  "teamDivider.fixed.someUnknown": "{{count}} players are not in the fixed line-up and were placed automatically: {{names}}…"
 }

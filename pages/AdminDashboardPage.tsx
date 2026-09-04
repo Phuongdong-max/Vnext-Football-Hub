@@ -4,6 +4,7 @@ import { BettingRound, FootballMatch, BettingRoundStatus, MatchResultTeam, Leagu
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { SeasonAdminSection } from '../components/Admin/SeasonAdminSection';
+import { FixedTeamsSection } from '../components/Admin/FixedTeamsSection';
 import {
   createFirebaseBettingRound,
   getFirebaseBettingRoundsByAdmin,
@@ -181,6 +182,8 @@ export const AdminDashboardPage: React.FC = () => {
       </div>
 
       <SeasonAdminSection />
+
+      <FixedTeamsSection />
 
       <section className="p-4 bg-surface rounded-2xl shadow-md border border-border">
           <h2 className="text-xl font-semibold text-textPrimary mb-4">Global App Controls</h2>

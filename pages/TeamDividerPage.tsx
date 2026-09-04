@@ -8,7 +8,8 @@ import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole, Tournament
 import { onTeamDivisionUpdate, updateTeamDivision, onTournamentUpdate } from '../services/firebaseService';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
-import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon } from '../components/icons';
+import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon, CheckCircleIcon } from '../components/icons';
+import { normaliseName } from '../utils/vietnameseName';
 import {
     TeamDivisionSpinner, pickTargetTeam, assignToTeams, shuffled,
     buildEmptyTeams, teamDisplayName, teamHeaderColor, teamLogoSrc, TeamCrest, DrawTeam, dealOrder,
@@ -44,6 +45,9 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
     // inventing "Team 1..N": the number of boxes, their names and their colours
     // all come from the Teams tab.
     const [seasonTournament, setSeasonTournament] = useState<Tournament | null>(null);
+    // The line-up fixed on the admin page, and whether it is switched on.
+    const [fixedTeams, setFixedTeams] = useState<Record<string, { slot: number; name: string }> | null>(null);
+    const [fixedEnabled, setFixedEnabled] = useState(false);
     const [dividedTeams, setDividedTeams] = useState<DividedTeam[]>([]);
     const [lastUpdateInfo, setLastUpdateInfo] = useState<string | null>(null);
 
@@ -97,6 +101,8 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                         E: data.seedPlayers.E || '',
                     });
                 }
+                setFixedTeams(data.fixedTeams && Object.keys(data.fixedTeams).length > 0 ? data.fixedTeams : null);
+                setFixedEnabled(!!data.fixedTeamsEnabled);
                 if (data.dividedTeams && data.dividedTeams.length > 0) {
                     setDividedTeams(data.dividedTeams);
                     setNumberOfTeams(data.dividedTeams.length);
@@ -202,6 +208,71 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
         setDivisionState('spinning');
     };
 
+    // Declared above everything that reads them. fixedCoverage below is worked
+    // out during render, not on a click, so leaving these further down the
+    // component put them in the temporal dead zone and the page threw on load.
+    const seedOrder: PlayerSeed[] = ['GK', 'A', 'B', 'C', 'D', 'E'];
+    const namesOf = (seed: PlayerSeed) =>
+        seedPlayers[seed].split('\n').map(n => n.trim()).filter(Boolean);
+    const totalEntered = seedOrder.reduce((sum, s) => sum + namesOf(s).length, 0);
+
+    /** Everyone currently entered, in column order. */
+    const enteredPlayers = (): Player[] =>
+        seedOrder.flatMap(seed => namesOf(seed).map(name => ({ name, seed })));
+
+    /** How much of the entered list the fixed line-up actually covers. */
+    const fixedCoverage = (() => {
+        if (!fixedTeams) return { known: 0, unknown: [] as string[] };
+        const unknown: string[] = [];
+        let known = 0;
+        enteredPlayers().forEach(p => {
+            const entry = fixedTeams[normaliseName(p.name)];
+            if (!entry || entry.slot >= effectiveTeamCount) unknown.push(p.name);
+            else known += 1;
+        });
+        return { known, unknown };
+    })();
+
+    const canUseFixedTeams = isAdmin && fixedEnabled && !!fixedTeams && fixedCoverage.known > 0;
+
+    /**
+     * Build the teams from the fixed line-up rather than by drawing.
+     *
+     * Matched on the normalised name, so the six grade columns can be in any
+     * order - which is the whole point: the admin rearranges the list freely
+     * and still gets the same teams.
+     */
+    const handleDivideByFixed = () => {
+        setMessage('');
+        if (!fixedTeams) return;
+        if (totalEntered === 0) {
+            setMessage(translate('teamDivider.message.atLeastOnePlayer'));
+            return;
+        }
+
+        let teams = buildEmptyTeams(effectiveTeamCount, seasonTeams);
+        const leftover: Player[] = [];
+        enteredPlayers().forEach(player => {
+            const entry = fixedTeams[normaliseName(player.name)];
+            if (!entry || entry.slot >= teams.length) { leftover.push(player); return; }
+            teams = assignToTeams(teams, player, teams[entry.slot].id);
+        });
+        // Somebody entered after the line-up was fixed still has to play; place
+        // them by the ordinary balancing rule rather than dropping them.
+        leftover.forEach(player => {
+            const { team } = pickTargetTeam(player, teams);
+            teams = assignToTeams(teams, player, team.id);
+        });
+
+        if (leftover.length > 0) {
+            addToast('teamDivider.fixed.someUnknown', 'warning', {
+                count: leftover.length,
+                names: leftover.slice(0, 3).map(p => p.name).join(', '),
+            });
+        }
+        handleDivisionComplete(teams);
+    };
+
     const handleSavePlayers = async () => {
         if (!isAdmin) return;
         setMessage('');
@@ -263,10 +334,6 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
     };
 
     const textareaBaseClasses = "w-full p-3 rounded-md shadow-sm focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm bg-background dark:bg-slate-800 border border-border dark:border-slate-700 text-textPrimary placeholder-gray-400 dark:placeholder-slate-400 custom-scrollbar-thin";
-    const seedOrder: PlayerSeed[] = ['GK', 'A', 'B', 'C', 'D', 'E'];
-    const namesOf = (seed: PlayerSeed) =>
-        seedPlayers[seed].split('\n').map(n => n.trim()).filter(Boolean);
-    const totalEntered = seedOrder.reduce((sum, s) => sum + namesOf(s).length, 0);
 
     if (isLoading) {
         return (
@@ -506,7 +573,28 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                             <UsersIcon className="mr-2 h-5 w-5" />
                             {isSaving ? translate('teamDivider.message.saving') : translate('teamDivider.divideButton')}
                         </Button>
+                        {/* Not a draw: this reproduces the line-up agreed on the
+                            admin page, so only an admin sees it, and only while
+                            that line-up is switched on. */}
+                        {canUseFixedTeams && (
+                            <Button
+                                onClick={handleDivideByFixed}
+                                disabled={isSaving || totalEntered === 0}
+                                variant="secondary"
+                                size="lg"
+                                className="h-[42px]"
+                            >
+                                <CheckCircleIcon className="mr-2 h-5 w-5" />
+                                {translate('teamDivider.fixed.applyButton')}
+                            </Button>
+                        )}
                     </div>
+
+                    {canUseFixedTeams && (
+                        <p className="mt-3 text-center text-xs text-textSecondary">
+                            {translate('teamDivider.fixed.status', { known: fixedCoverage.known, total: totalEntered })}
+                        </p>
+                    )}
 
                     {/* Say where the teams come from, and show them: otherwise a
                         locked number box looks like a bug. */}
