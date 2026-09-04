@@ -5,6 +5,7 @@ import { useAppContext } from '../contexts/AppContext';
 import { Button } from './shared/Button';
 import { PlayIcon, ArrowLeftIcon } from './icons';
 import { getTeamLogo } from '../constants';
+import { normaliseName } from '../utils/vietnameseName';
 
 /** A team of the current season, reduced to what the draw needs from it. */
 export interface DrawTeam {
@@ -24,6 +25,14 @@ interface TeamDivisionSpinnerProps {
      * generic.
      */
     seasonTeams?: DrawTeam[];
+    /**
+     * A line-up decided in advance: normalised player name -> team slot.
+     *
+     * The wheel still spins and still picks who comes next at random; only
+     * where they land is settled beforehand. Absent, every placement is worked
+     * out by the balancing rule as usual.
+     */
+    fixedSlots?: Record<string, number>;
     onComplete: (teams: DividedTeam[]) => void;
     /** Leave the draw and go back to the squad list. */
     onCancel?: () => void;
@@ -265,7 +274,7 @@ const makeConfetti = (count: number): ConfettiPiece[] =>
     }));
 
 
-export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, seasonTeams, onComplete, onCancel }) => {
+export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ players, numberOfTeams, seasonTeams, fixedSlots, onComplete, onCancel }) => {
     const { translate } = useLanguage();
     const { addToast } = useAppContext();
 
@@ -372,7 +381,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
         setTimeout(() => {
             setAnnouncement(translate('teamDivider.spinner.selected', { playerName: selectedPlayer.name, playerSeed: selectedPlayer.seed }));
 
-            const { team: targetTeam, usedFallback } = pickTargetTeam(selectedPlayer, teamsRef.current, players.length);
+            const { team: targetTeam, usedFallback } = destinationFor(selectedPlayer, teamsRef.current);
             if (usedFallback && selectedPlayer.seed !== 'GK') {
                 addToast('teamDivider.spinner.unbalancedWarning', 'warning', { playerName: selectedPlayer.name });
             }
@@ -437,7 +446,7 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
 
             // Seed by seed, shuffled within each: see dealOrder.
             dealOrder(unassignedPlayers).forEach(player => {
-                const { team, usedFallback } = pickTargetTeam(player, workingTeams, players.length);
+                const { team, usedFallback } = destinationFor(player, workingTeams);
                 if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
                 workingTeams = assignToTeams(workingTeams, player, team.id);
             });
@@ -455,6 +464,18 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
 
             setIsSpinning(false);
         }, SPIN_ALL_MS + SETTLE_MS);
+    };
+
+    /**
+     * Where this player goes. A fixed line-up wins; anyone not in it - somebody
+     * added after it was agreed - still gets placed by the balancing rule.
+     */
+    const destinationFor = (player: Player, current: DividedTeam[]) => {
+        const slot = fixedSlots?.[normaliseName(player.name)];
+        if (slot !== undefined && slot >= 0 && slot < current.length) {
+            return { team: current[slot], usedFallback: false };
+        }
+        return pickTargetTeam(player, current, players.length);
     };
 
     const wheelSize = Math.min(viewportWidth * 0.9, 500);

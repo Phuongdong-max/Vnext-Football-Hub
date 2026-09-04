@@ -568,6 +568,6 @@
   "admin.fixedTeams.duplicate": "Một người đang nằm ở hai đội: {{names}}",
   "admin.fixedTeams.hint": "Đang nhập {{total}} tên · đã lưu {{saved}}. Không phân biệt dấu và hoa thường khi đối chiếu tên.",
   "admin.fixedTeams.useSuggested": "Điền đội hình 2026",
-  "teamDivider.fixed.status": "Đội hình cố định đang bật, khớp {{known}}/{{total}} cầu thủ — bấm để chia theo đội đã chốt",
-  "teamDivider.fixed.someUnknown": "{{count}} người chưa có trong đội hình cố định nên được xếp tự động: {{names}}…"
+  "teamDivider.fixed.someUnknown": "{{count}} người chưa có trong đội hình cố định nên được xếp tự động: {{names}}…",
+  "teamDivider.fixed.newDivisionTitle": "Quay ra đội hình đã chốt ở trang quản trị"
 }

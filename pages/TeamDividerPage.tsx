@@ -48,6 +48,8 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
     // The line-up fixed on the admin page, and whether it is switched on.
     const [fixedTeams, setFixedTeams] = useState<Record<string, { slot: number; name: string }> | null>(null);
     const [fixedEnabled, setFixedEnabled] = useState(false);
+    // Which kind of spin is on screen: a real draw, or the agreed line-up.
+    const [spinFixed, setSpinFixed] = useState(false);
     const [dividedTeams, setDividedTeams] = useState<DividedTeam[]>([]);
     const [lastUpdateInfo, setLastUpdateInfo] = useState<string | null>(null);
 
@@ -203,6 +205,7 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
     const handlePrepareAndStartDivision = () => {
         const allPlayers = collectPlayers();
         if (!allPlayers) return;
+        setSpinFixed(false);
         setPlayersToDivide(allPlayers);
         setDividedTeams([]);
         setDivisionState('spinning');
@@ -235,42 +238,25 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
 
     const canUseFixedTeams = isAdmin && fixedEnabled && !!fixedTeams && fixedCoverage.known > 0;
 
+    /** The line-up as the spinner wants it: name -> slot. */
+    const fixedSlotMap = fixedTeams
+        ? Object.fromEntries(Object.entries(fixedTeams).map(([key, v]) => [key, v.slot]))
+        : undefined;
+
     /**
-     * Build the teams from the fixed line-up rather than by drawing.
+     * Spin, but land on the agreed line-up.
      *
-     * Matched on the normalised name, so the six grade columns can be in any
-     * order - which is the whole point: the admin rearranges the list freely
-     * and still gets the same teams.
+     * The wheel still turns and still picks who is drawn next at random - the
+     * show is the point - only the destination is settled beforehand. The
+     * "spin to divide" button above stays a real draw.
      */
-    const handleDivideByFixed = () => {
-        setMessage('');
-        if (!fixedTeams) return;
-        if (totalEntered === 0) {
-            setMessage(translate('teamDivider.message.atLeastOnePlayer'));
-            return;
-        }
-
-        let teams = buildEmptyTeams(effectiveTeamCount, seasonTeams);
-        const leftover: Player[] = [];
-        enteredPlayers().forEach(player => {
-            const entry = fixedTeams[normaliseName(player.name)];
-            if (!entry || entry.slot >= teams.length) { leftover.push(player); return; }
-            teams = assignToTeams(teams, player, teams[entry.slot].id);
-        });
-        // Somebody entered after the line-up was fixed still has to play; place
-        // them by the ordinary balancing rule rather than dropping them.
-        leftover.forEach(player => {
-            const { team } = pickTargetTeam(player, teams);
-            teams = assignToTeams(teams, player, team.id);
-        });
-
-        if (leftover.length > 0) {
-            addToast('teamDivider.fixed.someUnknown', 'warning', {
-                count: leftover.length,
-                names: leftover.slice(0, 3).map(p => p.name).join(', '),
-            });
-        }
-        handleDivisionComplete(teams);
+    const handleSpinFixedTeams = () => {
+        const allPlayers = collectPlayers();
+        if (!allPlayers) return;
+        setSpinFixed(true);
+        setPlayersToDivide(allPlayers);
+        setDividedTeams([]);
+        setDivisionState('spinning');
     };
 
     const handleSavePlayers = async () => {
@@ -350,6 +336,7 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                 players={playersToDivide}
                 numberOfTeams={effectiveTeamCount}
                 seasonTeams={seasonTeams}
+                fixedSlots={spinFixed ? fixedSlotMap : undefined}
                 onComplete={handleDivisionComplete}
                 onCancel={() => setDivisionState('idle')}
             />
@@ -575,25 +562,6 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                         </Button>
                     </div>
 
-                    {/* Not a draw: this reproduces the line-up agreed on the admin
-                        page, so only an admin sees it, and only while that line-up
-                        is switched on. Deliberately a quiet line of text rather
-                        than a fourth big button - it is a shortcut for whoever set
-                        the line-up, not one of the headline actions. */}
-                    {canUseFixedTeams && (
-                        <p className="mt-3 text-center text-xs text-textSecondary">
-                            <button
-                                type="button"
-                                onClick={handleDivideByFixed}
-                                disabled={isSaving || totalEntered === 0}
-                                className="inline-flex items-center gap-1 rounded underline decoration-dotted underline-offset-2 transition-colors hover:text-primary hover:decoration-solid focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
-                            >
-                                <CheckCircleIcon className="h-3.5 w-3.5" />
-                                {translate('teamDivider.fixed.status', { known: fixedCoverage.known, total: totalEntered })}
-                            </button>
-                        </p>
-                    )}
-
                     {/* Say where the teams come from, and show them: otherwise a
                         locked number box looks like a bug. */}
                     {usesSeasonTeams ? (
@@ -641,7 +609,12 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                         {lastUpdateInfo && <p className="mt-0.5 text-xs text-textSecondary">{lastUpdateInfo}</p>}
                     </div>
                     {divisionState === 'finished' && dividedTeams.length > 0 && (
-                        <Button onClick={() => setDivisionState('idle')} variant="outline" size="sm">
+                        <Button
+                            onClick={canUseFixedTeams ? handleSpinFixedTeams : () => setDivisionState('idle')}
+                            title={canUseFixedTeams ? translate('teamDivider.fixed.newDivisionTitle') : undefined}
+                            variant="outline"
+                            size="sm"
+                        >
                             <ArrowPathIcon className="mr-2 h-4 w-4" />
                             {translate('teamDivider.newDivisionButton')}
                         </Button>
