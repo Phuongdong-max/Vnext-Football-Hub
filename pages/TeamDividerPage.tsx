@@ -4,11 +4,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
-import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole, Tournament } from '../types';
-import { onTeamDivisionUpdate, updateTeamDivision, onTournamentUpdate } from '../services/firebaseService';
+import { TeamDivisionData, DividedTeam, PlayerSeed, Player, UserRole, Tournament, TournamentPlayer, TournamentTeam } from '../types';
+import { onTeamDivisionUpdate, updateTeamDivision, onTournamentUpdate, onAllPlayersUpdate, updateTournament } from '../services/firebaseService';
+import { normaliseName } from '../utils/vietnameseName';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { Button } from '../components/shared/Button';
-import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon } from '../components/icons';
+import { UsersIcon, ArrowPathIcon, PencilIcon, PlayIcon, CheckCircleIcon } from '../components/icons';
 import {
     TeamDivisionSpinner, pickTargetTeam, assignToTeams, shuffled,
     buildEmptyTeams, teamDisplayName, teamHeaderColor, teamLogoSrc, TeamCrest, DrawTeam, dealOrder,
@@ -44,6 +45,9 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
     // inventing "Team 1..N": the number of boxes, their names and their colours
     // all come from the Teams tab.
     const [seasonTournament, setSeasonTournament] = useState<Tournament | null>(null);
+    // The season's squad, to turn drawn names back into player documents.
+    const [squad, setSquad] = useState<TournamentPlayer[]>([]);
+    const [isApplying, setIsApplying] = useState(false);
     const [dividedTeams, setDividedTeams] = useState<DividedTeam[]>([]);
     const [lastUpdateInfo, setLastUpdateInfo] = useState<string | null>(null);
 
@@ -127,7 +131,8 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
             return;
         }
         const unsubscribe = onTournamentUpdate(selectedTournamentId, setSeasonTournament);
-        return () => unsubscribe();
+        const unsubscribePlayers = onAllPlayersUpdate(selectedTournamentId, setSquad);
+        return () => { unsubscribe(); unsubscribePlayers(); };
     }, [isFirebaseReady, selectedTournamentId]);
 
     // Only named teams count - a half-created row in the Teams tab should not
@@ -200,6 +205,72 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
         setPlayersToDivide(allPlayers);
         setDividedTeams([]);
         setDivisionState('spinning');
+    };
+
+    /**
+     * Turning the drawn result into squad membership.
+     *
+     * The draw works with names typed freehand into the six boxes; the Teams
+     * tab holds references to player documents. So each drawn name is matched
+     * back to the season's squad by the same tone-insensitive rule used
+     * everywhere else - the draw list is rarely typed with the same accents as
+     * the squad. Anyone with no matching player document simply cannot be
+     * linked, and is reported rather than silently dropped.
+     */
+    const applyPlan = (() => {
+        const byName = new Map<string, TournamentPlayer>();
+        squad.forEach(p => { if (!byName.has(normaliseName(p.name))) byName.set(normaliseName(p.name), p); });
+
+        const linked: { team: DividedTeam; playerIds: string[] }[] = [];
+        const missing: string[] = [];
+        dividedTeams.forEach(team => {
+            if (!team.sourceTeamId) return;
+            const playerIds: string[] = [];
+            team.players.forEach(p => {
+                const found = byName.get(normaliseName(p.name));
+                if (found) playerIds.push(found.id);
+                else missing.push(p.name);
+            });
+            linked.push({ team, playerIds });
+        });
+        return { linked, missing, matched: linked.reduce((n, l) => n + l.playerIds.length, 0) };
+    })();
+
+    const canApplyToTeams =
+        isAdmin && divisionState === 'finished' && applyPlan.linked.length > 0 && applyPlan.matched > 0;
+
+    const handleApplyToTeams = async () => {
+        if (!canApplyToTeams || !currentUser || !seasonTournament || !selectedTournamentId) return;
+
+        const replacing = (seasonTournament.teams ?? [])
+            .filter(t => applyPlan.linked.some(l => l.team.sourceTeamId === t.id))
+            .reduce((n, t) => n + (t.members?.length ?? 0), 0);
+        // Writing membership discards whatever the Teams tab held, so say so.
+        const question = replacing > 0
+            ? translate('teamDivider.applyToTeams.confirmReplace', { count: applyPlan.matched, existing: replacing })
+            : translate('teamDivider.applyToTeams.confirm', { count: applyPlan.matched });
+        if (!window.confirm(question)) return;
+
+        setIsApplying(true);
+        try {
+            const teams: TournamentTeam[] = (seasonTournament.teams ?? []).map(team => {
+                const link = applyPlan.linked.find(l => l.team.sourceTeamId === team.id);
+                // A team the draw did not fill keeps the members it already had.
+                return link ? { ...team, members: link.playerIds.map(playerId => ({ playerId })) } : team;
+            });
+            await updateTournament(selectedTournamentId, { teams }, currentUser);
+            addToast('teamDivider.applyToTeams.done', 'success', { count: applyPlan.matched });
+            if (applyPlan.missing.length > 0) {
+                addToast('teamDivider.applyToTeams.someMissing', 'warning', {
+                    count: applyPlan.missing.length,
+                    names: applyPlan.missing.slice(0, 3).join(', '),
+                });
+            }
+        } catch (error) {
+            addToast('teamDivider.applyToTeams.error', 'error', { message: (error as Error).message });
+        } finally {
+            setIsApplying(false);
+        }
     };
 
     const handleSavePlayers = async () => {
@@ -555,12 +626,35 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                         {lastUpdateInfo && <p className="mt-0.5 text-xs text-textSecondary">{lastUpdateInfo}</p>}
                     </div>
                     {divisionState === 'finished' && dividedTeams.length > 0 && (
-                        <Button onClick={() => setDivisionState('idle')} variant="outline" size="sm">
-                            <ArrowPathIcon className="mr-2 h-4 w-4" />
-                            {translate('teamDivider.newDivisionButton')}
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* The draw is only a proposal until it is written to
+                                the squads. Admin only, and only when the boxes
+                                stand for real season teams. */}
+                            {canApplyToTeams && (
+                                <Button onClick={handleApplyToTeams} disabled={isApplying} size="sm">
+                                    {isApplying
+                                        ? <LoadingSpinner size="sm" />
+                                        : <><CheckCircleIcon className="mr-2 h-4 w-4" />{translate('teamDivider.applyToTeams.button')}</>}
+                                </Button>
+                            )}
+                            <Button onClick={() => setDivisionState('idle')} variant="outline" size="sm">
+                                <ArrowPathIcon className="mr-2 h-4 w-4" />
+                                {translate('teamDivider.newDivisionButton')}
+                            </Button>
+                        </div>
                     )}
                 </div>
+
+                {/* Say up front how many names could be linked, so an admin is
+                    not surprised by a partial result after clicking. */}
+                {canApplyToTeams && applyPlan.missing.length > 0 && (
+                    <p className="mb-3 rounded-lg bg-warning/15 px-3 py-2 text-sm text-textPrimary">
+                        {translate('teamDivider.applyToTeams.missingHint', {
+                            count: applyPlan.missing.length,
+                            names: applyPlan.missing.slice(0, 5).join(', '),
+                        })}
+                    </p>
+                )}
 
                 {dividedTeams.length > 0 ? (
                     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
