@@ -3,7 +3,7 @@ import { TournamentPlayer, PlayerSkills, Tournament, TournamentTeam } from '../t
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAppContext } from '../contexts/AppContext';
 import { Button } from '../components/shared/Button';
-import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, StarIcon, CalendarIcon } from '../components/icons';
+import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, StarIcon, CalendarIcon, UsersIcon } from '../components/icons';
 import {
     onAllPlayersUpdate,
     onTournamentUpdate,
@@ -14,6 +14,7 @@ import {
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { PlayerSkillChart } from '../components/Tournament/PlayerSkillChart';
 import { TeamCrest, teamLogoSrc } from '../components/TeamDivisionSpinner';
+import { ImportPlayersModal } from '../components/Tournament/ImportPlayersModal';
 import { fileToTeamLogo, TeamLogoError, LogoErrorCode, AVATAR_SIZE, MAX_AVATAR_BYTES } from '../utils/teamLogo';
 
 const AVATAR_ERROR_KEY: Record<LogoErrorCode, string> = {
@@ -70,6 +71,7 @@ export const PlayerInfoPage: React.FC<PlayerInfoPageProps> = ({ embedded = false
     const [isSaving, setIsSaving] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [isReadingAvatar, setIsReadingAvatar] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
 
     // Teams and fixtures come from the season document. A player card that shows
     // only ratings says nothing about the season the player is actually in.
@@ -338,6 +340,18 @@ export const PlayerInfoPage: React.FC<PlayerInfoPageProps> = ({ embedded = false
                                     >
                                         <PlusIcon className="mr-1.5 h-4 w-4" />
                                         {translate(isAdding ? 'common.button.cancel' : 'playerInfo.addPlayer')}
+                                    </Button>
+                                    {/* Most of a new season's squad already exists
+                                        in the previous one, photos and all. */}
+                                    <Button
+                                        onClick={() => setIsImportOpen(true)}
+                                        variant="outline"
+                                        size="sm"
+                                        fullWidth
+                                        className="mt-2"
+                                    >
+                                        <UsersIcon className="mr-1.5 h-4 w-4" />
+                                        {translate('playerInfo.import.button')}
                                     </Button>
                                     {isAdding && (
                                         <form onSubmit={handleAddPlayer} className="mt-3 space-y-2 rounded-lg bg-background p-3 dark:bg-slate-800/60">
@@ -700,6 +714,16 @@ export const PlayerInfoPage: React.FC<PlayerInfoPageProps> = ({ embedded = false
                     )}
                 </div>
             </div>
+
+            {isImportOpen && canManagePlayers && selectedTournamentId && (
+                <ImportPlayersModal
+                    isOpen={isImportOpen}
+                    onClose={() => setIsImportOpen(false)}
+                    targetTournamentId={selectedTournamentId}
+                    currentPlayers={allPlayers}
+                    tournaments={tournaments}
+                />
+            )}
         </div>
     );
 };

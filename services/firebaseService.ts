@@ -794,6 +794,20 @@ export const deletePlayer = async (tournamentId: string, playerId: string): Prom
 
 // Copies a squad into a season, preserving ids. Used to seed a new season from
 // a previous one and by the one-off migration off `globalPlayers`.
+/**
+ * A one-off read of another season's squad, for importing from it. The live
+ * listener is deliberately not reused: this is a snapshot to choose from, not
+ * something the page should keep watching.
+ */
+export const getPlayersOfTournament = async (
+  tournamentId: string
+): Promise<TournamentPlayer[]> => {
+    if (!db) throw new Error("Firestore not initialized.");
+    if (!tournamentId) return [];
+    const snapshot = await playersCollectionFor(tournamentId).orderBy('name', 'asc').get();
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as TournamentPlayer));
+};
+
 export const copyPlayersIntoTournament = async (
   tournamentId: string,
   players: TournamentPlayer[]
