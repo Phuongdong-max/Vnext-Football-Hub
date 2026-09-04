@@ -444,8 +444,11 @@ export const TeamDivisionSpinner: React.FC<TeamDivisionSpinnerProps> = ({ player
             let workingTeams = teamsRef.current;
             let fallbackCount = 0;
 
-            // Seed by seed, shuffled within each: see dealOrder.
-            dealOrder(unassignedPlayers).forEach(player => {
+            // Seed by seed when the placement is being worked out - see
+            // dealOrder. With a fixed line-up there is nothing to work out, so
+            // a plain shuffle keeps the order from being predictable.
+            const order = fixedSlots ? shuffled(unassignedPlayers) : dealOrder(unassignedPlayers);
+            order.forEach(player => {
                 const { team, usedFallback } = destinationFor(player, workingTeams);
                 if (usedFallback && player.seed !== 'GK') fallbackCount += 1;
                 workingTeams = assignToTeams(workingTeams, player, team.id);
