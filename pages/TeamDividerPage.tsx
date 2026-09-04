@@ -573,26 +573,24 @@ export const TeamDividerPage: React.FC<TeamDividerPageProps> = ({ embedded = fal
                             <UsersIcon className="mr-2 h-5 w-5" />
                             {isSaving ? translate('teamDivider.message.saving') : translate('teamDivider.divideButton')}
                         </Button>
-                        {/* Not a draw: this reproduces the line-up agreed on the
-                            admin page, so only an admin sees it, and only while
-                            that line-up is switched on. */}
-                        {canUseFixedTeams && (
-                            <Button
-                                onClick={handleDivideByFixed}
-                                disabled={isSaving || totalEntered === 0}
-                                variant="secondary"
-                                size="lg"
-                                className="h-[42px]"
-                            >
-                                <CheckCircleIcon className="mr-2 h-5 w-5" />
-                                {translate('teamDivider.fixed.applyButton')}
-                            </Button>
-                        )}
                     </div>
 
+                    {/* Not a draw: this reproduces the line-up agreed on the admin
+                        page, so only an admin sees it, and only while that line-up
+                        is switched on. Deliberately a quiet line of text rather
+                        than a fourth big button - it is a shortcut for whoever set
+                        the line-up, not one of the headline actions. */}
                     {canUseFixedTeams && (
                         <p className="mt-3 text-center text-xs text-textSecondary">
-                            {translate('teamDivider.fixed.status', { known: fixedCoverage.known, total: totalEntered })}
+                            <button
+                                type="button"
+                                onClick={handleDivideByFixed}
+                                disabled={isSaving || totalEntered === 0}
+                                className="inline-flex items-center gap-1 rounded underline decoration-dotted underline-offset-2 transition-colors hover:text-primary hover:decoration-solid focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+                            >
+                                <CheckCircleIcon className="h-3.5 w-3.5" />
+                                {translate('teamDivider.fixed.status', { known: fixedCoverage.known, total: totalEntered })}
+                            </button>
                         </p>
                     )}
 

@@ -568,7 +568,6 @@
   "admin.fixedTeams.duplicate": "Someone is in two teams: {{names}}",
   "admin.fixedTeams.hint": "{{total}} names entered, {{saved}} saved. Names are matched ignoring tone marks and case.",
   "admin.fixedTeams.useSuggested": "Fill in the 2026 line-up",
-  "teamDivider.fixed.applyButton": "Use the fixed teams",
-  "teamDivider.fixed.status": "Fixed line-up is on, matching {{known}}/{{total}} of the players entered.",
+  "teamDivider.fixed.status": "Fixed line-up is on, matching {{known}}/{{total}} players — click to use it",
   "teamDivider.fixed.someUnknown": "{{count}} players are not in the fixed line-up and were placed automatically: {{names}}…"
 }
